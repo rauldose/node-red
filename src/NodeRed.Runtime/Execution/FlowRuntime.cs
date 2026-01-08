@@ -3,7 +3,9 @@
 
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
+using NodeRed.Core.Events;
 using NodeRed.Core.Interfaces;
+using NodeRed.Runtime.Nodes.Common;
 
 namespace NodeRed.Runtime.Execution;
 
@@ -32,6 +34,21 @@ public class FlowRuntime : IFlowRuntime
     public FlowRuntime(INodeRegistry nodeRegistry)
     {
         _nodeRegistry = nodeRegistry;
+        
+        // Subscribe to DebugNode static events to forward them to the OnDebugMessage event
+        DebugNode.OnDebug += HandleDebugNodeEvent;
+    }
+
+    private void HandleDebugNodeEvent(DebugEvent evt)
+    {
+        OnDebugMessage?.Invoke(new DebugMessage
+        {
+            NodeId = evt.NodeId,
+            NodeName = evt.NodeName,
+            Data = evt.Data,
+            Timestamp = evt.Timestamp,
+            MessageId = evt.MessageId
+        });
     }
 
     /// <inheritdoc />

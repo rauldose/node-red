@@ -596,17 +596,25 @@ public partial class Editor : IDisposable
 
             if (nodeType == "inject" && node.ID != null)
             {
-                try
+                // Check if flows are running
+                if (FlowRuntime.State != FlowState.Running)
                 {
-                    await FlowRuntime.InjectAsync(node.ID);
                     var nodeName = node.Annotations?.FirstOrDefault()?.Content ?? node.ID;
                     DebugMessages.Add(new DebugMessage
                     {
                         NodeId = node.ID,
                         NodeName = nodeName ?? node.ID,
-                        Data = $"Injected at {DateTimeOffset.Now:HH:mm:ss}",
+                        Data = "Please deploy and start the flows first",
                         Timestamp = DateTimeOffset.Now
                     });
+                    StateHasChanged();
+                    return;
+                }
+
+                try
+                {
+                    await FlowRuntime.InjectAsync(node.ID);
+                    // Don't add message here - the debug node will show the output
                     StateHasChanged();
                 }
                 catch (Exception ex)
@@ -884,16 +892,24 @@ public partial class Editor : IDisposable
     {
         if (SelectedDiagramNode?.ID != null && GetSelectedNodeType() == "inject")
         {
-            try
+            // Check if flows are running
+            if (FlowRuntime.State != FlowState.Running)
             {
-                await FlowRuntime.InjectAsync(SelectedDiagramNode.ID);
                 DebugMessages.Add(new DebugMessage
                 {
                     NodeId = SelectedDiagramNode.ID,
                     NodeName = SelectedNodeName,
-                    Data = $"Injected at {DateTimeOffset.Now:HH:mm:ss}",
+                    Data = "Please deploy and start the flows first",
                     Timestamp = DateTimeOffset.Now
                 });
+                StateHasChanged();
+                return;
+            }
+
+            try
+            {
+                await FlowRuntime.InjectAsync(SelectedDiagramNode.ID);
+                // Don't add message here - the debug node will show the output
                 StateHasChanged();
             }
             catch (Exception ex)
