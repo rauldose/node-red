@@ -84,11 +84,36 @@ public class InMemoryFlowStorage : IFlowStorage
     /// <inheritdoc />
     public Task<Workspace> ImportAsync(string json)
     {
-        var workspace = JsonSerializer.Deserialize<Workspace>(json, JsonOptions);
-        if (workspace == null)
+        // Validate input size to prevent large payload attacks
+        const int maxJsonLength = 10 * 1024 * 1024; // 10 MB limit
+        if (string.IsNullOrWhiteSpace(json))
         {
-            throw new ArgumentException("Invalid workspace JSON", nameof(json));
+            throw new ArgumentException("JSON cannot be empty", nameof(json));
         }
-        return Task.FromResult(workspace);
+        if (json.Length > maxJsonLength)
+        {
+            throw new ArgumentException($"JSON exceeds maximum allowed size of {maxJsonLength} bytes", nameof(json));
+        }
+
+        try
+        {
+            var workspace = JsonSerializer.Deserialize<Workspace>(json, JsonOptions);
+            if (workspace == null)
+            {
+                throw new ArgumentException("Invalid workspace JSON: deserialization returned null", nameof(json));
+            }
+            
+            // Basic validation of required fields
+            if (string.IsNullOrEmpty(workspace.Id))
+            {
+                workspace.Id = Guid.NewGuid().ToString();
+            }
+            
+            return Task.FromResult(workspace);
+        }
+        catch (JsonException ex)
+        {
+            throw new ArgumentException($"Invalid workspace JSON: {ex.Message}", nameof(json), ex);
+        }
     }
 }

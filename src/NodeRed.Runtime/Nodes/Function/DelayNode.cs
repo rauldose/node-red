@@ -110,8 +110,7 @@ public class DelayNode : NodeBase
         if (!double.TryParse(first, out var minValue)) minValue = 1;
         if (!double.TryParse(last, out var maxValue)) maxValue = 5;
 
-        var random = new Random();
-        var delaySeconds = minValue + (random.NextDouble() * (maxValue - minValue));
+        var delaySeconds = minValue + (Random.Shared.NextDouble() * (maxValue - minValue));
         var delay = ParseDuration(delaySeconds.ToString(), units);
 
         _ = Task.Delay(delay).ContinueWith(_ =>
