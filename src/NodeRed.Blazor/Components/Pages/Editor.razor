@@ -27,23 +27,144 @@
         
         <ul class="red-ui-header-toolbar">
             <li class="red-ui-deploy-button-group">
-                <a id="red-ui-header-button-deploy" class="red-ui-deploy-button" @onclick="OnDeployClick">
+                <a id="red-ui-header-button-deploy" class="red-ui-deploy-button @(HasUnsavedChanges ? "" : "disabled")" @onclick="OnDeployClick">
                     <span class="red-ui-deploy-button-content">
                         <i class="fa fa-download"></i>
                         <span>Deploy</span>
                     </span>
                 </a>
-                <a class="red-ui-deploy-button red-ui-deploy-button-options">
+                <a class="red-ui-deploy-button red-ui-deploy-button-options" @onclick="ToggleDeployMenu">
                     <i class="fa fa-caret-down"></i>
                 </a>
+                @if (IsDeployMenuOpen)
+                {
+                    <div class="red-ui-menu red-ui-deploy-menu">
+                        <a class="red-ui-menu-item @(DeployMode == "full" ? "active" : "")" @onclick="@(() => SetDeployMode("full"))">
+                            <i class="fa fa-check"></i> Full
+                            <span class="red-ui-menu-item-desc">deploy everything in the workspace</span>
+                        </a>
+                        <a class="red-ui-menu-item @(DeployMode == "flows" ? "active" : "")" @onclick="@(() => SetDeployMode("flows"))">
+                            <i class="fa fa-check"></i> Modified Flows
+                            <span class="red-ui-menu-item-desc">only deploy flows that contain changed nodes</span>
+                        </a>
+                        <a class="red-ui-menu-item @(DeployMode == "nodes" ? "active" : "")" @onclick="@(() => SetDeployMode("nodes"))">
+                            <i class="fa fa-check"></i> Modified Nodes
+                            <span class="red-ui-menu-item-desc">only deploy nodes that have changed</span>
+                        </a>
+                    </div>
+                }
             </li>
             <li>
-                <a class="red-ui-header-button" href="#">
+                <a class="red-ui-header-button" @onclick="ToggleMainMenu" title="Menu">
                     <i class="fa fa-bars"></i>
                 </a>
+                @if (IsMainMenuOpen)
+                {
+                    <div class="red-ui-menu red-ui-main-menu">
+                        <a class="red-ui-menu-item" @onclick="OnImportClick">
+                            <i class="fa fa-clipboard"></i> Import
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnExportClick">
+                            <i class="fa fa-share-square-o"></i> Export
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
+                        <a class="red-ui-menu-item" @onclick="OnSearchClick">
+                            <i class="fa fa-search"></i> Search flows <span class="red-ui-menu-shortcut">Ctrl+.</span>
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
+                        <a class="red-ui-menu-item" @onclick="OnConfigNodesClick">
+                            <i class="fa fa-cube"></i> Configuration nodes
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnFlowsClick">
+                            <i class="fa fa-sitemap"></i> Flows
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnSubflowsClick">
+                            <i class="fa fa-th-large"></i> Subflows
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnGroupsClick">
+                            <i class="fa fa-object-group"></i> Groups
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
+                        <a class="red-ui-menu-item" @onclick="OnManagePaletteClick">
+                            <i class="fa fa-cubes"></i> Manage palette
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnSettingsClick">
+                            <i class="fa fa-cog"></i> Settings
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnKeyboardShortcutsClick">
+                            <i class="fa fa-keyboard-o"></i> Keyboard shortcuts
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
+                        @if (FlowRuntime.State == FlowState.Running)
+                        {
+                            <a class="red-ui-menu-item" @onclick="OnStopClick">
+                                <i class="fa fa-stop"></i> Stop flows
+                            </a>
+                            <a class="red-ui-menu-item" @onclick="OnRestartClick">
+                                <i class="fa fa-refresh"></i> Restart flows
+                            </a>
+                        }
+                        else
+                        {
+                            <a class="red-ui-menu-item" @onclick="OnStartClick">
+                                <i class="fa fa-play"></i> Start flows
+                            </a>
+                        }
+                    </div>
+                }
             </li>
         </ul>
     </div>
+
+    <!-- Import Dialog -->
+    @if (IsImportDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseImportDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Import nodes</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseImportDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <p>Paste your flow JSON below:</p>
+                    <textarea @bind="ImportJson" rows="15" class="red-ui-dialog-textarea"></textarea>
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseImportDialog">Cancel</button>
+                    <button class="red-ui-button red-ui-button-primary" @onclick="ConfirmImport">Import</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Export Dialog -->
+    @if (IsExportDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseExportDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Export nodes to clipboard</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseExportDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <div class="red-ui-dialog-tabs">
+                        <a class="@(ExportFormat == "pretty" ? "active" : "")" @onclick="@(() => SetExportFormat("pretty"))">formatted</a>
+                        <a class="@(ExportFormat == "minified" ? "active" : "")" @onclick="@(() => SetExportFormat("minified"))">minified</a>
+                    </div>
+                    <textarea readonly value="@ExportJson" rows="15" class="red-ui-dialog-textarea"></textarea>
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseExportDialog">Close</button>
+                    <button class="red-ui-button red-ui-button-primary" @onclick="CopyExportToClipboard">
+                        <i class="fa fa-clipboard"></i> Copy to clipboard
+                    </button>
+                    <button class="red-ui-button" @onclick="DownloadExport">
+                        <i class="fa fa-download"></i> Download
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 
     <!-- Main Container -->
     <div id="red-ui-main-container">
@@ -1211,5 +1332,200 @@
 
     .e-dialog .e-footer-content .e-primary:hover {
         background: #8C101C;
+    }
+
+    /* ========== DROPDOWN MENUS ========== */
+    .red-ui-menu {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        min-width: 200px;
+        z-index: 1000;
+        padding: 5px 0;
+    }
+
+    .red-ui-deploy-menu {
+        right: 0;
+        min-width: 300px;
+    }
+
+    .red-ui-main-menu {
+        right: 0;
+        min-width: 250px;
+    }
+
+    .red-ui-menu-item {
+        display: block;
+        padding: 8px 15px 8px 30px;
+        color: #444;
+        text-decoration: none;
+        position: relative;
+        cursor: pointer;
+    }
+
+    .red-ui-menu-item:hover {
+        background: #f0f0f0;
+    }
+
+    .red-ui-menu-item i {
+        position: absolute;
+        left: 10px;
+        width: 16px;
+        text-align: center;
+    }
+
+    .red-ui-menu-item.active i.fa-check {
+        visibility: visible;
+    }
+
+    .red-ui-menu-item:not(.active) i.fa-check {
+        visibility: hidden;
+    }
+
+    .red-ui-menu-item-desc {
+        display: block;
+        font-size: 11px;
+        color: #888;
+        margin-top: 2px;
+        padding-left: 0;
+    }
+
+    .red-ui-menu-shortcut {
+        float: right;
+        color: #888;
+        font-size: 11px;
+    }
+
+    .red-ui-menu-divider {
+        height: 1px;
+        background: #ddd;
+        margin: 5px 0;
+    }
+
+    .red-ui-deploy-button.disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+
+    /* ========== DIALOGS ========== */
+    .red-ui-dialog-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+    }
+
+    .red-ui-dialog {
+        background: #fff;
+        border-radius: 4px;
+        box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+        min-width: 500px;
+        max-width: 80%;
+        max-height: 80%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .red-ui-dialog-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        background: #8C101C;
+        color: #fff;
+        border-radius: 4px 4px 0 0;
+        font-weight: 500;
+    }
+
+    .red-ui-dialog-close {
+        color: #fff;
+        opacity: 0.7;
+        cursor: pointer;
+    }
+
+    .red-ui-dialog-close:hover {
+        opacity: 1;
+    }
+
+    .red-ui-dialog-body {
+        padding: 15px;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .red-ui-dialog-body p {
+        margin: 0 0 10px;
+        color: #666;
+    }
+
+    .red-ui-dialog-textarea {
+        width: 100%;
+        font-family: Menlo, Consolas, monospace;
+        font-size: 12px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        resize: vertical;
+    }
+
+    .red-ui-dialog-tabs {
+        display: flex;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .red-ui-dialog-tabs a {
+        padding: 8px 15px;
+        color: #666;
+        text-decoration: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+    }
+
+    .red-ui-dialog-tabs a.active {
+        color: #444;
+        border-bottom-color: #8C101C;
+    }
+
+    .red-ui-dialog-tabs a:hover:not(.active) {
+        color: #444;
+    }
+
+    .red-ui-dialog-footer {
+        padding: 10px 15px;
+        background: #f7f7f7;
+        border-top: 1px solid #ddd;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        border-radius: 0 0 4px 4px;
+    }
+
+    /* ========== STATUS INDICATOR ========== */
+    .red-ui-status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 0 15px;
+        color: #888;
+        font-size: 12px;
+    }
+
+    .red-ui-status-indicator.running {
+        color: #5a8;
+    }
+
+    .red-ui-status-indicator.stopped {
+        color: #a55;
     }
 </style>

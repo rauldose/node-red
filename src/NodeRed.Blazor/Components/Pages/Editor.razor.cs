@@ -3,6 +3,7 @@
 
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.Core.Interfaces;
@@ -39,6 +40,19 @@ public partial class Editor : IDisposable
     private string SelectedNodeName = "";
     private int SelectedSidebarTab = 0;
     private bool IsPropertyTrayOpen = false;
+
+    // Menu state
+    private bool IsMainMenuOpen = false;
+    private bool IsDeployMenuOpen = false;
+    private string DeployMode = "full";
+    private bool HasUnsavedChanges = true;
+
+    // Import/Export dialogs
+    private bool IsImportDialogOpen = false;
+    private bool IsExportDialogOpen = false;
+    private string ImportJson = "";
+    private string ExportJson = "";
+    private string ExportFormat = "pretty";
 
     // Debug messages
     private List<DebugMessage> DebugMessages = new();
@@ -915,15 +929,413 @@ public partial class Editor : IDisposable
 
     private async Task OnDeployClick()
     {
+        IsDeployMenuOpen = false;
+        IsMainMenuOpen = false;
+        
+        // Build workspace from diagram
+        BuildWorkspaceFromDiagram();
+        
         await FlowStorage.SaveAsync(CurrentWorkspace);
-        await FlowRuntime.DeployAsync(CurrentWorkspace);
+        
+        var deployType = DeployMode switch
+        {
+            "flows" => DeployType.Flows,
+            "nodes" => DeployType.Nodes,
+            _ => DeployType.Full
+        };
+        
+        await FlowRuntime.DeployAsync(CurrentWorkspace, deployType);
 
         if (FlowRuntime.State != FlowState.Running)
         {
             await FlowRuntime.StartAsync();
         }
 
+        HasUnsavedChanges = false;
         StateHasChanged();
+    }
+
+    // Menu toggle handlers
+    private void ToggleMainMenu()
+    {
+        IsMainMenuOpen = !IsMainMenuOpen;
+        IsDeployMenuOpen = false;
+    }
+
+    private void ToggleDeployMenu()
+    {
+        IsDeployMenuOpen = !IsDeployMenuOpen;
+        IsMainMenuOpen = false;
+    }
+
+    private void SetDeployMode(string mode)
+    {
+        DeployMode = mode;
+        IsDeployMenuOpen = false;
+    }
+
+    // Menu action handlers
+    private void OnImportClick()
+    {
+        IsMainMenuOpen = false;
+        ImportJson = "";
+        IsImportDialogOpen = true;
+    }
+
+    private async Task OnExportClick()
+    {
+        IsMainMenuOpen = false;
+        BuildWorkspaceFromDiagram();
+        
+        try
+        {
+            ExportJson = await FlowStorage.ExportAsync(CurrentWorkspace);
+            if (ExportFormat == "minified")
+            {
+                // Minify JSON
+                var obj = System.Text.Json.JsonSerializer.Deserialize<object>(ExportJson);
+                ExportJson = System.Text.Json.JsonSerializer.Serialize(obj);
+            }
+        }
+        catch
+        {
+            ExportJson = "{}";
+        }
+        
+        IsExportDialogOpen = true;
+    }
+
+    private void CloseImportDialog()
+    {
+        IsImportDialogOpen = false;
+        ImportJson = "";
+    }
+
+    private async Task ConfirmImport()
+    {
+        if (!string.IsNullOrWhiteSpace(ImportJson))
+        {
+            try
+            {
+                var importedWorkspace = await FlowStorage.ImportAsync(ImportJson);
+                
+                // Add imported flows to current workspace
+                foreach (var flow in importedWorkspace.Flows)
+                {
+                    CurrentWorkspace.Flows.Add(flow);
+                }
+                
+                // Rebuild diagram from imported data
+                // For now, just add a debug message
+                DebugMessages.Add(new DebugMessage
+                {
+                    NodeId = "system",
+                    NodeName = "System",
+                    Data = $"Imported {importedWorkspace.Flows.Count} flow(s)",
+                    Timestamp = DateTimeOffset.Now
+                });
+                
+                HasUnsavedChanges = true;
+            }
+            catch (Exception ex)
+            {
+                DebugMessages.Add(new DebugMessage
+                {
+                    NodeId = "system",
+                    NodeName = "System",
+                    Data = $"Import error: {ex.Message}",
+                    Timestamp = DateTimeOffset.Now
+                });
+            }
+        }
+        
+        IsImportDialogOpen = false;
+        ImportJson = "";
+    }
+
+    private void CloseExportDialog()
+    {
+        IsExportDialogOpen = false;
+        ExportJson = "";
+    }
+
+    private async Task CopyExportToClipboard()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", ExportJson);
+            DebugMessages.Add(new DebugMessage
+            {
+                NodeId = "system",
+                NodeName = "System",
+                Data = "Copied to clipboard",
+                Timestamp = DateTimeOffset.Now
+            });
+        }
+        catch
+        {
+            // Clipboard API not available
+        }
+    }
+
+    private async Task DownloadExport()
+    {
+        try
+        {
+            var fileName = $"flows_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(ExportJson);
+            var base64 = Convert.ToBase64String(bytes);
+            
+            await JSRuntime.InvokeVoidAsync("eval", 
+                $"(function() {{ var a = document.createElement('a'); a.href = 'data:application/json;base64,{base64}'; a.download = '{fileName}'; a.click(); }})()");
+        }
+        catch
+        {
+            // Download failed
+        }
+    }
+
+    private void OnSearchClick()
+    {
+        IsMainMenuOpen = false;
+        // TODO: Implement search flows dialog
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Search flows feature coming soon",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+
+    private void OnConfigNodesClick()
+    {
+        IsMainMenuOpen = false;
+        // TODO: Implement configuration nodes panel
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Configuration nodes feature coming soon",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+
+    private void OnFlowsClick()
+    {
+        IsMainMenuOpen = false;
+        // TODO: Implement flows management panel
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Flows management feature coming soon",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+
+    private void OnSubflowsClick()
+    {
+        IsMainMenuOpen = false;
+        // TODO: Implement subflows panel
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Subflows feature coming soon",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+
+    private void OnGroupsClick()
+    {
+        IsMainMenuOpen = false;
+        // TODO: Implement groups panel
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Groups feature coming soon",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+
+    private void OnManagePaletteClick()
+    {
+        IsMainMenuOpen = false;
+        // TODO: Implement palette management
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Manage palette feature coming soon",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+
+    private void OnSettingsClick()
+    {
+        IsMainMenuOpen = false;
+        // TODO: Implement settings dialog
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Settings feature coming soon",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+
+    private void OnKeyboardShortcutsClick()
+    {
+        IsMainMenuOpen = false;
+        // TODO: Implement keyboard shortcuts panel
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Keyboard shortcuts feature coming soon",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+
+    private async Task OnStartClick()
+    {
+        IsMainMenuOpen = false;
+        BuildWorkspaceFromDiagram();
+        await FlowRuntime.LoadAsync(CurrentWorkspace);
+        await FlowRuntime.StartAsync();
+        
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Flows started",
+            Timestamp = DateTimeOffset.Now
+        });
+        
+        StateHasChanged();
+    }
+
+    private async Task OnStopClick()
+    {
+        IsMainMenuOpen = false;
+        await FlowRuntime.StopAsync();
+        
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Flows stopped",
+            Timestamp = DateTimeOffset.Now
+        });
+        
+        StateHasChanged();
+    }
+
+    private async Task OnRestartClick()
+    {
+        IsMainMenuOpen = false;
+        await FlowRuntime.RestartAsync();
+        
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Flows restarted",
+            Timestamp = DateTimeOffset.Now
+        });
+        
+        StateHasChanged();
+    }
+
+    private void SetExportFormat(string format)
+    {
+        ExportFormat = format;
+    }
+
+    private void BuildWorkspaceFromDiagram()
+    {
+        // Build workspace from current diagram state
+        CurrentWorkspace = new Workspace
+        {
+            Id = CurrentFlowId,
+            Name = "My Workspace",
+            Flows = new List<Flow>()
+        };
+
+        // Create a flow from the current diagram nodes
+        var flow = new Flow
+        {
+            Id = CurrentFlowId,
+            Label = Flows.FirstOrDefault(f => f.Id == CurrentFlowId)?.Label ?? "Flow 1",
+            Nodes = new List<FlowNode>()
+        };
+
+        // Build a map of node IDs for wire lookups
+        var nodeIdMap = new Dictionary<string, FlowNode>();
+
+        // Add nodes from diagram
+        if (DiagramNodes != null)
+        {
+            foreach (var node in DiagramNodes)
+            {
+                var nodeType = node.AdditionalInfo?.TryGetValue("nodeType", out var typeObj) == true
+                    ? typeObj as string ?? "unknown"
+                    : "unknown";
+
+                var flowNode = new FlowNode
+                {
+                    Id = node.ID ?? "",
+                    Type = nodeType,
+                    Name = node.Annotations?.FirstOrDefault()?.Content ?? "",
+                    X = node.OffsetX,
+                    Y = node.OffsetY,
+                    FlowId = CurrentFlowId,
+                    Wires = new List<List<string>>()
+                };
+
+                // Copy config from AdditionalInfo (excluding meta fields)
+                if (node.AdditionalInfo != null)
+                {
+                    foreach (var kvp in node.AdditionalInfo)
+                    {
+                        if (kvp.Key != "nodeType" && kvp.Key != "color" && kvp.Key != "iconClass" && 
+                            kvp.Key != "hasInput" && kvp.Key != "hasOutput")
+                        {
+                            flowNode.Config[kvp.Key] = kvp.Value;
+                        }
+                    }
+                }
+
+                flow.Nodes.Add(flowNode);
+                nodeIdMap[flowNode.Id] = flowNode;
+            }
+        }
+
+        // Add wires from connectors - wires are stored in the source node
+        if (DiagramConnectors != null)
+        {
+            foreach (var connector in DiagramConnectors)
+            {
+                if (!string.IsNullOrEmpty(connector.SourceID) && !string.IsNullOrEmpty(connector.TargetID))
+                {
+                    if (nodeIdMap.TryGetValue(connector.SourceID, out var sourceNode))
+                    {
+                        // Ensure we have at least one output wire array
+                        if (sourceNode.Wires.Count == 0)
+                        {
+                            sourceNode.Wires.Add(new List<string>());
+                        }
+                        
+                        // Add target node to the first output (port 0)
+                        sourceNode.Wires[0].Add(connector.TargetID);
+                    }
+                }
+            }
+        }
+
+        CurrentWorkspace.Flows.Add(flow);
     }
 
     private void OnDebugMessage(DebugMessage message)
