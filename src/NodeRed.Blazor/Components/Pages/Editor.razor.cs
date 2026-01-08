@@ -86,6 +86,10 @@ public partial class Editor : IDisposable
     private int NodeCount = 0;
     private int ConnectorCount = 0;
     
+    // Default node constraints: disable resize and rotate for Node-RED style nodes
+    private static readonly NodeConstraints DefaultNodeConstraints = 
+        NodeConstraints.Default & ~NodeConstraints.Resize & ~NodeConstraints.Rotate;
+    
     // Application state
     private Workspace CurrentWorkspace = new();
 
@@ -153,7 +157,7 @@ public partial class Editor : IDisposable
         {
             info.Description = new SymbolDescription
             {
-                Text = typeObj as string ?? node.ID,
+                Text = typeObj as string ?? node.ID ?? "Unknown",
                 Style = new TextStyle { FontSize = 12, Color = "#333" }
             };
         }
@@ -189,33 +193,37 @@ public partial class Editor : IDisposable
     private void CreatePaletteNode(DiagramObjectCollection<NodeBase> collection, string id, string nodeType, string color, string icon)
     {
         // Create ports for palette node - these will be cloned when dragged
-        // Enable PortConstraints.Draw so clicking a port starts drawing a connector
+        // port1 = input port (left side) - accepts incoming connections
+        // port2 = output port (right side) - can draw outgoing connections
         var palettePorts = new DiagramObjectCollection<PointPort>();
+        
+        // Input port (left side) - only accepts incoming connections, cannot draw from here
         palettePorts.Add(new PointPort()
         {
             ID = "port1",
             Shape = PortShapes.Circle,
             Offset = new DiagramPoint() { X = 0, Y = 0.5 },
-            Visibility = PortVisibility.Hover,
+            Visibility = PortVisibility.Visible,
             Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" },
             Width = 8,
             Height = 8,
-            Constraints = PortConstraints.Default | PortConstraints.Draw
+            // Input port: allow incoming connections but not drawing from it
+            Constraints = PortConstraints.Default & ~PortConstraints.Draw
         });
+        
+        // Output port (right side) - can draw connections from here
         palettePorts.Add(new PointPort()
         {
             ID = "port2",
             Shape = PortShapes.Circle,
             Offset = new DiagramPoint() { X = 1, Y = 0.5 },
-            Visibility = PortVisibility.Hover,
+            Visibility = PortVisibility.Visible,
             Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" },
             Width = 8,
             Height = 8,
+            // Output port: allow drawing connections from it
             Constraints = PortConstraints.Default | PortConstraints.Draw
         });
-        
-        // Node constraints: disable resize and rotate
-        var nodeConstraints = NodeConstraints.Default & ~NodeConstraints.Resize & ~NodeConstraints.Rotate;
         
         var node = new Node()
         {
@@ -225,7 +233,7 @@ public partial class Editor : IDisposable
             Style = new ShapeStyle { Fill = color, StrokeColor = "#666666", StrokeWidth = 1 },
             Shape = new BasicShape() { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
             Ports = palettePorts,
-            Constraints = nodeConstraints,
+            Constraints = DefaultNodeConstraints,
             Annotations = new DiagramObjectCollection<ShapeAnnotation>
             {
                 new ShapeAnnotation
@@ -255,9 +263,6 @@ public partial class Editor : IDisposable
 
     private void CreateNode(string id, double x, double y, string nodeType, string label, string color)
     {
-        // Node constraints: disable resize and rotate
-        var nodeConstraints = NodeConstraints.Default & ~NodeConstraints.Resize & ~NodeConstraints.Rotate;
-        
         var node = new Node()
         {
             ID = id,
@@ -268,7 +273,7 @@ public partial class Editor : IDisposable
             Ports = CreatePorts(),
             Style = new ShapeStyle { Fill = color, StrokeColor = "#666666", StrokeWidth = 1 },
             Shape = new BasicShape() { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
-            Constraints = nodeConstraints,
+            Constraints = DefaultNodeConstraints,
             Annotations = new DiagramObjectCollection<ShapeAnnotation>
             {
                 new ShapeAnnotation
@@ -287,6 +292,7 @@ public partial class Editor : IDisposable
     {
         var ports = new DiagramObjectCollection<PointPort>();
         // Input port (left side)
+        // Input port (left side) - accepts incoming connections, cannot draw from here
         ports.Add(new PointPort()
         {
             ID = "port1",
@@ -296,9 +302,9 @@ public partial class Editor : IDisposable
             Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" },
             Width = 10,
             Height = 10,
-            Constraints = PortConstraints.Default | PortConstraints.Draw
+            Constraints = PortConstraints.Default & ~PortConstraints.Draw
         });
-        // Output port (right side)
+        // Output port (right side) - can draw connections from here
         ports.Add(new PointPort()
         {
             ID = "port2",
@@ -436,15 +442,26 @@ public partial class Editor : IDisposable
             node.Style.StrokeWidth = 1;
             node.Style.StrokeColor = "#666666";
             
-            // Disable resize and rotate for all nodes
-            node.Constraints = NodeConstraints.Default & ~NodeConstraints.Resize & ~NodeConstraints.Rotate;
+            // Apply default node constraints (no resize/rotate)
+            node.Constraints = DefaultNodeConstraints;
             
-            // Enable drawing connectors from ports
+            // Configure port constraints for Node-RED style connections
+            // port1 (input) = can receive connections, cannot draw
+            // port2 (output) = can draw connections
             if (node.Ports != null)
             {
                 foreach (var port in node.Ports)
                 {
-                    port.Constraints = PortConstraints.Default | PortConstraints.Draw;
+                    if (port.ID == "port1")
+                    {
+                        // Input port: accept connections but cannot draw from it
+                        port.Constraints = PortConstraints.Default & ~PortConstraints.Draw;
+                    }
+                    else if (port.ID == "port2")
+                    {
+                        // Output port: can draw connections from it
+                        port.Constraints = PortConstraints.Default | PortConstraints.Draw;
+                    }
                 }
             }
         }
@@ -461,6 +478,65 @@ public partial class Editor : IDisposable
             connector.TargetDecorator.Style ??= new ShapeStyle();
             connector.TargetDecorator.Style.Fill = "#888";
             connector.TargetDecorator.Style.StrokeColor = "#888";
+            
+            // Set default connector type to Bezier for Node-RED style
+            connector.Type = ConnectorSegmentType.Bezier;
+        }
+    }
+    
+    /// <summary>
+    /// Validates connections to ensure they follow Node-RED rules:
+    /// - Connections must go from output port (port2) to input port (port1)
+    /// - Cannot connect a node to itself
+    /// - Must connect to a port, not directly to a node
+    /// </summary>
+    private void OnConnectionChanging(ConnectionChangingEventArgs args)
+    {
+        // Get connector being modified
+        var connector = args.Connector;
+        if (connector == null) return;
+        
+        // Prevent connecting a node to itself
+        if (!string.IsNullOrEmpty(connector.SourceID) && 
+            !string.IsNullOrEmpty(connector.TargetID) && 
+            connector.SourceID == connector.TargetID)
+        {
+            args.Cancel = true;
+            return;
+        }
+        
+        // After connection is made, validate port directions
+        // Source should be from output port (port2), Target should be to input port (port1)
+        string? sourcePortId = connector.SourcePortID;
+        string? targetPortId = connector.TargetPortID;
+        
+        // Check new connection values if available
+        if (args.NewValue != null)
+        {
+            // Update source/target port based on what's changing
+            sourcePortId = args.NewValue.SourcePortID ?? sourcePortId;
+            targetPortId = args.NewValue.TargetPortID ?? targetPortId;
+            
+            // Check for self-connection
+            var newSourceId = args.NewValue.SourceID ?? connector.SourceID;
+            var newTargetId = args.NewValue.TargetID ?? connector.TargetID;
+            if (!string.IsNullOrEmpty(newSourceId) && newSourceId == newTargetId)
+            {
+                args.Cancel = true;
+                return;
+            }
+        }
+        
+        // If both ports are set, validate the connection direction
+        if (!string.IsNullOrEmpty(sourcePortId) && !string.IsNullOrEmpty(targetPortId))
+        {
+            // Valid: port2 (output) -> port1 (input)
+            // Invalid: port1 -> port1, port2 -> port2, port1 -> port2
+            if (sourcePortId == "port1" || targetPortId == "port2")
+            {
+                args.Cancel = true;
+                return;
+            }
         }
     }
 
