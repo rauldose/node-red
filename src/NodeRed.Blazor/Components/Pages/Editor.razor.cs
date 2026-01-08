@@ -105,7 +105,12 @@ public partial class Editor : IDisposable
 
     protected override void OnInitialized()
     {
-        GridLineIntervals = new double[] { 20 };
+        // GridLineIntervals: alternating pattern of line thickness and gap
+        // Format: [lineWidth, gap, lineWidth, gap, ...]
+        GridLineIntervals = new double[] { 
+            1, 9, 0.25, 9.75, 0.25, 9.75, 0.25, 9.75, 0.25, 9.75, 
+            0.25, 9.75, 0.25, 9.75, 0.25, 9.75, 0.25, 9.75, 0.25, 9.75 
+        };
 
         // Initialize flows
         Flows.Add(new FlowTab { Id = "flow1", Label = "Flow 1" });
