@@ -26,6 +26,17 @@ public partial class Editor : IDisposable
     private DiagramObjectCollection<Node>? DiagramNodes { get; set; } = new DiagramObjectCollection<Node>();
     private DiagramObjectCollection<Connector>? DiagramConnectors { get; set; } = new DiagramObjectCollection<Connector>();
 
+    // Drawing object for connector creation from ports
+    private IDiagramObject DrawingConnector { get; set; } = new Connector()
+    {
+        ID = "drawing_connector",
+        Type = ConnectorSegmentType.Orthogonal,
+        Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
+        TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
+        SourcePoint = new DiagramPoint() { X = 0, Y = 0 },
+        TargetPoint = new DiagramPoint() { X = 100, Y = 0 }
+    };
+
     // Grid line intervals
     public double[]? GridLineIntervals { get; set; }
 
