@@ -125,17 +125,13 @@
                                     Created="OnCreated"
                                     SelectionChanged="@OnSelectionChanged"
                                     ConnectionChanging="@OnConnectionChanging"
-                                    SourcePointChanging="@OnSourcePointChanging"
-                                    TargetPointChanging="@OnTargetPointChanging"
                                     Click="@OnDiagramClick"
                                     Height="100%"
                                     Width="100%"
                                     Nodes="@DiagramNodes"
                                     NodeCreating="OnNodeCreating"
                                     ConnectorCreating="OnConnectorCreating"
-                                    SelectionSettings="@SelectionSettings"
-                                    DrawingObject="@DrawingConnector"
-                                    InteractionController="@DiagramInteractions.Default">
+                                    SelectionSettings="@SelectionSettings">
                     <SnapSettings Constraints="SnapConstraints.ShowLines">
                         <HorizontalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></HorizontalGridLines>
                         <VerticalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></VerticalGridLines>

@@ -26,17 +26,6 @@ public partial class Editor : IDisposable
     private DiagramObjectCollection<Node>? DiagramNodes { get; set; } = new DiagramObjectCollection<Node>();
     private DiagramObjectCollection<Connector>? DiagramConnectors { get; set; } = new DiagramObjectCollection<Connector>();
 
-    // Drawing object for connector creation from ports
-    private IDiagramObject DrawingConnector { get; set; } = new Connector()
-    {
-        ID = "drawing_connector",
-        Type = ConnectorSegmentType.Orthogonal,
-        Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
-        TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
-        SourcePoint = new DiagramPoint() { X = 0, Y = 0 },
-        TargetPoint = new DiagramPoint() { X = 100, Y = 0 }
-    };
-
     // Grid line intervals
     public double[]? GridLineIntervals { get; set; }
 
@@ -384,7 +373,8 @@ public partial class Editor : IDisposable
 
         if (hasInput)
         {
-            // Input port - only accepts incoming connections (InConnect)
+            // Input port - only accepts incoming connections
+            // Uses Default constraints which allow connections to dock
             ports.Add(new PointPort()
             {
                 ID = "port1",
@@ -394,13 +384,15 @@ public partial class Editor : IDisposable
                 Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
                 Width = 10,
                 Height = 10,
-                Constraints = PortConstraints.InConnect
+                // Default allows the port to be a valid connection target
+                Constraints = PortConstraints.Default
             });
         }
 
         if (hasOutput)
         {
-            // Output port - can draw connectors and allows outgoing connections
+            // Output port - can draw connectors from this port
+            // Uses Default + Draw to enable drawing connections from this port
             ports.Add(new PointPort()
             {
                 ID = "port2",
@@ -410,7 +402,8 @@ public partial class Editor : IDisposable
                 Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
                 Width = 10,
                 Height = 10,
-                Constraints = PortConstraints.Draw | PortConstraints.OutConnect
+                // Default + Draw enables drawing connectors from this port
+                Constraints = PortConstraints.Default | PortConstraints.Draw
             });
         }
 
@@ -562,6 +555,7 @@ public partial class Editor : IDisposable
         var connector = args.Connector;
         if (connector == null) return;
 
+        // Prevent self-connections
         if (!string.IsNullOrEmpty(connector.SourceID) &&
             !string.IsNullOrEmpty(connector.TargetID) &&
             connector.SourceID == connector.TargetID)
@@ -570,14 +564,9 @@ public partial class Editor : IDisposable
             return;
         }
 
-        string? sourcePortId = connector.SourcePortID;
-        string? targetPortId = connector.TargetPortID;
-
+        // Check for self-connection in new value
         if (args.NewValue != null)
         {
-            sourcePortId = args.NewValue.SourcePortID ?? sourcePortId;
-            targetPortId = args.NewValue.TargetPortID ?? targetPortId;
-
             var newSourceId = args.NewValue.SourceID ?? connector.SourceID;
             var newTargetId = args.NewValue.TargetID ?? connector.TargetID;
             if (!string.IsNullOrEmpty(newSourceId) && newSourceId == newTargetId)
@@ -585,34 +574,6 @@ public partial class Editor : IDisposable
                 args.Cancel = true;
                 return;
             }
-        }
-
-        if (!string.IsNullOrEmpty(sourcePortId) && !string.IsNullOrEmpty(targetPortId))
-        {
-            if (sourcePortId == "port1" || targetPortId == "port2")
-            {
-                args.Cancel = true;
-            }
-        }
-    }
-
-    private void OnSourcePointChanging(EndPointChangingEventArgs args)
-    {
-        // Ensure source point is always valid
-        var connector = args.Connector;
-        if (connector != null && connector.SourcePoint == null)
-        {
-            connector.SourcePoint = new DiagramPoint() { X = 0, Y = 0 };
-        }
-    }
-
-    private void OnTargetPointChanging(EndPointChangingEventArgs args)
-    {
-        // Ensure target point is always valid
-        var connector = args.Connector;
-        if (connector != null && connector.TargetPoint == null)
-        {
-            connector.TargetPoint = new DiagramPoint() { X = 100, Y = 0 };
         }
     }
 
