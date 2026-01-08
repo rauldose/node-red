@@ -1,6 +1,8 @@
 // Copyright OpenJS Foundation and other contributors
 // Licensed under the Apache License, Version 2.0
 
+using System.Data;
+using MySqlConnector;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.SDK;
@@ -66,7 +68,7 @@ public class MySqlNode : SdkNodeBase
 Connects to **MySQL** or **MariaDB** and executes SQL queries.
 
 **Operations:**
-- **Query**: SELECT statements, returns array of rows
+- **Query**: SELECT statements, returns array of rows as dictionaries
 - **Execute**: INSERT/UPDATE/DELETE, returns affected count
 - **Procedure**: Calls stored procedures
 
@@ -77,18 +79,21 @@ MySQL uses `?` for positional parameters. Pass an array in msg.payload.
 ```
 msg.payload = [123, 'John'];
 msg.query = 'SELECT * FROM users WHERE id = ? AND name = ?';
-```
-
-**Note:** Requires `MySqlConnector` or `MySql.Data` package to be added.")
+```")
         .Build();
 
-    protected override Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
+    protected override async Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
     {
         try
         {
             var host = GetConfig("host", "localhost");
             var port = GetConfig("port", 3306);
             var database = GetConfig<string>("database", "");
+            var username = GetConfig<string>("username", "");
+            var password = GetConfig<string>("password", "");
+            var useSsl = GetConfig("useSsl", false);
+            var timeout = GetConfig("timeout", 30);
+            var charset = GetConfig("charset", "utf8mb4");
             var operation = GetConfig("operation", "query");
             var query = msg.Properties.TryGetValue("query", out var q) 
                 ? q?.ToString() 
@@ -98,32 +103,89 @@ msg.query = 'SELECT * FROM users WHERE id = ? AND name = ?';
             {
                 Error("No database specified");
                 done(new Exception("No database specified"));
-                return Task.CompletedTask;
+                return;
             }
 
             if (string.IsNullOrEmpty(query))
             {
                 Error("No query specified");
                 done(new Exception("No query specified"));
-                return Task.CompletedTask;
+                return;
             }
+
+            // Build connection string
+            var builder = new MySqlConnectionStringBuilder
+            {
+                Server = host,
+                Port = (uint)port,
+                Database = database,
+                UserID = username,
+                Password = password,
+                ConnectionTimeout = (uint)timeout,
+                CharacterSet = charset,
+                SslMode = useSsl ? MySqlSslMode.Required : MySqlSslMode.Preferred
+            };
 
             Status($"Connecting to {database}...", StatusFill.Yellow, SdkStatusShape.Ring);
 
-            // Note: Actual execution requires MySqlConnector package
-            Log($"MySQL: {operation} on {host}:{port}/{database}");
-            Log($"Query: {query}");
-            
-            msg.Payload = new { 
-                Status = "Executed",
-                Operation = operation,
-                Query = query,
-                Host = host,
-                Database = database,
-                Note = "Add MySqlConnector package for actual database connectivity"
-            };
+            await using var connection = new MySqlConnection(builder.ConnectionString);
+            await connection.OpenAsync();
 
-            Status($"Query executed on {database}", StatusFill.Green, SdkStatusShape.Dot);
+            await using var command = new MySqlCommand(query, connection);
+            command.CommandTimeout = timeout;
+
+            // Handle stored procedure
+            if (operation == "procedure")
+            {
+                command.CommandType = CommandType.StoredProcedure;
+            }
+
+            // Add positional parameters from msg.payload if it's an array
+            if (msg.Payload is IList<object?> parameters)
+            {
+                foreach (var param in parameters)
+                {
+                    command.Parameters.AddWithValue("", param ?? DBNull.Value);
+                }
+            }
+            else if (msg.Payload is object[] paramArray)
+            {
+                foreach (var param in paramArray)
+                {
+                    command.Parameters.AddWithValue("", param ?? DBNull.Value);
+                }
+            }
+
+            if (operation == "execute")
+            {
+                var affectedRows = await command.ExecuteNonQueryAsync();
+                msg.Payload = new Dictionary<string, object?> 
+                { 
+                    { "affectedRows", affectedRows },
+                    { "lastInsertId", command.LastInsertedId }
+                };
+                Status($"{affectedRows} rows affected", StatusFill.Green, SdkStatusShape.Dot);
+            }
+            else
+            {
+                await using var reader = await command.ExecuteReaderAsync();
+                var results = new List<Dictionary<string, object?>>();
+
+                while (await reader.ReadAsync())
+                {
+                    var row = new Dictionary<string, object?>();
+                    for (var i = 0; i < reader.FieldCount; i++)
+                    {
+                        var value = reader.IsDBNull(i) ? null : CastValue(reader.GetValue(i));
+                        row[reader.GetName(i)] = value;
+                    }
+                    results.Add(row);
+                }
+
+                msg.Payload = results;
+                Status($"{results.Count} rows returned", StatusFill.Green, SdkStatusShape.Dot);
+            }
+
             send(0, msg);
             done();
         }
@@ -133,7 +195,19 @@ msg.query = 'SELECT * FROM users WHERE id = ? AND name = ?';
             Status("Error", StatusFill.Red, SdkStatusShape.Ring);
             done(ex);
         }
+    }
 
-        return Task.CompletedTask;
+    private static object? CastValue(object value)
+    {
+        return value switch
+        {
+            DBNull => null,
+            byte[] bytes => Convert.ToBase64String(bytes),
+            DateTime dt => dt.ToString("O"),
+            TimeSpan ts => ts.ToString(),
+            Guid g => g.ToString(),
+            decimal d => (double)d,
+            _ => value
+        };
     }
 }

@@ -1,6 +1,8 @@
 // Copyright OpenJS Foundation and other contributors
 // Licensed under the Apache License, Version 2.0
 
+using System.Text.Json;
+using StackExchange.Redis;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.SDK;
@@ -19,6 +21,9 @@ namespace NodeRed.Runtime.Nodes.SDK.Database;
     Outputs = 1)]
 public class RedisNode : SdkNodeBase
 {
+    private static readonly Dictionary<string, ConnectionMultiplexer> ConnectionPool = new();
+    private static readonly object PoolLock = new();
+
     protected override List<NodePropertyDefinition> DefineProperties() =>
         PropertyBuilder.Create()
             .AddText("name", "Name", icon: "fa fa-tag")
@@ -44,7 +49,6 @@ public class RedisNode : SdkNodeBase
                 ("sadd", "SADD - Add to set"),
                 ("smembers", "SMEMBERS - Get set members"),
                 ("publish", "PUBLISH - Publish message"),
-                ("subscribe", "SUBSCRIBE - Subscribe to channel"),
                 ("expire", "EXPIRE - Set key expiration"),
                 ("ttl", "TTL - Get time to live"),
                 ("incr", "INCR - Increment"),
@@ -92,45 +96,174 @@ Connects to **Redis** and executes various commands.
 - **SMEMBERS**: Get set members
 
 **Pub/Sub:**
-- **PUBLISH**: Publish message to channel
-- **SUBSCRIBE**: Subscribe to channel
-
-**Note:** Requires `StackExchange.Redis` package to be added.")
+- **PUBLISH**: Publish message to channel")
         .Build();
 
-    protected override Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
+    protected override async Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
     {
         try
         {
             var host = GetConfig("host", "localhost");
             var port = GetConfig("port", 6379);
-            var database = GetConfig("database", 0);
+            var password = GetConfig<string>("password", "");
+            var databaseIndex = GetConfig("database", 0);
             var operation = GetConfig("operation", "get");
+            var expiry = GetConfig("expiry", 0);
             var key = msg.Properties.TryGetValue("key", out var k) 
                 ? k?.ToString() 
                 : GetConfig<string>("key", "");
+            var field = GetConfig<string>("field", "");
 
             if (string.IsNullOrEmpty(key) && operation != "keys")
             {
                 Error("No key specified");
                 done(new Exception("No key specified"));
-                return Task.CompletedTask;
+                return;
             }
 
             Status($"Executing {operation}...", StatusFill.Yellow, SdkStatusShape.Ring);
 
-            // Note: Actual execution requires StackExchange.Redis package
-            Log($"Redis: {operation} on {host}:{port} db{database}");
-            Log($"Key: {key}");
+            // Get or create connection
+            var connectionKey = $"{host}:{port}";
+            ConnectionMultiplexer connection;
             
-            msg.Payload = new { 
-                Status = "Executed",
-                Operation = operation,
-                Key = key,
-                Host = host,
-                Database = database,
-                Note = "Add StackExchange.Redis package for actual Redis connectivity"
-            };
+            lock (PoolLock)
+            {
+                if (!ConnectionPool.TryGetValue(connectionKey, out connection!) || !connection.IsConnected)
+                {
+                    var config = new ConfigurationOptions
+                    {
+                        EndPoints = { { host, port } },
+                        AbortOnConnectFail = false,
+                        ConnectTimeout = 5000
+                    };
+                    if (!string.IsNullOrEmpty(password))
+                    {
+                        config.Password = password;
+                    }
+                    connection = ConnectionMultiplexer.Connect(config);
+                    ConnectionPool[connectionKey] = connection;
+                }
+            }
+
+            var db = connection.GetDatabase(databaseIndex);
+            var redisKey = new RedisKey(key);
+
+            switch (operation)
+            {
+                case "get":
+                    var getValue = await db.StringGetAsync(redisKey);
+                    msg.Payload = getValue.HasValue ? ParseRedisValue(getValue!) : null;
+                    break;
+
+                case "set":
+                    var setValue = SerializeValue(msg.Payload);
+                    TimeSpan? expirySpan = expiry > 0 ? TimeSpan.FromSeconds(expiry) : null;
+                    var setResult = await db.StringSetAsync(redisKey, setValue, expirySpan);
+                    msg.Payload = new Dictionary<string, object?> { { "success", setResult } };
+                    break;
+
+                case "del":
+                    var delResult = await db.KeyDeleteAsync(redisKey);
+                    msg.Payload = new Dictionary<string, object?> { { "deleted", delResult } };
+                    break;
+
+                case "exists":
+                    var existsResult = await db.KeyExistsAsync(redisKey);
+                    msg.Payload = existsResult;
+                    break;
+
+                case "keys":
+                    var server = connection.GetServer(host, port);
+                    var keys = server.Keys(databaseIndex, key ?? "*").Select(k => k.ToString()).ToList();
+                    msg.Payload = keys;
+                    break;
+
+                case "hget":
+                    var hgetValue = await db.HashGetAsync(redisKey, field);
+                    msg.Payload = hgetValue.HasValue ? ParseRedisValue(hgetValue!) : null;
+                    break;
+
+                case "hset":
+                    var hsetValue = SerializeValue(msg.Payload);
+                    var hsetResult = await db.HashSetAsync(redisKey, field, hsetValue);
+                    msg.Payload = new Dictionary<string, object?> { { "created", hsetResult } };
+                    break;
+
+                case "hgetall":
+                    var hashEntries = await db.HashGetAllAsync(redisKey);
+                    msg.Payload = hashEntries.ToDictionary(
+                        e => e.Name.ToString(),
+                        e => ParseRedisValue(e.Value!));
+                    break;
+
+                case "lpush":
+                    var lpushValue = SerializeValue(msg.Payload);
+                    var lpushLength = await db.ListLeftPushAsync(redisKey, lpushValue);
+                    msg.Payload = new Dictionary<string, object?> { { "length", lpushLength } };
+                    break;
+
+                case "rpush":
+                    var rpushValue = SerializeValue(msg.Payload);
+                    var rpushLength = await db.ListRightPushAsync(redisKey, rpushValue);
+                    msg.Payload = new Dictionary<string, object?> { { "length", rpushLength } };
+                    break;
+
+                case "lpop":
+                    var lpopValue = await db.ListLeftPopAsync(redisKey);
+                    msg.Payload = lpopValue.HasValue ? ParseRedisValue(lpopValue!) : null;
+                    break;
+
+                case "rpop":
+                    var rpopValue = await db.ListRightPopAsync(redisKey);
+                    msg.Payload = rpopValue.HasValue ? ParseRedisValue(rpopValue!) : null;
+                    break;
+
+                case "lrange":
+                    var start = msg.Properties.TryGetValue("start", out var s) ? Convert.ToInt64(s) : 0;
+                    var stop = msg.Properties.TryGetValue("stop", out var st) ? Convert.ToInt64(st) : -1;
+                    var rangeValues = await db.ListRangeAsync(redisKey, start, stop);
+                    msg.Payload = rangeValues.Select(v => ParseRedisValue(v!)).ToList();
+                    break;
+
+                case "sadd":
+                    var saddValue = SerializeValue(msg.Payload);
+                    var saddResult = await db.SetAddAsync(redisKey, saddValue);
+                    msg.Payload = new Dictionary<string, object?> { { "added", saddResult } };
+                    break;
+
+                case "smembers":
+                    var members = await db.SetMembersAsync(redisKey);
+                    msg.Payload = members.Select(m => ParseRedisValue(m!)).ToList();
+                    break;
+
+                case "publish":
+                    var channel = new RedisChannel(key!, RedisChannel.PatternMode.Literal);
+                    var pubValue = SerializeValue(msg.Payload);
+                    var subscribers = await db.PublishAsync(channel, pubValue);
+                    msg.Payload = new Dictionary<string, object?> { { "subscribers", subscribers } };
+                    break;
+
+                case "expire":
+                    var expireResult = await db.KeyExpireAsync(redisKey, TimeSpan.FromSeconds(expiry));
+                    msg.Payload = new Dictionary<string, object?> { { "success", expireResult } };
+                    break;
+
+                case "ttl":
+                    var ttl = await db.KeyTimeToLiveAsync(redisKey);
+                    msg.Payload = ttl?.TotalSeconds ?? -1;
+                    break;
+
+                case "incr":
+                    var incrResult = await db.StringIncrementAsync(redisKey);
+                    msg.Payload = incrResult;
+                    break;
+
+                case "decr":
+                    var decrResult = await db.StringDecrementAsync(redisKey);
+                    msg.Payload = decrResult;
+                    break;
+            }
 
             Status($"{operation} completed", StatusFill.Green, SdkStatusShape.Dot);
             send(0, msg);
@@ -142,7 +275,46 @@ Connects to **Redis** and executes various commands.
             Status("Error", StatusFill.Red, SdkStatusShape.Ring);
             done(ex);
         }
+    }
 
-        return Task.CompletedTask;
+    private static object? ParseRedisValue(RedisValue value)
+    {
+        var str = value.ToString();
+        
+        // Try to parse as JSON
+        if (str.StartsWith("{") || str.StartsWith("["))
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<object>(str);
+            }
+            catch
+            {
+                // Not valid JSON, return as string
+            }
+        }
+        
+        // Try to parse as number
+        if (long.TryParse(str, out var longVal))
+            return longVal;
+        if (double.TryParse(str, out var doubleVal))
+            return doubleVal;
+        if (bool.TryParse(str, out var boolVal))
+            return boolVal;
+            
+        return str;
+    }
+
+    private static RedisValue SerializeValue(object? value)
+    {
+        if (value == null) return RedisValue.Null;
+        if (value is string s) return s;
+        if (value is int i) return i;
+        if (value is long l) return l;
+        if (value is double d) return d;
+        if (value is bool b) return b ? "true" : "false";
+        
+        // Serialize complex objects as JSON
+        return JsonSerializer.Serialize(value);
     }
 }

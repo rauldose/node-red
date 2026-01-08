@@ -1,6 +1,7 @@
 // Copyright OpenJS Foundation and other contributors
 // Licensed under the Apache License, Version 2.0
 
+using Npgsql;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.SDK;
@@ -61,7 +62,7 @@ public class PostgresNode : SdkNodeBase
 Connects to **PostgreSQL** and executes SQL queries.
 
 **Operations:**
-- **Query**: SELECT statements, returns array of rows
+- **Query**: SELECT statements, returns array of rows as dictionaries
 - **Execute**: INSERT/UPDATE/DELETE, returns affected count  
 - **Function**: Calls PostgreSQL functions
 
@@ -72,19 +73,21 @@ PostgreSQL uses positional parameters ($1, $2, etc.). Pass an array in msg.paylo
 ```
 msg.payload = [123, 'active'];
 msg.query = 'SELECT * FROM users WHERE id = $1 AND status = $2';
-```
-
-**Note:** Requires `Npgsql` package to be added.")
+```")
         .Build();
 
-    protected override Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
+    protected override async Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
     {
         try
         {
             var host = GetConfig("host", "localhost");
             var port = GetConfig("port", 5432);
             var database = GetConfig<string>("database", "");
+            var username = GetConfig<string>("username", "");
+            var password = GetConfig<string>("password", "");
             var schema = GetConfig("schema", "public");
+            var useSsl = GetConfig("useSsl", false);
+            var timeout = GetConfig("timeout", 30);
             var operation = GetConfig("operation", "query");
             var query = msg.Properties.TryGetValue("query", out var q) 
                 ? q?.ToString() 
@@ -94,33 +97,79 @@ msg.query = 'SELECT * FROM users WHERE id = $1 AND status = $2';
             {
                 Error("No database specified");
                 done(new Exception("No database specified"));
-                return Task.CompletedTask;
+                return;
             }
 
             if (string.IsNullOrEmpty(query))
             {
                 Error("No query specified");
                 done(new Exception("No query specified"));
-                return Task.CompletedTask;
+                return;
             }
+
+            // Build connection string
+            var builder = new NpgsqlConnectionStringBuilder
+            {
+                Host = host,
+                Port = port,
+                Database = database,
+                Username = username,
+                Password = password,
+                Timeout = timeout,
+                SslMode = useSsl ? SslMode.Require : SslMode.Prefer,
+                SearchPath = schema
+            };
 
             Status($"Connecting to {database}...", StatusFill.Yellow, SdkStatusShape.Ring);
 
-            // Note: Actual execution requires Npgsql package
-            Log($"PostgreSQL: {operation} on {host}:{port}/{database}");
-            Log($"Query: {query}");
-            
-            msg.Payload = new { 
-                Status = "Executed",
-                Operation = operation,
-                Query = query,
-                Host = host,
-                Database = database,
-                Schema = schema,
-                Note = "Add Npgsql package for actual database connectivity"
-            };
+            await using var connection = new NpgsqlConnection(builder.ConnectionString);
+            await connection.OpenAsync();
 
-            Status($"Query executed on {database}", StatusFill.Green, SdkStatusShape.Dot);
+            await using var command = new NpgsqlCommand(query, connection);
+            command.CommandTimeout = timeout;
+
+            // Add positional parameters from msg.payload if it's an array
+            if (msg.Payload is IList<object?> parameters)
+            {
+                for (var i = 0; i < parameters.Count; i++)
+                {
+                    command.Parameters.AddWithValue(parameters[i] ?? DBNull.Value);
+                }
+            }
+            else if (msg.Payload is object[] paramArray)
+            {
+                foreach (var param in paramArray)
+                {
+                    command.Parameters.AddWithValue(param ?? DBNull.Value);
+                }
+            }
+
+            if (operation == "execute")
+            {
+                var affectedRows = await command.ExecuteNonQueryAsync();
+                msg.Payload = new Dictionary<string, object?> { { "affectedRows", affectedRows } };
+                Status($"{affectedRows} rows affected", StatusFill.Green, SdkStatusShape.Dot);
+            }
+            else
+            {
+                await using var reader = await command.ExecuteReaderAsync();
+                var results = new List<Dictionary<string, object?>>();
+
+                while (await reader.ReadAsync())
+                {
+                    var row = new Dictionary<string, object?>();
+                    for (var i = 0; i < reader.FieldCount; i++)
+                    {
+                        var value = reader.IsDBNull(i) ? null : CastValue(reader.GetValue(i));
+                        row[reader.GetName(i)] = value;
+                    }
+                    results.Add(row);
+                }
+
+                msg.Payload = results;
+                Status($"{results.Count} rows returned", StatusFill.Green, SdkStatusShape.Dot);
+            }
+
             send(0, msg);
             done();
         }
@@ -130,7 +179,21 @@ msg.query = 'SELECT * FROM users WHERE id = $1 AND status = $2';
             Status("Error", StatusFill.Red, SdkStatusShape.Ring);
             done(ex);
         }
+    }
 
-        return Task.CompletedTask;
+    private static object? CastValue(object value)
+    {
+        return value switch
+        {
+            DBNull => null,
+            byte[] bytes => Convert.ToBase64String(bytes),
+            DateTime dt => dt.ToString("O"),
+            DateTimeOffset dto => dto.ToString("O"),
+            TimeSpan ts => ts.ToString(),
+            Guid g => g.ToString(),
+            decimal d => (double)d,
+            NpgsqlTypes.NpgsqlPoint p => new { x = p.X, y = p.Y },
+            _ => value
+        };
     }
 }

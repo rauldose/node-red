@@ -1,6 +1,7 @@
 // Copyright OpenJS Foundation and other contributors
 // Licensed under the Apache License, Version 2.0
 
+using Microsoft.Data.Sqlite;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.SDK;
@@ -57,7 +58,7 @@ public class SqliteNode : SdkNodeBase
 Connects to a **SQLite** database file and executes SQL queries.
 
 **Operations:**
-- **Query**: SELECT statements, returns array of rows
+- **Query**: SELECT statements, returns array of rows as dictionaries
 - **Execute**: INSERT/UPDATE/DELETE, returns affected count
 - **Batch**: Execute multiple statements
 
@@ -73,12 +74,10 @@ msg.query = 'SELECT * FROM users WHERE id = @id AND name = @name';
 **Modes:**
 - **Read/Write**: Normal database access
 - **Read Only**: No write operations allowed
-- **In-Memory**: Creates a temporary in-memory database
-
-**Note:** Requires `Microsoft.Data.Sqlite` package to be added.")
+- **In-Memory**: Creates a temporary in-memory database")
         .Build();
 
-    protected override Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
+    protected override async Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
     {
         try
         {
@@ -87,6 +86,7 @@ msg.query = 'SELECT * FROM users WHERE id = @id AND name = @name';
                 : GetConfig<string>("database", "");
             var operation = GetConfig("operation", "query");
             var mode = GetConfig("mode", "readwrite");
+            var createIfNotExists = GetConfig("createIfNotExists", true);
             var query = msg.Properties.TryGetValue("query", out var q) 
                 ? q?.ToString() 
                 : GetConfig<string>("query", "");
@@ -95,33 +95,79 @@ msg.query = 'SELECT * FROM users WHERE id = @id AND name = @name';
             {
                 Error("No database file specified");
                 done(new Exception("No database file specified"));
-                return Task.CompletedTask;
+                return;
             }
 
             if (string.IsNullOrEmpty(query))
             {
                 Error("No query specified");
                 done(new Exception("No query specified"));
-                return Task.CompletedTask;
+                return;
+            }
+
+            // Build connection string
+            var builder = new SqliteConnectionStringBuilder();
+            
+            if (mode == "memory")
+            {
+                builder.DataSource = ":memory:";
+                builder.Mode = SqliteOpenMode.Memory;
+            }
+            else
+            {
+                builder.DataSource = database;
+                builder.Mode = mode == "readonly" 
+                    ? SqliteOpenMode.ReadOnly 
+                    : (createIfNotExists ? SqliteOpenMode.ReadWriteCreate : SqliteOpenMode.ReadWrite);
             }
 
             var dbName = mode == "memory" ? ":memory:" : Path.GetFileName(database);
             Status($"Opening {dbName}...", StatusFill.Yellow, SdkStatusShape.Ring);
 
-            // Note: Actual execution requires Microsoft.Data.Sqlite package
-            Log($"SQLite: {operation} on {database ?? ":memory:"}");
-            Log($"Query: {query}");
-            
-            msg.Payload = new { 
-                Status = "Executed",
-                Operation = operation,
-                Query = query,
-                Database = database ?? ":memory:",
-                Mode = mode,
-                Note = "Add Microsoft.Data.Sqlite package for actual database connectivity"
-            };
+            await using var connection = new SqliteConnection(builder.ConnectionString);
+            await connection.OpenAsync();
 
-            Status($"Query executed on {dbName}", StatusFill.Green, SdkStatusShape.Dot);
+            await using var command = connection.CreateCommand();
+            command.CommandText = query;
+
+            // Add named parameters from msg.payload if it's a dictionary
+            if (msg.Payload is IDictionary<string, object?> parameters)
+            {
+                foreach (var param in parameters)
+                {
+                    command.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                }
+            }
+
+            if (operation == "execute" || operation == "batch")
+            {
+                var affectedRows = await command.ExecuteNonQueryAsync();
+                msg.Payload = new Dictionary<string, object?> 
+                { 
+                    { "affectedRows", affectedRows }
+                };
+                Status($"{affectedRows} rows affected", StatusFill.Green, SdkStatusShape.Dot);
+            }
+            else
+            {
+                await using var reader = await command.ExecuteReaderAsync();
+                var results = new List<Dictionary<string, object?>>();
+
+                while (await reader.ReadAsync())
+                {
+                    var row = new Dictionary<string, object?>();
+                    for (var i = 0; i < reader.FieldCount; i++)
+                    {
+                        var value = reader.IsDBNull(i) ? null : CastValue(reader.GetValue(i));
+                        row[reader.GetName(i)] = value;
+                    }
+                    results.Add(row);
+                }
+
+                msg.Payload = results;
+                Status($"{results.Count} rows returned", StatusFill.Green, SdkStatusShape.Dot);
+            }
+
             send(0, msg);
             done();
         }
@@ -131,7 +177,15 @@ msg.query = 'SELECT * FROM users WHERE id = @id AND name = @name';
             Status("Error", StatusFill.Red, SdkStatusShape.Ring);
             done(ex);
         }
+    }
 
-        return Task.CompletedTask;
+    private static object? CastValue(object value)
+    {
+        return value switch
+        {
+            DBNull => null,
+            byte[] bytes => Convert.ToBase64String(bytes),
+            _ => value
+        };
     }
 }
