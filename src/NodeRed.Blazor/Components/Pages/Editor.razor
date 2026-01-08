@@ -1,0 +1,321 @@
+@page "/editor"
+@page "/"
+@rendermode InteractiveServer
+@inject INodeRegistry NodeRegistry
+@inject IFlowRuntime FlowRuntime
+@inject IFlowStorage FlowStorage
+
+<PageTitle>Node-RED Flow Editor</PageTitle>
+
+<div class="editor-container">
+    @* Toolbar *@
+    <div class="editor-toolbar">
+        <SfToolbar>
+            <ToolbarItems>
+                <ToolbarItem Text="Deploy" PrefixIcon="e-icons e-play" OnClick="@OnDeployClick" />
+                <ToolbarItem Type="ItemType.Separator" />
+                <ToolbarItem Text="Import" PrefixIcon="e-icons e-import" OnClick="@OnImportClick" />
+                <ToolbarItem Text="Export" PrefixIcon="e-icons e-export" OnClick="@OnExportClick" />
+                <ToolbarItem Type="ItemType.Separator" />
+                <ToolbarItem Text="@RuntimeStateText" PrefixIcon="@RuntimeStateIcon" />
+            </ToolbarItems>
+        </SfToolbar>
+    </div>
+
+    <div class="editor-main">
+        @* Node Palette *@
+        <div class="editor-palette">
+            <h5 class="palette-header">Nodes</h5>
+            @foreach (var category in NodeCategories)
+            {
+                <div class="palette-category">
+                    <div class="palette-category-header" @onclick="() => ToggleCategory(category.Key)">
+                        <span class="e-icons @(ExpandedCategories.Contains(category.Key) ? "e-chevron-down" : "e-chevron-right")"></span>
+                        @category.Key
+                    </div>
+                    @if (ExpandedCategories.Contains(category.Key))
+                    {
+                        <div class="palette-category-nodes">
+                            @foreach (var node in category.Value)
+                            {
+                                <div class="palette-node" 
+                                     style="background-color: @node.Color"
+                                     draggable="true"
+                                     @ondragstart="() => OnPaletteNodeDragStart(node)">
+                                    <span class="node-icon">@GetNodeIcon(node)</span>
+                                    <span class="node-label">@node.DisplayName</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @* Flow Canvas *@
+        <div class="editor-canvas">
+            @* Flow Tabs *@
+            <div class="flow-tabs">
+                <SfTab @bind-SelectedItem="@SelectedFlowIndex">
+                    <TabItems>
+                        @foreach (var flow in CurrentWorkspace.Flows)
+                        {
+                            <TabItem>
+                                <ChildContent>
+                                    <TabHeader Text="@flow.Label" />
+                                </ChildContent>
+                            </TabItem>
+                        }
+                    </TabItems>
+                </SfTab>
+                <SfButton CssClass="e-small" IconCss="e-icons e-plus" OnClick="@AddNewFlow" />
+            </div>
+
+            @* Diagram *@
+            <SfDiagramComponent @ref="Diagram"
+                                Width="100%"
+                                Height="calc(100% - 40px)"
+                                Nodes="@DiagramNodes"
+                                Connectors="@DiagramConnectors"
+                                NodeCreating="@OnNodeCreating"
+                                ConnectorCreating="@OnConnectorCreating"
+                                SelectionChanged="@OnSelectionChanged"
+                                DragDrop="@OnDragDrop">
+                <SnapSettings>
+                    <HorizontalGridLines LineColor="#e0e0e0" LineDashArray="2,2" />
+                    <VerticalGridLines LineColor="#e0e0e0" LineDashArray="2,2" />
+                </SnapSettings>
+                <PageSettings>
+                    <BackgroundStyle Background="#fafafa" />
+                </PageSettings>
+            </SfDiagramComponent>
+        </div>
+
+        @* Sidebar *@
+        <div class="editor-sidebar">
+            <SfTab>
+                <TabItems>
+                    <TabItem>
+                        <ChildContent>
+                            <TabHeader Text="Info" />
+                        </ChildContent>
+                        <ContentTemplate>
+                            <div class="sidebar-content">
+                                @if (SelectedNode != null)
+                                {
+                                    <h6>@SelectedNode.Type</h6>
+                                    <p><strong>ID:</strong> @SelectedNode.Id</p>
+                                    <p><strong>Name:</strong> @(string.IsNullOrEmpty(SelectedNode.Name) ? "(none)" : SelectedNode.Name)</p>
+                                }
+                                else
+                                {
+                                    <p class="text-muted">Select a node to see its properties</p>
+                                }
+                            </div>
+                        </ContentTemplate>
+                    </TabItem>
+                    <TabItem>
+                        <ChildContent>
+                            <TabHeader Text="Debug" />
+                        </ChildContent>
+                        <ContentTemplate>
+                            <div class="sidebar-content debug-panel">
+                                <div class="debug-header">
+                                    <SfButton CssClass="e-small" Content="Clear" OnClick="@ClearDebugMessages" />
+                                </div>
+                                <div class="debug-messages">
+                                    @foreach (var msg in DebugMessages.TakeLast(50).Reverse())
+                                    {
+                                        <div class="debug-message">
+                                            <span class="debug-time">@msg.Timestamp.ToString("HH:mm:ss.fff")</span>
+                                            <span class="debug-node">@msg.NodeName</span>
+                                            <pre class="debug-data">@FormatDebugData(msg.Data)</pre>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </ContentTemplate>
+                    </TabItem>
+                </TabItems>
+            </SfTab>
+        </div>
+    </div>
+</div>
+
+@* Node Edit Dialog *@
+<SfDialog @bind-Visible="@ShowNodeEditDialog"
+          Header="@($"Edit {SelectedNode?.Type} node")"
+          Width="500px"
+          IsModal="true"
+          ShowCloseIcon="true">
+    <DialogTemplates>
+        <Content>
+            @if (SelectedNode != null)
+            {
+                <div class="node-edit-form">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <SfTextBox @bind-Value="@EditNodeName" Placeholder="Node name (optional)" />
+                    </div>
+                    @* Add type-specific fields here based on SelectedNode.Type *@
+                </div>
+            }
+        </Content>
+    </DialogTemplates>
+    <DialogButtons>
+        <DialogButton Content="Cancel" OnClick="@CloseNodeEditDialog" />
+        <DialogButton Content="Done" IsPrimary="true" OnClick="@SaveNodeEdit" />
+    </DialogButtons>
+</SfDialog>
+
+<style>
+    .editor-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    .editor-toolbar {
+        border-bottom: 1px solid #ddd;
+        background: #fff;
+    }
+
+    .editor-main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .editor-palette {
+        width: 200px;
+        background: #f5f5f5;
+        border-right: 1px solid #ddd;
+        overflow-y: auto;
+    }
+
+    .palette-header {
+        padding: 10px;
+        margin: 0;
+        background: #8f0000;
+        color: white;
+        font-size: 14px;
+    }
+
+    .palette-category-header {
+        padding: 8px 10px;
+        cursor: pointer;
+        background: #eee;
+        border-bottom: 1px solid #ddd;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .palette-category-header:hover {
+        background: #e5e5e5;
+    }
+
+    .palette-category-nodes {
+        padding: 5px;
+    }
+
+    .palette-node {
+        display: flex;
+        align-items: center;
+        padding: 6px 10px;
+        margin: 3px 0;
+        border-radius: 4px;
+        cursor: grab;
+        font-size: 12px;
+        color: #333;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .palette-node:hover {
+        filter: brightness(0.95);
+    }
+
+    .node-icon {
+        margin-right: 6px;
+    }
+
+    .editor-canvas {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .flow-tabs {
+        display: flex;
+        align-items: center;
+        background: #fff;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .flow-tabs .e-tab {
+        flex: 1;
+    }
+
+    .editor-sidebar {
+        width: 300px;
+        background: #fff;
+        border-left: 1px solid #ddd;
+        overflow: hidden;
+    }
+
+    .sidebar-content {
+        padding: 15px;
+        overflow-y: auto;
+        height: calc(100vh - 130px);
+    }
+
+    .debug-panel {
+        padding: 0;
+    }
+
+    .debug-header {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .debug-messages {
+        overflow-y: auto;
+        height: calc(100vh - 180px);
+    }
+
+    .debug-message {
+        padding: 8px 10px;
+        border-bottom: 1px solid #eee;
+        font-size: 12px;
+    }
+
+    .debug-time {
+        color: #888;
+        margin-right: 8px;
+    }
+
+    .debug-node {
+        font-weight: 500;
+        color: #8f0000;
+    }
+
+    .debug-data {
+        margin: 5px 0 0 0;
+        padding: 5px;
+        background: #f8f8f8;
+        border-radius: 3px;
+        font-size: 11px;
+        overflow-x: auto;
+    }
+
+    .node-edit-form .form-group {
+        margin-bottom: 15px;
+    }
+
+    .node-edit-form label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+</style>

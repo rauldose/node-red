@@ -30,3 +30,11 @@ sync.ffs_db
 .editorconfig
 test/resources/50-file-test-file.txt
 test/unit/@node-red/runtime/lib/nodes/.testUserHome
+
+# .NET Build artifacts
+src/**/bin/
+src/**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
