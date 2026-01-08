@@ -29,7 +29,7 @@ public partial class Editor : IDisposable
     private NodeDefinition? SelectedPaletteNode;
     private List<DebugMessage> DebugMessages = new();
     private int ConnectorCount = 0;
-    private int NodeCount = 3; // Start after sample nodes
+    private int NodeCount = 0;
     
     // Node categories for palette
     private Dictionary<string, List<NodeDefinition>> NodeCategories = new();
@@ -101,9 +101,12 @@ public partial class Editor : IDisposable
                     Content = label,
                     Style = new TextStyle() { Color = "#333333", FontSize = 12 }
                 }
-            }
+            },
+            // Store node type for later retrieval
+            AdditionalInfo = new Dictionary<string, object> { { "nodeType", nodeType } }
         };
         DiagramNodes!.Add(node);
+        NodeCount++; // Track node count dynamically
     }
 
     private DiagramObjectCollection<PointPort> CreatePorts()
@@ -183,7 +186,11 @@ public partial class Editor : IDisposable
     {
         if (args.NewValue?.Count > 0 && args.NewValue[0] is Node node)
         {
-            SelectedFlowNode = new FlowNode { Id = node.ID ?? "", Type = node.ID?.Split(new char[] { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' })[0] ?? "" };
+            // Get node type from AdditionalInfo if available
+            var nodeType = node.AdditionalInfo?.TryGetValue("nodeType", out var typeObj) == true 
+                ? typeObj as string ?? node.ID ?? "" 
+                : node.ID ?? "";
+            SelectedFlowNode = new FlowNode { Id = node.ID ?? "", Type = nodeType };
         }
         else
         {
@@ -263,7 +270,9 @@ public partial class Editor : IDisposable
                     Content = SelectedPaletteNode.DisplayName,
                     Style = new TextStyle() { Color = "#333333", FontSize = 12 }
                 }
-            }
+            },
+            // Store node type for later retrieval
+            AdditionalInfo = new Dictionary<string, object> { { "nodeType", SelectedPaletteNode.Type } }
         };
 
         await DiagramInstance.AddDiagramElementsAsync(new DiagramObjectCollection<NodeBase> { node });
