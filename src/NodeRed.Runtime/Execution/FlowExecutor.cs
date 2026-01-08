@@ -26,8 +26,11 @@ public class FlowExecutor
 
     /// <summary>
     /// Event raised when a debug message is generated.
+    /// Reserved for future implementation of debug node integration.
     /// </summary>
+#pragma warning disable CS0067 // Event is never used - reserved for future debug node integration
     public event Action<DebugMessage>? OnDebugMessage;
+#pragma warning restore CS0067
 
     /// <summary>
     /// Event raised when a log entry is created.

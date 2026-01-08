@@ -214,7 +214,7 @@ public partial class Editor : IDisposable
 
     private async void OnDragDrop(DropEventArgs args)
     {
-        if (DraggedNodeDefinition != null)
+        if (DraggedNodeDefinition != null && args.Position != null)
         {
             var flowNode = new FlowNode
             {
@@ -255,7 +255,7 @@ public partial class Editor : IDisposable
 
     private void OnSelectionChanged(SelectionChangedEventArgs args)
     {
-        if (args.NewValue.Count > 0 && args.NewValue[0] is Node node)
+        if (args.NewValue?.Count > 0 && args.NewValue[0] is Node node)
         {
             if (node.AdditionalInfo?.TryGetValue("flowNode", out var flowNodeObj) == true && flowNodeObj is FlowNode flowNode)
             {

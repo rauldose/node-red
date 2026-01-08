@@ -12,6 +12,12 @@ namespace NodeRed.Runtime.Nodes.Function;
 /// Function node - allows custom C# expressions to process messages.
 /// Uses DynamicExpresso for expression evaluation.
 /// </summary>
+/// <remarks>
+/// Security Note: This node executes user-provided expressions. DynamicExpresso 
+/// is sandboxed and only evaluates expressions (not full C# code), but care should
+/// be taken when allowing untrusted users to create function nodes. Consider 
+/// implementing additional restrictions for multi-tenant scenarios.
+/// </remarks>
 public class FunctionNode : NodeBase
 {
     private Interpreter? _interpreter;

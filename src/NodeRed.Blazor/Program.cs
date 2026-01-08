@@ -1,8 +1,16 @@
 using NodeRed.Blazor.Components;
 using NodeRed.Runtime;
 using Syncfusion.Blazor;
+using Syncfusion.Licensing;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Register Syncfusion license
+var syncfusionLicense = builder.Configuration["SyncfusionLicense"];
+if (!string.IsNullOrEmpty(syncfusionLicense))
+{
+    SyncfusionLicenseProvider.RegisterLicense(syncfusionLicense);
+}
 
 // Add Syncfusion Blazor services
 builder.Services.AddSyncfusionBlazor();
