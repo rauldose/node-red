@@ -106,6 +106,134 @@ public partial class Editor : IDisposable
     private string TemplateFormat = "mustache";
     private string TemplateOutputAs = "str";
 
+    // Node property panel bindings - Range node
+    private double RangeInMin = 0;
+    private double RangeInMax = 100;
+    private double RangeOutMin = 0;
+    private double RangeOutMax = 1;
+    private string RangeAction = "scale";
+
+    // Node property panel bindings - Trigger node
+    private string TriggerSendType = "str";
+    private string TriggerSendValue = "1";
+    private double TriggerDuration = 250;
+    private string TriggerDurationUnits = "ms";
+    private string TriggerThenType = "str";
+    private string TriggerThenValue = "0";
+
+    // Node property panel bindings - Exec node
+    private string ExecCommand = "";
+    private bool ExecAppend = true;
+    private bool ExecUseSpawn = false;
+    private int ExecTimeout = 0;
+
+    // Node property panel bindings - RBE node
+    private string RbeFunction = "rbe";
+    private double RbePercent = 0;
+    private string RbeProperty = "payload";
+
+    // Node property panel bindings - Split node
+    private string SplitProperty = "payload";
+    private string SplitSeparator = "\\n";
+    private bool SplitStream = false;
+
+    // Node property panel bindings - Join node
+    private string JoinMode = "auto";
+    private int JoinCount = 0;
+    private string JoinProperty = "payload";
+    private string JoinSeparator = "";
+
+    // Node property panel bindings - Sort node
+    private string SortProperty = "payload";
+    private string SortOrder = "asc";
+    private bool SortAsNumber = false;
+
+    // Node property panel bindings - Batch node
+    private string BatchMode = "count";
+    private int BatchCount = 10;
+    private int BatchOverlap = 0;
+
+    // Node property panel bindings - CSV node
+    private string CsvColumns = "";
+    private string CsvSeparator = ",";
+    private bool CsvHeaders = true;
+    private bool CsvSkipEmpty = false;
+
+    // Node property panel bindings - JSON node
+    private string JsonAction = "obj";
+    private string JsonProperty = "payload";
+
+    // Node property panel bindings - XML node
+    private string XmlProperty = "payload";
+    private bool XmlAttrPrefix = true;
+
+    // Node property panel bindings - HTML node
+    private string HtmlSelector = "";
+    private string HtmlProperty = "payload";
+
+    // Node property panel bindings - YAML node
+    private string YamlProperty = "payload";
+
+    // Node property panel bindings - File node
+    private string FileFilename = "";
+    private string FileAction = "append";
+    private bool FileAddNewline = true;
+    private bool FileCreateDir = false;
+    private string FileEncoding = "utf8";
+
+    // Node property panel bindings - File In node
+    private string FileInFilename = "";
+    private string FileInFormat = "utf8";
+
+    // Node property panel bindings - Watch node
+    private string WatchFiles = "";
+    private bool WatchRecursive = true;
+
+    // Node property panel bindings - HTTP In node
+    private string HttpInMethod = "get";
+    private string HttpInUrl = "/";
+
+    // Node property panel bindings - HTTP Request node
+    private string HttpRequestMethod = "GET";
+    private string HttpRequestUrl = "";
+    private string HttpRequestReturn = "txt";
+
+    // Node property panel bindings - MQTT nodes
+    private string MqttTopic = "";
+    private int MqttQos = 0;
+    private string MqttBroker = "localhost";
+    private int MqttPort = 1883;
+
+    // Node property panel bindings - WebSocket nodes
+    private string WebSocketPath = "/ws";
+    private string WebSocketType = "server";
+
+    // Node property panel bindings - TCP nodes
+    private string TcpHost = "localhost";
+    private int TcpPort = 12345;
+    private string TcpType = "client";
+
+    // Node property panel bindings - UDP nodes
+    private string UdpAddress = "";
+    private int UdpPort = 12345;
+    private bool UdpMulticast = false;
+
+    // Node property panel bindings - Link nodes
+    private string LinkName = "";
+
+    // Node property panel bindings - Complete node
+    private string CompleteScope = "all";
+
+    // Node property panel bindings - Status node
+    private string StatusScope = "all";
+
+    // Node property panel bindings - Catch node
+    private string CatchScope = "all";
+    private bool CatchUncaught = false;
+
+    // Node property panel bindings - Comment node
+    private string CommentText = "";
+
     // Default node constraints
     private static readonly NodeConstraints DefaultNodeConstraints =
         NodeConstraints.Select | NodeConstraints.Drag | NodeConstraints.Delete |

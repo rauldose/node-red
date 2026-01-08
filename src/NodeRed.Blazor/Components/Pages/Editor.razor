@@ -542,6 +542,528 @@
                         </select>
                     </div>
                     break;
+
+                case "range":
+                    <div class="form-row">
+                        <label>Action</label>
+                        <select @bind="RangeAction">
+                            <option value="scale">Scale</option>
+                            <option value="clamp">Clamp</option>
+                            <option value="roll">Wrap</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>Input Range</label>
+                        <input type="number" @bind="RangeInMin" step="0.1" class="input-small" /> to
+                        <input type="number" @bind="RangeInMax" step="0.1" class="input-small" />
+                    </div>
+                    <div class="form-row">
+                        <label>Output Range</label>
+                        <input type="number" @bind="RangeOutMin" step="0.1" class="input-small" /> to
+                        <input type="number" @bind="RangeOutMax" step="0.1" class="input-small" />
+                    </div>
+                    break;
+
+                case "trigger":
+                    <div class="form-row">
+                        <label>Send</label>
+                        <select @bind="TriggerSendType">
+                            <option value="str">string</option>
+                            <option value="num">number</option>
+                            <option value="pay">the original msg.payload</option>
+                        </select>
+                    </div>
+                    @if (TriggerSendType != "pay")
+                    {
+                        <div class="form-row">
+                            <label></label>
+                            <input type="text" @bind="TriggerSendValue" />
+                        </div>
+                    }
+                    <div class="form-row">
+                        <label>then wait for</label>
+                        <input type="number" @bind="TriggerDuration" min="0" class="input-small" />
+                        <select @bind="TriggerDurationUnits">
+                            <option value="ms">milliseconds</option>
+                            <option value="s">seconds</option>
+                            <option value="m">minutes</option>
+                            <option value="h">hours</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>then send</label>
+                        <select @bind="TriggerThenType">
+                            <option value="str">string</option>
+                            <option value="num">number</option>
+                            <option value="nul">nothing</option>
+                        </select>
+                    </div>
+                    @if (TriggerThenType != "nul")
+                    {
+                        <div class="form-row">
+                            <label></label>
+                            <input type="text" @bind="TriggerThenValue" />
+                        </div>
+                    }
+                    break;
+
+                case "exec":
+                    <div class="form-row">
+                        <label><i class="fa fa-terminal"></i> Command</label>
+                        <input type="text" @bind="ExecCommand" placeholder="command" />
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="ExecAppend" /> Append msg.payload to command
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="ExecUseSpawn" /> Use spawn() instead of exec()
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label>Timeout</label>
+                        <input type="number" @bind="ExecTimeout" min="0" class="input-small" /> seconds (0 = no timeout)
+                    </div>
+                    break;
+
+                case "rbe":
+                    <div class="form-row">
+                        <label>Mode</label>
+                        <select @bind="RbeFunction">
+                            <option value="rbe">Block unless value changes</option>
+                            <option value="rbei">Block unless value changes (ignore initial value)</option>
+                            <option value="deadband">Block unless value changes by more than</option>
+                        </select>
+                    </div>
+                    @if (RbeFunction == "deadband")
+                    {
+                        <div class="form-row">
+                            <label>Value</label>
+                            <input type="number" @bind="RbePercent" step="0.1" class="input-small" />
+                            <span>%</span>
+                        </div>
+                    }
+                    <div class="form-row">
+                        <label>Property</label>
+                        <span>msg.</span>
+                        <input type="text" @bind="RbeProperty" />
+                    </div>
+                    break;
+
+                case "split":
+                    <div class="form-row">
+                        <label>Split on</label>
+                        <input type="text" @bind="SplitSeparator" placeholder="\n" />
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="SplitStream" /> Handle as a stream of messages
+                        </label>
+                    </div>
+                    break;
+
+                case "join":
+                    <div class="form-row">
+                        <label>Mode</label>
+                        <select @bind="JoinMode">
+                            <option value="auto">automatic</option>
+                            <option value="manual">manual</option>
+                        </select>
+                    </div>
+                    @if (JoinMode == "manual")
+                    {
+                        <div class="form-row">
+                            <label>to create</label>
+                            <select>
+                                <option value="array">an Array</option>
+                                <option value="string">a String</option>
+                                <option value="object">an Object</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>using</label>
+                            <input type="text" @bind="JoinSeparator" placeholder="separator" />
+                        </div>
+                        <div class="form-row">
+                            <label>After</label>
+                            <input type="number" @bind="JoinCount" min="1" class="input-small" /> message parts
+                        </div>
+                    }
+                    break;
+
+                case "sort":
+                    <div class="form-row">
+                        <label>Target</label>
+                        <span>msg.</span>
+                        <input type="text" @bind="SortProperty" />
+                    </div>
+                    <div class="form-row">
+                        <label>Order</label>
+                        <select @bind="SortOrder">
+                            <option value="asc">ascending</option>
+                            <option value="desc">descending</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="SortAsNumber" /> Compare as numbers
+                        </label>
+                    </div>
+                    break;
+
+                case "batch":
+                    <div class="form-row">
+                        <label>Mode</label>
+                        <select @bind="BatchMode">
+                            <option value="count">Number of messages</option>
+                            <option value="interval">Time interval</option>
+                            <option value="concat">Concatenate sequences</option>
+                        </select>
+                    </div>
+                    @if (BatchMode == "count")
+                    {
+                        <div class="form-row">
+                            <label>Number</label>
+                            <input type="number" @bind="BatchCount" min="1" class="input-small" />
+                        </div>
+                        <div class="form-row">
+                            <label>Overlap</label>
+                            <input type="number" @bind="BatchOverlap" min="0" class="input-small" />
+                        </div>
+                    }
+                    break;
+
+                case "csv":
+                    <div class="form-row">
+                        <label>Columns</label>
+                        <input type="text" @bind="CsvColumns" placeholder="a,b,c (leave blank for auto)" />
+                    </div>
+                    <div class="form-row">
+                        <label>Separator</label>
+                        <input type="text" @bind="CsvSeparator" class="input-small" />
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="CsvHeaders" /> First row contains column names
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="CsvSkipEmpty" /> Skip empty lines
+                        </label>
+                    </div>
+                    break;
+
+                case "json":
+                    <div class="form-row">
+                        <label>Action</label>
+                        <select @bind="JsonAction">
+                            <option value="obj">Always convert to JavaScript Object</option>
+                            <option value="str">Always convert to JSON String</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>Property</label>
+                        <span>msg.</span>
+                        <input type="text" @bind="JsonProperty" />
+                    </div>
+                    break;
+
+                case "xml":
+                    <div class="form-row">
+                        <label>Property</label>
+                        <span>msg.</span>
+                        <input type="text" @bind="XmlProperty" />
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="XmlAttrPrefix" /> Keep attribute prefixes
+                        </label>
+                    </div>
+                    break;
+
+                case "html":
+                    <div class="form-row">
+                        <label>Selector</label>
+                        <input type="text" @bind="HtmlSelector" placeholder="CSS selector (e.g., .class, #id, tag)" />
+                    </div>
+                    <div class="form-row">
+                        <label>Property</label>
+                        <span>msg.</span>
+                        <input type="text" @bind="HtmlProperty" />
+                    </div>
+                    break;
+
+                case "yaml":
+                    <div class="form-row">
+                        <label>Property</label>
+                        <span>msg.</span>
+                        <input type="text" @bind="YamlProperty" />
+                    </div>
+                    break;
+
+                case "file":
+                    <div class="form-row">
+                        <label><i class="fa fa-file"></i> Filename</label>
+                        <input type="text" @bind="FileFilename" placeholder="Path to file" />
+                    </div>
+                    <div class="form-row">
+                        <label>Action</label>
+                        <select @bind="FileAction">
+                            <option value="append">Append to file</option>
+                            <option value="overwrite">Overwrite file</option>
+                            <option value="delete">Delete file</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="FileAddNewline" /> Add newline after each payload
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="FileCreateDir" /> Create directory if it doesn't exist
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label>Encoding</label>
+                        <select @bind="FileEncoding">
+                            <option value="utf8">UTF-8</option>
+                            <option value="ascii">ASCII</option>
+                            <option value="binary">Binary</option>
+                        </select>
+                    </div>
+                    break;
+
+                case "file in":
+                    <div class="form-row">
+                        <label><i class="fa fa-file"></i> Filename</label>
+                        <input type="text" @bind="FileInFilename" placeholder="Path to file" />
+                    </div>
+                    <div class="form-row">
+                        <label>Output</label>
+                        <select @bind="FileInFormat">
+                            <option value="utf8">a UTF-8 string</option>
+                            <option value="lines">a single message per line</option>
+                            <option value="stream">a stream of Buffer chunks</option>
+                            <option value="binary">a single Buffer object</option>
+                        </select>
+                    </div>
+                    break;
+
+                case "watch":
+                    <div class="form-row">
+                        <label><i class="fa fa-eye"></i> Files</label>
+                        <input type="text" @bind="WatchFiles" placeholder="comma-separated list of files/directories" />
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="WatchRecursive" /> Watch subdirectories recursively
+                        </label>
+                    </div>
+                    break;
+
+                case "http in":
+                    <div class="form-row">
+                        <label>Method</label>
+                        <select @bind="HttpInMethod">
+                            <option value="get">GET</option>
+                            <option value="post">POST</option>
+                            <option value="put">PUT</option>
+                            <option value="delete">DELETE</option>
+                            <option value="patch">PATCH</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>URL</label>
+                        <input type="text" @bind="HttpInUrl" placeholder="/url" />
+                    </div>
+                    break;
+
+                case "http response":
+                    <div class="form-row">
+                        <p class="form-info">This node sends responses to requests received from an HTTP Input node.</p>
+                    </div>
+                    break;
+
+                case "http request":
+                    <div class="form-row">
+                        <label>Method</label>
+                        <select @bind="HttpRequestMethod">
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                            <option value="PATCH">PATCH</option>
+                            <option value="HEAD">HEAD</option>
+                            <option value="OPTIONS">OPTIONS</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>URL</label>
+                        <input type="text" @bind="HttpRequestUrl" placeholder="https://..." />
+                    </div>
+                    <div class="form-row">
+                        <label>Return</label>
+                        <select @bind="HttpRequestReturn">
+                            <option value="txt">a UTF-8 string</option>
+                            <option value="bin">a binary buffer</option>
+                            <option value="obj">a parsed JSON object</option>
+                        </select>
+                    </div>
+                    break;
+
+                case "mqtt in":
+                case "mqtt out":
+                    <div class="form-row">
+                        <label>Topic</label>
+                        <input type="text" @bind="MqttTopic" placeholder="topic" />
+                    </div>
+                    <div class="form-row">
+                        <label>QoS</label>
+                        <select @bind="MqttQos">
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>Server</label>
+                        <input type="text" @bind="MqttBroker" placeholder="localhost" />
+                    </div>
+                    <div class="form-row">
+                        <label>Port</label>
+                        <input type="number" @bind="MqttPort" min="1" max="65535" />
+                    </div>
+                    break;
+
+                case "websocket in":
+                case "websocket out":
+                    <div class="form-row">
+                        <label>Type</label>
+                        <select @bind="WebSocketType">
+                            <option value="server">Listen on</option>
+                            <option value="client">Connect to</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>Path</label>
+                        <input type="text" @bind="WebSocketPath" placeholder="/ws" />
+                    </div>
+                    break;
+
+                case "tcp in":
+                case "tcp out":
+                    <div class="form-row">
+                        <label>Type</label>
+                        <select @bind="TcpType">
+                            <option value="server">Listen on port</option>
+                            <option value="client">Connect to</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>Host</label>
+                        <input type="text" @bind="TcpHost" placeholder="localhost" />
+                    </div>
+                    <div class="form-row">
+                        <label>Port</label>
+                        <input type="number" @bind="TcpPort" min="1" max="65535" />
+                    </div>
+                    break;
+
+                case "udp in":
+                case "udp out":
+                    <div class="form-row">
+                        <label>Address</label>
+                        <input type="text" @bind="UdpAddress" placeholder="127.0.0.1" />
+                    </div>
+                    <div class="form-row">
+                        <label>Port</label>
+                        <input type="number" @bind="UdpPort" min="1" max="65535" />
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="UdpMulticast" /> Multicast
+                        </label>
+                    </div>
+                    break;
+
+                case "link in":
+                case "link out":
+                case "link call":
+                    <div class="form-row">
+                        <label>Link Name</label>
+                        <input type="text" @bind="LinkName" placeholder="link name" />
+                    </div>
+                    break;
+
+                case "complete":
+                    <div class="form-row">
+                        <label>Scope</label>
+                        <select @bind="CompleteScope">
+                            <option value="all">All nodes</option>
+                            <option value="selected">Selected nodes</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <p class="form-info">Triggers when a node completes handling a message.</p>
+                    </div>
+                    break;
+
+                case "status":
+                    <div class="form-row">
+                        <label>Scope</label>
+                        <select @bind="StatusScope">
+                            <option value="all">All nodes</option>
+                            <option value="selected">Selected nodes</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <p class="form-info">Triggers when a node changes its status.</p>
+                    </div>
+                    break;
+
+                case "catch":
+                    <div class="form-row">
+                        <label>Scope</label>
+                        <select @bind="CatchScope">
+                            <option value="all">All nodes</option>
+                            <option value="selected">Selected nodes</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="CatchUncaught" /> Catch errors not caught by other catch nodes
+                        </label>
+                    </div>
+                    break;
+
+                case "comment":
+                    <div class="form-row form-row-full">
+                        <label>Comment</label>
+                        <textarea @bind="CommentText" rows="5" placeholder="Enter comment text..."></textarea>
+                    </div>
+                    break;
+
+                default:
+                    <div class="form-row">
+                        <p class="form-info">This node type doesn't have configurable properties.</p>
+                    </div>
+                    break;
             }
         </div>
     };
