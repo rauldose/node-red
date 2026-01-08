@@ -171,23 +171,28 @@
                     <div class="red-ui-sidebar-info">
                         @if (SelectedDiagramNode != null)
                         {
-                            <div class="red-ui-info-header">
-                                <div class="red-ui-info-icon" style="background-color: @GetSelectedNodeColor();"></div>
-                                <span class="red-ui-info-type">@GetSelectedNodeType()</span>
+                            <!-- Node Property Panel (Node-RED style) -->
+                            <div class="red-ui-tray-header">
+                                <div class="red-ui-tray-titlebar">
+                                    <ul class="red-ui-tray-breadcrumbs">
+                                        <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
+                                    </ul>
+                                </div>
                             </div>
-                            <table class="red-ui-info-table">
-                                <tr><td>Node</td><td class="red-ui-info-value">@SelectedDiagramNode.ID</td></tr>
-                                <tr><td>Type</td><td class="red-ui-info-value">@GetSelectedNodeType()</td></tr>
-                                <tr><td>Name</td><td class="red-ui-info-value">@(string.IsNullOrEmpty(SelectedNodeName) ? "(none)" : SelectedNodeName)</td></tr>
-                            </table>
-                            <div class="red-ui-info-tips">
-                                <i class="fa fa-info-circle"></i> Double-click node to edit
+                            <div class="red-ui-tray-body">
+                                <div class="red-ui-tray-content">
+                                    @RenderNodePropertyPanel()
+                                </div>
+                            </div>
+                            <div class="red-ui-tray-footer">
+                                <button class="red-ui-button" @onclick="CancelNodeEdit">Cancel</button>
+                                <button class="red-ui-button red-ui-button-primary" @onclick="SaveNodeProperties">Done</button>
                             </div>
                         }
                         else
                         {
                             <div class="red-ui-info-none">
-                                <p>Select a node to see info</p>
+                                <p>Select a node to see its properties</p>
                             </div>
                         }
                     </div>
@@ -225,213 +230,171 @@
     </div>
 </div>
 
-<!-- Node Edit Dialog -->
-<SfDialog @bind-Visible="@IsEditDialogOpen" 
-          Width="500px" 
-          IsModal="true" 
-          ShowCloseIcon="true"
-          Header="@GetEditDialogHeader()"
-          CssClass="red-ui-editor-dialog">
-    <DialogTemplates>
-        <Content>
-            <div class="red-ui-editor-form">
-                @if (SelectedDiagramNode != null)
-                {
-                    @switch (GetSelectedNodeType())
-                    {
-                        case "inject":
-                            <div class="form-row">
-                                <label><i class="fa fa-tag"></i> Name</label>
-                                <input type="text" @bind="SelectedNodeName" placeholder="Name" />
-                            </div>
-                            <div class="form-row">
-                                <label><i class="fa fa-envelope"></i> msg.payload</label>
-                                <select @bind="InjectPayloadType">
-                                    <option value="date">timestamp</option>
-                                    <option value="str">string</option>
-                                    <option value="num">number</option>
-                                    <option value="bool">boolean</option>
-                                    <option value="json">JSON</option>
-                                </select>
-                                @if (InjectPayloadType != "date")
-                                {
-                                    <input type="text" @bind="InjectPayloadValue" placeholder="value" />
-                                }
-                            </div>
-                            <div class="form-row">
-                                <label><i class="fa fa-tasks"></i> msg.topic</label>
-                                <input type="text" @bind="InjectTopic" />
-                            </div>
-                            <div class="form-row">
-                                <label><i class="fa fa-repeat"></i> Repeat</label>
-                                <select @bind="InjectRepeatType">
-                                    <option value="none">none</option>
-                                    <option value="interval">interval</option>
-                                </select>
-                            </div>
-                            @if (InjectRepeatType == "interval")
-                            {
-                                <div class="form-row">
-                                    <label></label>
-                                    <span>every</span>
-                                    <input type="number" @bind="InjectRepeatInterval" min="0.1" step="1" class="input-small" />
-                                    <span>seconds</span>
-                                </div>
-                            }
-                            <div class="form-row form-row-inject">
-                                <button class="red-ui-button red-ui-button-inject" @onclick="TriggerInjectNode">
-                                    <i class="fa fa-play"></i> Inject now
-                                </button>
-                            </div>
-                            break;
-
-                        case "debug":
-                            <div class="form-row">
-                                <label><i class="fa fa-tag"></i> Name</label>
-                                <input type="text" @bind="SelectedNodeName" placeholder="Name" />
-                            </div>
-                            <div class="form-row">
-                                <label><i class="fa fa-list"></i> Output</label>
-                                <select @bind="DebugOutput">
-                                    <option value="payload">msg.payload</option>
-                                    <option value="true">complete msg object</option>
-                                </select>
-                            </div>
-                            <div class="form-row">
-                                <label><i class="fa fa-random"></i> To</label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" @bind="DebugToSidebar" /> debug window
-                                </label>
-                            </div>
-                            <div class="form-row">
-                                <label></label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" @bind="DebugToConsole" /> system console
-                                </label>
-                            </div>
-                            <div class="form-row">
-                                <label></label>
-                                <label class="checkbox-label">
-                                    <input type="checkbox" @bind="DebugToStatus" /> node status
-                                </label>
-                            </div>
-                            break;
-
-                        case "function":
-                            <div class="form-row">
-                                <label><i class="fa fa-tag"></i> Name</label>
-                                <input type="text" @bind="SelectedNodeName" placeholder="Name" />
-                            </div>
-                            <div class="form-row">
-                                <label><i class="fa fa-random"></i> Outputs</label>
-                                <input type="number" @bind="FunctionOutputs" min="1" max="10" class="input-small" />
-                            </div>
-                            <div class="form-row form-row-full">
-                                <label>Function</label>
-                                <textarea @bind="FunctionCode" rows="10" class="code-editor"></textarea>
-                            </div>
-                            break;
-
-                        case "change":
-                            <div class="form-row">
-                                <label><i class="fa fa-tag"></i> Name</label>
-                                <input type="text" @bind="SelectedNodeName" placeholder="Name" />
-                            </div>
-                            <div class="form-row">
-                                <label>Rules</label>
-                                <select @bind="ChangeAction">
-                                    <option value="set">Set</option>
-                                    <option value="change">Change</option>
-                                    <option value="delete">Delete</option>
-                                    <option value="move">Move</option>
-                                </select>
-                                <span>msg.</span>
-                                <input type="text" @bind="ChangeProperty" class="input-small" />
-                            </div>
-                            @if (ChangeAction == "set")
-                            {
-                                <div class="form-row">
-                                    <label></label>
-                                    <span>to</span>
-                                    <input type="text" @bind="ChangeValue" />
-                                </div>
-                            }
-                            break;
-
-                        case "switch":
-                            <div class="form-row">
-                                <label><i class="fa fa-tag"></i> Name</label>
-                                <input type="text" @bind="SelectedNodeName" placeholder="Name" />
-                            </div>
-                            <div class="form-row">
-                                <label>Property</label>
-                                <span>msg.</span>
-                                <input type="text" @bind="SwitchProperty" />
-                            </div>
-                            break;
-
-                        case "delay":
-                            <div class="form-row">
-                                <label><i class="fa fa-tag"></i> Name</label>
-                                <input type="text" @bind="SelectedNodeName" placeholder="Name" />
-                            </div>
-                            <div class="form-row">
-                                <label>Action</label>
-                                <select @bind="DelayAction">
-                                    <option value="delay">Delay each message</option>
-                                    <option value="rate">Rate Limit Messages</option>
-                                </select>
-                            </div>
-                            <div class="form-row">
-                                <label>For</label>
-                                <input type="number" @bind="DelayTime" min="0" class="input-small" />
-                                <select @bind="DelayUnits">
-                                    <option value="ms">Milliseconds</option>
-                                    <option value="s">Seconds</option>
-                                    <option value="m">Minutes</option>
-                                </select>
-                            </div>
-                            break;
-
-                        case "template":
-                            <div class="form-row">
-                                <label><i class="fa fa-tag"></i> Name</label>
-                                <input type="text" @bind="SelectedNodeName" placeholder="Name" />
-                            </div>
-                            <div class="form-row">
-                                <label>Property</label>
-                                <span>msg.</span>
-                                <input type="text" @bind="TemplateProperty" class="input-small" />
-                            </div>
-                            <div class="form-row form-row-full">
-                                <label>Template</label>
-                                <textarea @bind="TemplateContent" rows="8" class="code-editor"></textarea>
-                            </div>
-                            <div class="form-row">
-                                <label>Output as</label>
-                                <select @bind="TemplateOutputAs">
-                                    <option value="str">Plain text</option>
-                                    <option value="json">Parsed JSON</option>
-                                </select>
-                            </div>
-                            break;
-
-                        default:
-                            <div class="form-row">
-                                <label><i class="fa fa-tag"></i> Name</label>
-                                <input type="text" @bind="SelectedNodeName" placeholder="Name" />
-                            </div>
-                            break;
-                    }
-                }
+@* Render node property panel based on node type *@
+@code {
+    private RenderFragment RenderNodePropertyPanel() => __builder =>
+    {
+        var nodeType = GetSelectedNodeType();
+        
+        <div class="red-ui-editor-form">
+            @* Common name field *@
+            <div class="form-row">
+                <label><i class="fa fa-tag"></i> Name</label>
+                <input type="text" @bind="SelectedNodeName" placeholder="Name" />
             </div>
-        </Content>
-    </DialogTemplates>
-    <DialogButtons>
-        <DialogButton Content="Cancel" OnClick="@CloseEditDialog"></DialogButton>
-        <DialogButton Content="Done" IsPrimary="true" OnClick="@SaveNodeProperties"></DialogButton>
-    </DialogButtons>
-</SfDialog>
+
+            @switch (nodeType)
+            {
+                case "inject":
+                    <div class="form-row">
+                        <label><i class="fa fa-envelope"></i> msg.payload</label>
+                        <select @bind="InjectPayloadType">
+                            <option value="date">timestamp</option>
+                            <option value="str">string</option>
+                            <option value="num">number</option>
+                            <option value="bool">boolean</option>
+                            <option value="json">JSON</option>
+                        </select>
+                    </div>
+                    @if (InjectPayloadType != "date")
+                    {
+                        <div class="form-row">
+                            <label></label>
+                            <input type="text" @bind="InjectPayloadValue" placeholder="value" />
+                        </div>
+                    }
+                    <div class="form-row">
+                        <label><i class="fa fa-tasks"></i> msg.topic</label>
+                        <input type="text" @bind="InjectTopic" />
+                    </div>
+                    <div class="form-row">
+                        <label><i class="fa fa-repeat"></i> Repeat</label>
+                        <select @bind="InjectRepeatType">
+                            <option value="none">none</option>
+                            <option value="interval">interval</option>
+                        </select>
+                    </div>
+                    @if (InjectRepeatType == "interval")
+                    {
+                        <div class="form-row">
+                            <label></label>
+                            <span>every</span>
+                            <input type="number" @bind="InjectRepeatInterval" min="0.1" step="1" class="input-small" />
+                            <span>seconds</span>
+                        </div>
+                    }
+                    break;
+
+                case "debug":
+                    <div class="form-row">
+                        <label><i class="fa fa-list"></i> Output</label>
+                        <select @bind="DebugOutput">
+                            <option value="payload">msg.payload</option>
+                            <option value="true">complete msg object</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label><i class="fa fa-random"></i> To</label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="DebugToSidebar" /> debug window
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="DebugToConsole" /> system console
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label></label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="DebugToStatus" /> node status
+                        </label>
+                    </div>
+                    break;
+
+                case "function":
+                    <div class="form-row">
+                        <label><i class="fa fa-random"></i> Outputs</label>
+                        <input type="number" @bind="FunctionOutputs" min="1" max="10" class="input-small" />
+                    </div>
+                    <div class="form-row form-row-full">
+                        <label>Function</label>
+                        <textarea @bind="FunctionCode" rows="10" class="code-editor"></textarea>
+                    </div>
+                    break;
+
+                case "change":
+                    <div class="form-row">
+                        <label>Rules</label>
+                        <select @bind="ChangeAction">
+                            <option value="set">Set</option>
+                            <option value="change">Change</option>
+                            <option value="delete">Delete</option>
+                            <option value="move">Move</option>
+                        </select>
+                        <span>msg.</span>
+                        <input type="text" @bind="ChangeProperty" class="input-small" />
+                    </div>
+                    @if (ChangeAction == "set")
+                    {
+                        <div class="form-row">
+                            <label></label>
+                            <span>to</span>
+                            <input type="text" @bind="ChangeValue" />
+                        </div>
+                    }
+                    break;
+
+                case "switch":
+                    <div class="form-row">
+                        <label>Property</label>
+                        <span>msg.</span>
+                        <input type="text" @bind="SwitchProperty" />
+                    </div>
+                    break;
+
+                case "delay":
+                    <div class="form-row">
+                        <label>Action</label>
+                        <select @bind="DelayAction">
+                            <option value="delay">Delay each message</option>
+                            <option value="rate">Rate Limit Messages</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label>For</label>
+                        <input type="number" @bind="DelayTime" min="0" class="input-small" />
+                        <select @bind="DelayUnits">
+                            <option value="ms">Milliseconds</option>
+                            <option value="s">Seconds</option>
+                            <option value="m">Minutes</option>
+                        </select>
+                    </div>
+                    break;
+
+                case "template":
+                    <div class="form-row">
+                        <label>Property</label>
+                        <span>msg.</span>
+                        <input type="text" @bind="TemplateProperty" class="input-small" />
+                    </div>
+                    <div class="form-row form-row-full">
+                        <label>Template</label>
+                        <textarea @bind="TemplateContent" rows="8" class="code-editor"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <label>Output as</label>
+                        <select @bind="TemplateOutputAs">
+                            <option value="str">Plain text</option>
+                            <option value="json">Parsed JSON</option>
+                        </select>
+                    </div>
+                    break;
+            }
+        </div>
+    };
+}
 
 <style>
     /* ========================================
@@ -869,7 +832,60 @@
 
     /* Info Panel */
     .red-ui-sidebar-info {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .red-ui-tray-header {
+        background: #f7f7f7;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .red-ui-tray-titlebar {
+        padding: 8px 10px;
+    }
+
+    .red-ui-tray-breadcrumbs {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 12px;
+        color: #666;
+    }
+
+    .red-ui-tray-breadcrumbs i {
+        margin-right: 5px;
+        color: #888;
+    }
+
+    .red-ui-tray-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0;
+    }
+
+    .red-ui-tray-content {
         padding: 10px;
+    }
+
+    .red-ui-tray-footer {
+        padding: 8px 10px;
+        background: #f7f7f7;
+        border-top: 1px solid #ddd;
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px;
+    }
+
+    .red-ui-button-primary {
+        background: #AD1625 !important;
+        color: #fff !important;
+        border-color: #8C101C !important;
+    }
+
+    .red-ui-button-primary:hover {
+        background: #8C101C !important;
     }
 
     .red-ui-info-header {

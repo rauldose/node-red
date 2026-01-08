@@ -51,9 +51,6 @@ public partial class Editor : IDisposable
     private string PaletteFilter = "";
     private PaletteNodeInfo? DraggedNode = null;
 
-    // Edit dialog
-    private bool IsEditDialogOpen = false;
-
     // Node property panel bindings - Inject node
     private string InjectPayloadType = "date";
     private string InjectPayloadValue = "";
@@ -415,9 +412,12 @@ public partial class Editor : IDisposable
             TargetID = targetId,
             SourcePortID = "port2",
             TargetPortID = "port1",
-            Type = ConnectorSegmentType.Bezier,
+            Type = ConnectorSegmentType.Orthogonal,
             Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
-            TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None }
+            TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
+            // Fallback points to prevent null reference during initialization
+            SourcePoint = new DiagramPoint() { X = 0, Y = 0 },
+            TargetPoint = new DiagramPoint() { X = 100, Y = 0 }
         };
         DiagramConnectors!.Add(connector);
     }
@@ -440,10 +440,11 @@ public partial class Editor : IDisposable
 
     private void OnDiagramClick(ClickEventArgs args)
     {
-        // Handle double-click to open edit dialog
+        // Double-click now shows properties in sidebar (no dialog needed)
+        // Just ensure the node is selected and sidebar shows Info tab
         if (args.Count == 2 && SelectedDiagramNode != null)
         {
-            IsEditDialogOpen = true;
+            SelectedSidebarTab = 0; // Switch to Info/Properties tab
         }
     }
 
@@ -633,16 +634,14 @@ public partial class Editor : IDisposable
         return "#ddd";
     }
 
-    private string GetEditDialogHeader()
+    // Property panel handlers
+    private void CancelNodeEdit()
     {
-        var nodeType = GetSelectedNodeType();
-        return $"Edit {nodeType} node";
-    }
-
-    // Dialog handlers
-    private void CloseEditDialog()
-    {
-        IsEditDialogOpen = false;
+        // Reload the original properties from the node
+        if (SelectedDiagramNode != null)
+        {
+            LoadNodeProperties(SelectedDiagramNode);
+        }
     }
 
     private void SaveNodeProperties()
@@ -702,8 +701,6 @@ public partial class Editor : IDisposable
                     break;
             }
         }
-
-        IsEditDialogOpen = false;
     }
 
     private void SaveNodeProperty(string key, object value)
