@@ -196,8 +196,9 @@ public class NodeLoader : INodeLoader
             }
             catch (Exception ex)
             {
-                // Log but continue loading other plugins
-                Console.WriteLine($"Failed to load plugin {dllPath}: {ex.Message}");
+                // Errors are silently ignored - host app should use its own logging
+                // when calling LoadFromDirectory. The plugin simply won't be loaded.
+                _ = ex; // Suppress unused variable warning
             }
         }
 
