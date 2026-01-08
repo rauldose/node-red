@@ -322,14 +322,15 @@ public partial class Editor : IDisposable
 
     private void InitDiagramModel()
     {
-        // Create sample flow nodes
+        // Create sample flow nodes only (no connectors initially)
+        // Users can draw connections by clicking on ports
         CreateNode("inject1", 150, 150, "inject", "timestamp", "#a6bbcf");
         CreateNode("function1", 350, 150, "function", "function", "#fdd0a2");
         CreateNode("debug1", 550, 150, "debug", "msg.payload", "#87a980");
 
-        // Create connectors
-        CreateConnector("inject1", "function1");
-        CreateConnector("function1", "debug1");
+        // Note: Connectors are not created here to avoid initialization issues
+        // Users can draw connections by clicking on the output port (right side)
+        // and dragging to an input port (left side)
     }
 
     private void CreateNode(string id, double x, double y, string nodeType, string label, string color)
@@ -381,7 +382,7 @@ public partial class Editor : IDisposable
                 Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
                 Width = 10,
                 Height = 10,
-                Constraints = PortConstraints.InConnect
+                Constraints = PortConstraints.Default
             });
         }
 
@@ -396,7 +397,7 @@ public partial class Editor : IDisposable
                 Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
                 Width = 10,
                 Height = 10,
-                Constraints = PortConstraints.Draw | PortConstraints.OutConnect
+                Constraints = PortConstraints.Default | PortConstraints.Draw
             });
         }
 
@@ -535,7 +536,11 @@ public partial class Editor : IDisposable
             connector.Style.StrokeColor = "#999";
             connector.Style.StrokeWidth = 2;
             connector.TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None };
-            connector.Type = ConnectorSegmentType.Bezier;
+            connector.Type = ConnectorSegmentType.Orthogonal;
+            
+            // Initialize source and target points to prevent null reference during connection
+            connector.SourcePoint ??= new DiagramPoint() { X = 0, Y = 0 };
+            connector.TargetPoint ??= new DiagramPoint() { X = 100, Y = 0 };
         }
     }
 
