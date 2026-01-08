@@ -73,13 +73,14 @@ return msg;
 ```")
         .Build();
 
-    protected override async Task OnInitializeAsync()
+    protected override Task OnInitializeAsync()
     {
         var code = GetConfig("func", "return msg;");
-        await CompileScript(code);
+        CompileScript(code);
+        return Task.CompletedTask;
     }
 
-    private async Task CompileScript(string code)
+    private void CompileScript(string code)
     {
         try
         {
@@ -103,8 +104,6 @@ return msg;
         {
             Error($"Failed to compile function: {ex.Message}");
         }
-        
-        await Task.CompletedTask;
     }
 
     protected override async Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)

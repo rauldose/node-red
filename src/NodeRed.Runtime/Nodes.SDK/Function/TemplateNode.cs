@@ -94,9 +94,23 @@ Your order #{{payload.orderId}} is {{status}}.
         }
 
         // Set output
-        object outputValue = format == "json" 
-            ? System.Text.Json.JsonSerializer.Deserialize<object>(output) ?? output
-            : output;
+        object outputValue;
+        if (format == "json")
+        {
+            try
+            {
+                outputValue = System.Text.Json.JsonSerializer.Deserialize<object>(output) ?? output;
+            }
+            catch
+            {
+                // If JSON parsing fails, use the raw string
+                outputValue = output;
+            }
+        }
+        else
+        {
+            outputValue = output;
+        }
 
         switch (fieldType)
         {

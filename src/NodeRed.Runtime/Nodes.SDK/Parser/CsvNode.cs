@@ -135,7 +135,7 @@ matching the column headers.")
 
     private static string[] ParseLine(string line, string sep)
     {
-        return line.Trim().Split(sep[0]);
+        return line.Trim().Split(sep, StringSplitOptions.None);
     }
 
     private static string ToCsvString(object? value, string sep, bool includeHeaders)
