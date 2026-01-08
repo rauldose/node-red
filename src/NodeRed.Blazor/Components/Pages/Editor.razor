@@ -126,6 +126,7 @@
                                     SelectionChanged="@OnSelectionChanged"
                                     ConnectionChanging="@OnConnectionChanging"
                                     Click="@OnDiagramClick"
+                                    FixedUserHandleClick="@OnFixedUserHandleClick"
                                     Height="100%"
                                     Width="100%"
                                     Nodes="@DiagramNodes"
@@ -154,6 +155,29 @@
             </div>
         </div>
 
+        <!-- Property Editor Tray (slides out when double-clicking a node) -->
+        @if (IsPropertyTrayOpen && SelectedDiagramNode != null)
+        {
+            <div class="red-ui-tray">
+                <div class="red-ui-tray-header">
+                    <div class="red-ui-tray-titlebar">
+                        <ul class="red-ui-tray-breadcrumbs">
+                            <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
+                        </ul>
+                    </div>
+                    <div class="red-ui-tray-toolbar">
+                        <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
+                        <button class="red-ui-button red-ui-button-primary" @onclick="SaveAndClosePropertyTray">Done</button>
+                    </div>
+                </div>
+                <div class="red-ui-tray-body">
+                    <div class="red-ui-tray-content">
+                        @RenderNodePropertyPanel()
+                    </div>
+                </div>
+            </div>
+        }
+
         <!-- Sidebar -->
         <div id="red-ui-sidebar">
             <ul id="red-ui-sidebar-tabs">
@@ -171,28 +195,29 @@
                     <div class="red-ui-sidebar-info">
                         @if (SelectedDiagramNode != null)
                         {
-                            <!-- Node Property Panel (Node-RED style) -->
-                            <div class="red-ui-tray-header">
-                                <div class="red-ui-tray-titlebar">
-                                    <ul class="red-ui-tray-breadcrumbs">
-                                        <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
-                                    </ul>
-                                </div>
+                            <!-- Node Info (documentation/help style) -->
+                            <div class="red-ui-info-header">
+                                <span class="red-ui-info-icon" style="background-color: @GetSelectedNodeColor()"></span>
+                                <span class="red-ui-info-type">@GetSelectedNodeType()</span>
                             </div>
-                            <div class="red-ui-tray-body">
-                                <div class="red-ui-tray-content">
-                                    @RenderNodePropertyPanel()
-                                </div>
-                            </div>
-                            <div class="red-ui-tray-footer">
-                                <button class="red-ui-button" @onclick="CancelNodeEdit">Cancel</button>
-                                <button class="red-ui-button red-ui-button-primary" @onclick="SaveNodeProperties">Done</button>
+                            <table class="red-ui-info-table">
+                                <tr>
+                                    <td>node</td>
+                                    <td class="red-ui-info-value">@SelectedDiagramNode.ID</td>
+                                </tr>
+                                <tr>
+                                    <td>name</td>
+                                    <td class="red-ui-info-value">@(SelectedNodeName ?? "(none)")</td>
+                                </tr>
+                            </table>
+                            <div class="red-ui-info-tips">
+                                <p><strong>Tip:</strong> Double-click the node to edit its properties.</p>
                             </div>
                         }
                         else
                         {
                             <div class="red-ui-info-none">
-                                <p>Select a node to see its properties</p>
+                                <p>Select a node to see information about it, or double-click to edit</p>
                             </div>
                         }
                     </div>
@@ -1125,6 +1150,48 @@
 
     .red-ui-button-inject:hover {
         background: #8aa3bc;
+    }
+
+    /* ========== TRAY (Node Property Editor) ========== */
+    .red-ui-tray {
+        position: absolute;
+        top: 0;
+        right: 315px; /* Next to sidebar */
+        bottom: 0;
+        width: 350px;
+        background: #fff;
+        border-left: 1px solid #bbb;
+        display: flex;
+        flex-direction: column;
+        z-index: 100;
+        box-shadow: -3px 0 10px rgba(0,0,0,0.1);
+    }
+
+    .red-ui-tray .red-ui-tray-header {
+        background: #f7f7f7;
+        border-bottom: 1px solid #ddd;
+        padding: 0;
+    }
+
+    .red-ui-tray .red-ui-tray-titlebar {
+        padding: 8px 10px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .red-ui-tray .red-ui-tray-toolbar {
+        padding: 8px 10px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px;
+    }
+
+    .red-ui-tray .red-ui-tray-body {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .red-ui-tray .red-ui-tray-content {
+        padding: 10px;
     }
 
     /* Dialog overrides */

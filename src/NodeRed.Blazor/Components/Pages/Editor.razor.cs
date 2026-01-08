@@ -38,6 +38,7 @@ public partial class Editor : IDisposable
     private Node? SelectedDiagramNode;
     private string SelectedNodeName = "";
     private int SelectedSidebarTab = 0;
+    private bool IsPropertyTrayOpen = false;
 
     // Debug messages
     private List<DebugMessage> DebugMessages = new();
@@ -295,28 +296,8 @@ public partial class Editor : IDisposable
 
     private async Task CreateDiagramNode(string id, double x, double y, string nodeType, string label, string color)
     {
-        var node = new Node()
-        {
-            ID = id,
-            OffsetX = x,
-            OffsetY = y,
-            Width = 120,
-            Height = 25,
-            Ports = CreatePorts(nodeType),
-            Style = new ShapeStyle { Fill = color, StrokeColor = "#999", StrokeWidth = 1 },
-            Shape = new BasicShape() { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
-            Constraints = DefaultNodeConstraints,
-            Annotations = new DiagramObjectCollection<ShapeAnnotation>
-            {
-                new ShapeAnnotation
-                {
-                    Content = label,
-                    Style = new TextStyle() { Color = "#333", FontSize = 13 }
-                }
-            },
-            AdditionalInfo = new Dictionary<string, object> { { "nodeType", nodeType }, { "color", color } }
-        };
-
+        var paletteNode = GetPaletteNodeInfo(nodeType);
+        var node = CreateNodeRedStyleNode(id, x, y, nodeType, label, color, paletteNode);
         DiagramNodes!.Add(node);
     }
 
@@ -335,29 +316,166 @@ public partial class Editor : IDisposable
 
     private void CreateNode(string id, double x, double y, string nodeType, string label, string color)
     {
+        var paletteNode = GetPaletteNodeInfo(nodeType);
+        var node = CreateNodeRedStyleNode(id, x, y, nodeType, label, color, paletteNode);
+        DiagramNodes!.Add(node);
+        NodeCount++;
+    }
+
+    private PaletteNodeInfo? GetPaletteNodeInfo(string nodeType)
+    {
+        foreach (var category in PaletteCategories)
+        {
+            var node = category.Nodes.FirstOrDefault(n => n.Type == nodeType);
+            if (node != null) return node;
+        }
+        return null;
+    }
+
+    private Node CreateNodeRedStyleNode(string id, double x, double y, string nodeType, string label, string color, PaletteNodeInfo? paletteNode)
+    {
+        var iconClass = paletteNode?.IconClass ?? "fa fa-cube";
+        var hasInput = paletteNode?.Inputs > 0 || (nodeType != "inject" && nodeType != "complete" && nodeType != "catch" && 
+                        nodeType != "status" && nodeType != "link in" && nodeType != "comment");
+        var hasOutput = paletteNode?.Outputs > 0 || (nodeType != "debug" && nodeType != "link out" && nodeType != "http response" && 
+                         nodeType != "mqtt out" && nodeType != "websocket out" && nodeType != "tcp out" && 
+                         nodeType != "udp out" && nodeType != "comment");
+
+        // Create a node with child nodes for the icon area
         var node = new Node()
         {
             ID = id,
             OffsetX = x,
             OffsetY = y,
-            Width = 120,
-            Height = 25,
+            Width = 130,
+            Height = 30,
             Ports = CreatePorts(nodeType),
             Style = new ShapeStyle { Fill = color, StrokeColor = "#999", StrokeWidth = 1 },
             Shape = new BasicShape() { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
             Constraints = DefaultNodeConstraints,
             Annotations = new DiagramObjectCollection<ShapeAnnotation>
             {
+                // Icon annotation (using Unicode/Font Awesome representation)
                 new ShapeAnnotation
                 {
+                    ID = "iconAnnotation",
+                    Content = GetIconContent(iconClass),
+                    Offset = new DiagramPoint() { X = 0.12, Y = 0.5 },
+                    Style = new TextStyle() 
+                    { 
+                        Color = "#fff", 
+                        FontSize = 12,
+                        FontFamily = "FontAwesome"
+                    },
+                    Constraints = AnnotationConstraints.ReadOnly
+                },
+                // Label annotation
+                new ShapeAnnotation
+                {
+                    ID = "labelAnnotation",
                     Content = label,
-                    Style = new TextStyle() { Color = "#333", FontSize = 13 }
+                    Offset = new DiagramPoint() { X = 0.58, Y = 0.5 },
+                    Style = new TextStyle() { Color = "#333", FontSize = 12 },
+                    Constraints = AnnotationConstraints.ReadOnly
                 }
             },
-            AdditionalInfo = new Dictionary<string, object> { { "nodeType", nodeType }, { "color", color } }
+            AdditionalInfo = new Dictionary<string, object> 
+            { 
+                { "nodeType", nodeType }, 
+                { "color", color },
+                { "iconClass", iconClass },
+                { "hasInput", hasInput },
+                { "hasOutput", hasOutput }
+            },
+            FixedUserHandles = CreateFixedUserHandles(nodeType)
         };
-        DiagramNodes!.Add(node);
-        NodeCount++;
+
+        return node;
+    }
+
+    private string GetIconContent(string iconClass)
+    {
+        // Map Font Awesome classes to Unicode characters
+        return iconClass switch
+        {
+            "fa fa-arrow-right" => "\uf061",
+            "fa fa-bug" => "\uf188",
+            "fa fa-code" => "\uf121",
+            "fa fa-edit" => "\uf044",
+            "fa fa-random" => "\uf074",
+            "fa fa-clock-o" => "\uf017",
+            "fa fa-file-text-o" => "\uf0f6",
+            "fa fa-comment-o" => "\uf0e5",
+            "fa fa-warning" => "\uf071",
+            "fa fa-check-circle-o" => "\uf05d",
+            "fa fa-circle-o" => "\uf10c",
+            "fa fa-arrow-left" => "\uf060",
+            "fa fa-link" => "\uf0c1",
+            "fa fa-arrows-h" => "\uf07e",
+            "fa fa-toggle-off" => "\uf204",
+            "fa fa-terminal" => "\uf120",
+            "fa fa-tasks" => "\uf0ae",
+            "fa fa-sign-in" => "\uf090",
+            "fa fa-sign-out" => "\uf08b",
+            "fa fa-globe" => "\uf0ac",
+            "fa fa-plug" => "\uf1e6",
+            "fa fa-exchange" => "\uf0ec",
+            "fa fa-columns" => "\uf0db",
+            "fa fa-compress" => "\uf066",
+            "fa fa-sort" => "\uf0dc",
+            "fa fa-list" => "\uf03a",
+            "fa fa-table" => "\uf0ce",
+            "fa fa-file-code-o" => "\uf1c9",
+            "fa fa-file" => "\uf15b",
+            "fa fa-eye" => "\uf06e",
+            _ => "\uf1b2" // cube as default
+        };
+    }
+
+    private DiagramObjectCollection<NodeFixedUserHandle> CreateFixedUserHandles(string nodeType)
+    {
+        var handles = new DiagramObjectCollection<NodeFixedUserHandle>();
+
+        // Add icon background as a fixed user handle (left side of node)
+        handles.Add(new NodeFixedUserHandle()
+        {
+            ID = "iconBackground",
+            Width = 30,
+            Height = 28,
+            Offset = new DiagramPoint() { X = 0, Y = 0.5 },
+            Margin = new DiagramThickness() { Left = 1 },
+            PathData = "M0,0 L30,0 L30,28 L0,28 Z", // Rectangle
+            Visibility = true,
+            CornerRadius = 4,
+            Fill = "rgba(0,0,0,0.1)",
+            Stroke = "transparent",
+            StrokeThickness = 0,
+            IconStroke = "transparent",
+            IconStrokeThickness = 0
+        });
+
+        // Add inject button only for inject nodes (positioned to the left of the node)
+        if (nodeType == "inject")
+        {
+            handles.Add(new NodeFixedUserHandle()
+            {
+                ID = "injectButton",
+                Width = 18,
+                Height = 18,
+                Offset = new DiagramPoint() { X = 0, Y = 0.5 },
+                Margin = new DiagramThickness() { Left = -14 },
+                PathData = "M8 5v14l11-7z", // Play icon SVG path
+                Visibility = true,
+                CornerRadius = 2,
+                Fill = "#8aa3bc",
+                Stroke = "#7a93ac",
+                StrokeThickness = 1,
+                IconStroke = "#fff",
+                IconStrokeThickness = 0
+            });
+        }
+
+        return handles;
     }
 
     private DiagramObjectCollection<PointPort> CreatePorts(string nodeType = "")
@@ -447,11 +565,65 @@ public partial class Editor : IDisposable
 
     private void OnDiagramClick(ClickEventArgs args)
     {
-        // Double-click now shows properties in sidebar (no dialog needed)
-        // Just ensure the node is selected and sidebar shows Info tab
+        // Double-click opens property tray (like Node-RED)
         if (args.Count == 2 && SelectedDiagramNode != null)
         {
-            SelectedSidebarTab = 0; // Switch to Info/Properties tab
+            IsPropertyTrayOpen = true;
+            SelectedSidebarTab = 0; // Switch to Info tab
+        }
+    }
+
+    private void ClosePropertyTray()
+    {
+        IsPropertyTrayOpen = false;
+        // Reload the original properties from the node (cancel changes)
+        if (SelectedDiagramNode != null)
+        {
+            LoadNodeProperties(SelectedDiagramNode);
+        }
+    }
+
+    private void SaveAndClosePropertyTray()
+    {
+        SaveNodeProperties();
+        IsPropertyTrayOpen = false;
+    }
+
+    private async Task OnFixedUserHandleClick(FixedUserHandleClickEventArgs args)
+    {
+        // Handle inject button click
+        if (args.FixedUserHandle?.ID == "injectButton" && args.Element is Node node)
+        {
+            var nodeType = node.AdditionalInfo?.TryGetValue("nodeType", out var typeObj) == true
+                ? typeObj as string : null;
+
+            if (nodeType == "inject" && node.ID != null)
+            {
+                try
+                {
+                    await FlowRuntime.InjectAsync(node.ID);
+                    var nodeName = node.Annotations?.FirstOrDefault()?.Content ?? node.ID;
+                    DebugMessages.Add(new DebugMessage
+                    {
+                        NodeId = node.ID,
+                        NodeName = nodeName ?? node.ID,
+                        Data = $"Injected at {DateTimeOffset.Now:HH:mm:ss}",
+                        Timestamp = DateTimeOffset.Now
+                    });
+                    StateHasChanged();
+                }
+                catch (Exception ex)
+                {
+                    DebugMessages.Add(new DebugMessage
+                    {
+                        NodeId = node.ID,
+                        NodeName = node.ID,
+                        Data = $"Error: {ex.Message}",
+                        Timestamp = DateTimeOffset.Now
+                    });
+                    StateHasChanged();
+                }
+            }
         }
     }
 
