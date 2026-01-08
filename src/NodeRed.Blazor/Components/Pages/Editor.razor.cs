@@ -594,6 +594,24 @@ public partial class Editor : IDisposable
         }
     }
 
+    private void OnSourcePointChanging(EndPointChangingEventArgs args)
+    {
+        // Ensure source point is always valid
+        if (args.Connector?.SourcePoint == null)
+        {
+            args.Connector!.SourcePoint = new DiagramPoint() { X = 0, Y = 0 };
+        }
+    }
+
+    private void OnTargetPointChanging(EndPointChangingEventArgs args)
+    {
+        // Ensure target point is always valid
+        if (args.Connector?.TargetPoint == null)
+        {
+            args.Connector!.TargetPoint = new DiagramPoint() { X = 100, Y = 0 };
+        }
+    }
+
     // Flow management
     private void AddNewFlow()
     {
