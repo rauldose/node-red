@@ -34,7 +34,6 @@ public partial class Editor : IDisposable
     private DiagramObjectCollection<Palette>? DiagramPalettes { get; set; } = new DiagramObjectCollection<Palette>();
     private DiagramObjectCollection<NodeBase>? CommonNodes { get; set; } = new DiagramObjectCollection<NodeBase>();
     private DiagramObjectCollection<NodeBase>? FunctionNodes { get; set; } = new DiagramObjectCollection<NodeBase>();
-    private DiagramObjectCollection<NodeBase>? ConnectorSymbols { get; set; } = new DiagramObjectCollection<NodeBase>();
     
     // Drawing object
     private IDiagramObject? DiagramDrawingObject { get; set; }
@@ -140,12 +139,32 @@ public partial class Editor : IDisposable
             };
         }
     }
+    
+    // Get symbol info for palette - displays description below each symbol
+    private SymbolInfo GetSymbolInfo(IDiagramObject symbol)
+    {
+        var info = new SymbolInfo
+        {
+            Fit = true
+        };
+        
+        // Show the node type as description below the symbol
+        if (symbol is Node node && node.AdditionalInfo?.TryGetValue("nodeType", out var typeObj) == true)
+        {
+            info.Description = new SymbolDescription
+            {
+                Text = typeObj as string ?? node.ID,
+                Style = new TextStyle { FontSize = 12, Color = "#333" }
+            };
+        }
+        
+        return info;
+    }
 
     private void InitPaletteModel()
     {
         CommonNodes = new DiagramObjectCollection<NodeBase>();
         FunctionNodes = new DiagramObjectCollection<NodeBase>();
-        ConnectorSymbols = new DiagramObjectCollection<NodeBase>();
         
         // Common nodes
         CreatePaletteNode(CommonNodes, "inject", "inject", "#DE7479", "▶");
@@ -160,43 +179,43 @@ public partial class Editor : IDisposable
         CreatePaletteNode(FunctionNodes, "delay", "delay", "#E6C4E0", "⏱");
         CreatePaletteNode(FunctionNodes, "template", "template", "#CC9966", "📝");
         
-        // Connector symbols
-        CreatePaletteConnector("Bezier", ConnectorSegmentType.Bezier, DecoratorShape.Arrow);
-        CreatePaletteConnector("Orthogonal", ConnectorSegmentType.Orthogonal, DecoratorShape.Arrow);
-        CreatePaletteConnector("Straight", ConnectorSegmentType.Straight, DecoratorShape.Arrow);
-        
         DiagramPalettes = new DiagramObjectCollection<Palette>()
         {
             new Palette() { Symbols = CommonNodes, Title = "Common", ID = "Common", IconCss = "e-icons e-circle", IsExpanded = true },
             new Palette() { Symbols = FunctionNodes, Title = "Function", ID = "Function", IconCss = "e-icons e-function", IsExpanded = true },
-            new Palette() { Symbols = ConnectorSymbols, Title = "Connectors", ID = "Connectors", IconCss = "e-icons e-connector", IsExpanded = false },
         };
     }
 
     private void CreatePaletteNode(DiagramObjectCollection<NodeBase> collection, string id, string nodeType, string color, string icon)
     {
         // Create ports for palette node - these will be cloned when dragged
+        // Enable PortConstraints.Draw so clicking a port starts drawing a connector
         var palettePorts = new DiagramObjectCollection<PointPort>();
         palettePorts.Add(new PointPort()
         {
             ID = "port1",
             Shape = PortShapes.Circle,
             Offset = new DiagramPoint() { X = 0, Y = 0.5 },
-            Visibility = PortVisibility.Visible,
+            Visibility = PortVisibility.Hover,
             Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" },
             Width = 8,
-            Height = 8
+            Height = 8,
+            Constraints = PortConstraints.Default | PortConstraints.Draw
         });
         palettePorts.Add(new PointPort()
         {
             ID = "port2",
             Shape = PortShapes.Circle,
             Offset = new DiagramPoint() { X = 1, Y = 0.5 },
-            Visibility = PortVisibility.Visible,
+            Visibility = PortVisibility.Hover,
             Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" },
             Width = 8,
-            Height = 8
+            Height = 8,
+            Constraints = PortConstraints.Default | PortConstraints.Draw
         });
+        
+        // Node constraints: disable resize and rotate
+        var nodeConstraints = NodeConstraints.Default & ~NodeConstraints.Resize & ~NodeConstraints.Rotate;
         
         var node = new Node()
         {
@@ -206,6 +225,7 @@ public partial class Editor : IDisposable
             Style = new ShapeStyle { Fill = color, StrokeColor = "#666666", StrokeWidth = 1 },
             Shape = new BasicShape() { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
             Ports = palettePorts,
+            Constraints = nodeConstraints,
             Annotations = new DiagramObjectCollection<ShapeAnnotation>
             {
                 new ShapeAnnotation
@@ -214,27 +234,11 @@ public partial class Editor : IDisposable
                     Style = new TextStyle() { Color = "#333333", FontSize = 11 }
                 }
             },
+            // Tooltip to show node type on hover in palette
+            Tooltip = new DiagramTooltip() { Content = nodeType },
             AdditionalInfo = new Dictionary<string, object> { { "nodeType", nodeType }, { "color", color } }
         };
         collection.Add(node);
-    }
-
-    private void CreatePaletteConnector(string id, ConnectorSegmentType type, DecoratorShape decoratorShape)
-    {
-        var connector = new Connector()
-        {
-            ID = id,
-            Type = type,
-            SourcePoint = new DiagramPoint() { X = 0, Y = 0 },
-            TargetPoint = new DiagramPoint() { X = 60, Y = 40 },
-            Style = new ShapeStyle() { StrokeWidth = 2, StrokeColor = "#888" },
-            TargetDecorator = new DecoratorSettings()
-            {
-                Shape = decoratorShape,
-                Style = new ShapeStyle() { StrokeWidth = 1, StrokeColor = "#888", Fill = "#888" }
-            }
-        };
-        ConnectorSymbols!.Add(connector);
     }
 
     private void InitDiagramModel()
@@ -251,6 +255,9 @@ public partial class Editor : IDisposable
 
     private void CreateNode(string id, double x, double y, string nodeType, string label, string color)
     {
+        // Node constraints: disable resize and rotate
+        var nodeConstraints = NodeConstraints.Default & ~NodeConstraints.Resize & ~NodeConstraints.Rotate;
+        
         var node = new Node()
         {
             ID = id,
@@ -261,6 +268,7 @@ public partial class Editor : IDisposable
             Ports = CreatePorts(),
             Style = new ShapeStyle { Fill = color, StrokeColor = "#666666", StrokeWidth = 1 },
             Shape = new BasicShape() { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
+            Constraints = nodeConstraints,
             Annotations = new DiagramObjectCollection<ShapeAnnotation>
             {
                 new ShapeAnnotation
@@ -278,6 +286,7 @@ public partial class Editor : IDisposable
     private DiagramObjectCollection<PointPort> CreatePorts()
     {
         var ports = new DiagramObjectCollection<PointPort>();
+        // Input port (left side)
         ports.Add(new PointPort()
         {
             ID = "port1",
@@ -286,8 +295,10 @@ public partial class Editor : IDisposable
             Visibility = PortVisibility.Visible,
             Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" },
             Width = 10,
-            Height = 10
+            Height = 10,
+            Constraints = PortConstraints.Default | PortConstraints.Draw
         });
+        // Output port (right side)
         ports.Add(new PointPort()
         {
             ID = "port2",
@@ -296,7 +307,8 @@ public partial class Editor : IDisposable
             Visibility = PortVisibility.Visible,
             Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" },
             Width = 10,
-            Height = 10
+            Height = 10,
+            Constraints = PortConstraints.Default | PortConstraints.Draw
         });
         return ports;
     }
@@ -423,6 +435,18 @@ public partial class Editor : IDisposable
             node.Style ??= new ShapeStyle();
             node.Style.StrokeWidth = 1;
             node.Style.StrokeColor = "#666666";
+            
+            // Disable resize and rotate for all nodes
+            node.Constraints = NodeConstraints.Default & ~NodeConstraints.Resize & ~NodeConstraints.Rotate;
+            
+            // Enable drawing connectors from ports
+            if (node.Ports != null)
+            {
+                foreach (var port in node.Ports)
+                {
+                    port.Constraints = PortConstraints.Default | PortConstraints.Draw;
+                }
+            }
         }
     }
 
@@ -539,26 +563,6 @@ public partial class Editor : IDisposable
                 break;
             case "Delete":
                 DiagramInstance?.Delete();
-                break;
-        }
-    }
-
-    private void SelectedItem(Syncfusion.Blazor.SplitButtons.MenuEventArgs args)
-    {
-        var value = args.Item.Text;
-        switch (value)
-        {
-            case "Straight":
-                DiagramDrawingObject = new Connector() { Type = ConnectorSegmentType.Straight };
-                DiagramTool = DiagramInteractions.DrawOnce;
-                break;
-            case "Orthogonal":
-                DiagramDrawingObject = new Connector() { Type = ConnectorSegmentType.Orthogonal };
-                DiagramTool = DiagramInteractions.DrawOnce;
-                break;
-            case "Bezier":
-                DiagramDrawingObject = new Connector() { Type = ConnectorSegmentType.Bezier };
-                DiagramTool = DiagramInteractions.DrawOnce;
                 break;
         }
     }

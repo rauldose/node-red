@@ -34,19 +34,6 @@
                 <ToolbarItem TooltipText="Pan" PrefixIcon="e-icons e-pan"></ToolbarItem>
                 <ToolbarItem TooltipText="Select" PrefixIcon="e-icons e-mouse-pointer"></ToolbarItem>
                 <ToolbarItem Type="ItemType.Separator"></ToolbarItem>
-                <ToolbarItem TooltipText="Draw Connectors">
-                    <Template>
-                        <SfDropDownButton IconCss="e-icons e-connector">
-                            <DropDownButtonEvents ItemSelected="@SelectedItem"></DropDownButtonEvents>
-                            <DropDownMenuItems>
-                                <DropDownMenuItem IconCss="e-icons e-line" Text="Straight"></DropDownMenuItem>
-                                <DropDownMenuItem Text="Orthogonal"></DropDownMenuItem>
-                                <DropDownMenuItem Text="Bezier"></DropDownMenuItem>
-                            </DropDownMenuItems>
-                        </SfDropDownButton>
-                    </Template>
-                </ToolbarItem>
-                <ToolbarItem Type="ItemType.Separator"></ToolbarItem>
                 <ToolbarItem>
                     <Template>
                         <SfDropDownButton Content="@ZoomItemDropdownContent">
@@ -76,9 +63,10 @@
                                           ShowSearchTextBox="true" 
                                           SymbolDragPreviewSize="@SymbolPreview" 
                                           Palettes="@DiagramPalettes" 
-                                          SymbolHeight="40" 
-                                          SymbolWidth="100" 
-                                          SymbolMargin="@SymbolMargin">
+                                          SymbolHeight="60" 
+                                          SymbolWidth="120" 
+                                          SymbolMargin="@SymbolMargin"
+                                          GetSymbolInfo="@GetSymbolInfo">
                 </SfSymbolPaletteComponent>
             </div>
 
