@@ -3,6 +3,9 @@
 @rendermode InteractiveServer
 @using Syncfusion.Blazor.Diagram
 @using Syncfusion.Blazor.Diagram.SymbolPalette
+@using Syncfusion.Blazor.Navigations
+@using Syncfusion.Blazor.SplitButtons
+@using Syncfusion.Blazor.Inputs
 @using System.Collections.ObjectModel
 @inject INodeRegistry NodeRegistry
 @inject IFlowRuntime FlowRuntime
@@ -13,122 +16,219 @@
 
 <div class="control-section">
     <div style="width: 100%">
+        <!-- Main Toolbar -->
         <SfToolbar>
-            <ToolbarEvents Clicked="@ToolbarClick"></ToolbarEvents>
+            <ToolbarEvents Clicked="@ToolbarEditorClick"></ToolbarEvents>
             <ToolbarItems>
-                <ToolbarItem Text="Deploy" PrefixIcon="e-icons e-play" TooltipText="Deploy"></ToolbarItem>
+                <ToolbarItem TooltipText="Deploy" PrefixIcon="e-icons e-play" Text="Deploy"></ToolbarItem>
                 <ToolbarItem Type="ItemType.Separator"></ToolbarItem>
-                <ToolbarItem Text="Import" PrefixIcon="e-icons e-import" TooltipText="Import"></ToolbarItem>
-                <ToolbarItem Text="Export" PrefixIcon="e-icons e-export" TooltipText="Export"></ToolbarItem>
+                <ToolbarItem TooltipText="Undo" PrefixIcon="e-icons e-undo" Disabled="@IsEnableUndoButton"></ToolbarItem>
+                <ToolbarItem TooltipText="Redo" PrefixIcon="e-icons e-redo" Disabled="@IsEnableRedoButton"></ToolbarItem>
+                <ToolbarItem Type="ItemType.Separator"></ToolbarItem>
+                <ToolbarItem TooltipText="Cut" PrefixIcon="e-icons e-cut" Disabled="@IsEnableCutButton"></ToolbarItem>
+                <ToolbarItem TooltipText="Copy" PrefixIcon="e-icons e-copy" Disabled="@IsEnableCopyButton"></ToolbarItem>
+                <ToolbarItem TooltipText="Paste" PrefixIcon="e-icons e-paste" Disabled="@IsEnablePasteButton"></ToolbarItem>
+                <ToolbarItem Type="ItemType.Separator"></ToolbarItem>
+                <ToolbarItem TooltipText="Delete" PrefixIcon="e-icons e-trash" Disabled="@IsDeleteDisable"></ToolbarItem>
+                <ToolbarItem Type="ItemType.Separator"></ToolbarItem>
+                <ToolbarItem TooltipText="Pan" PrefixIcon="e-icons e-pan"></ToolbarItem>
+                <ToolbarItem TooltipText="Select" PrefixIcon="e-icons e-mouse-pointer"></ToolbarItem>
+                <ToolbarItem Type="ItemType.Separator"></ToolbarItem>
+                <ToolbarItem TooltipText="Draw Connectors">
+                    <Template>
+                        <SfDropDownButton IconCss="e-icons e-connector">
+                            <DropDownButtonEvents ItemSelected="@SelectedItem"></DropDownButtonEvents>
+                            <DropDownMenuItems>
+                                <DropDownMenuItem IconCss="e-icons e-line" Text="Straight"></DropDownMenuItem>
+                                <DropDownMenuItem Text="Orthogonal"></DropDownMenuItem>
+                                <DropDownMenuItem Text="Bezier"></DropDownMenuItem>
+                            </DropDownMenuItems>
+                        </SfDropDownButton>
+                    </Template>
+                </ToolbarItem>
+                <ToolbarItem Type="ItemType.Separator"></ToolbarItem>
+                <ToolbarItem>
+                    <Template>
+                        <SfDropDownButton Content="@ZoomItemDropdownContent">
+                            <DropDownButtonEvents ItemSelected="@SelectedZoomItem"></DropDownButtonEvents>
+                            <DropDownMenuItems>
+                                <DropDownMenuItem Text="Zoom In"></DropDownMenuItem>
+                                <DropDownMenuItem Text="Zoom Out"></DropDownMenuItem>
+                                <DropDownMenuItem Text="Zoom to Fit"></DropDownMenuItem>
+                                <DropDownMenuItem Text="Zoom to 50%"></DropDownMenuItem>
+                                <DropDownMenuItem Text="Zoom to 100%"></DropDownMenuItem>
+                                <DropDownMenuItem Text="Zoom to 200%"></DropDownMenuItem>
+                            </DropDownMenuItems>
+                        </SfDropDownButton>
+                    </Template>
+                </ToolbarItem>
                 <ToolbarItem Type="ItemType.Separator"></ToolbarItem>
                 <ToolbarItem Text="@RuntimeStateText" PrefixIcon="@RuntimeStateIcon"></ToolbarItem>
             </ToolbarItems>
         </SfToolbar>
 
-        <div id="palette-space" class="palette-space">
-            <h5 class="palette-header">Nodes</h5>
-            <p class="palette-hint">Click a node, then click on canvas to add</p>
-            @foreach (var category in NodeCategories)
-            {
-                <div class="palette-category">
-                    <div class="palette-category-header" @onclick="() => ToggleCategory(category.Key)">
-                        <span class="e-icons @(ExpandedCategories.Contains(category.Key) ? "e-chevron-down" : "e-chevron-right")"></span>
-                        @category.Key
-                    </div>
-                    @if (ExpandedCategories.Contains(category.Key))
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Node Palette -->
+            <div id="palette-space" class="palette-space">
+                <SfSymbolPaletteComponent @ref="@PaletteInstance" 
+                                          Height="100%" 
+                                          ShowSearchTextBox="true" 
+                                          SymbolDragPreviewSize="@SymbolPreview" 
+                                          Palettes="@DiagramPalettes" 
+                                          SymbolHeight="40" 
+                                          SymbolWidth="100" 
+                                          SymbolMargin="@SymbolMargin">
+                </SfSymbolPaletteComponent>
+            </div>
+
+            <!-- Diagram Area with Flow Tabs -->
+            <div id="diagram-space" class="diagram-space">
+                <!-- Flow Tabs -->
+                <div class="flow-tabs">
+                    @foreach (var flow in Flows)
                     {
-                        <div class="palette-category-nodes">
-                            @foreach (var node in category.Value)
+                        <div class="flow-tab @(CurrentFlowId == flow.Id ? "active" : "")" 
+                             @onclick="() => SwitchFlow(flow.Id)">
+                            <span class="flow-tab-name">@flow.Label</span>
+                            @if (Flows.Count > 1)
                             {
-                                <div class="palette-node @(SelectedPaletteNode?.Type == node.Type ? "selected" : "")" 
-                                     style="background-color: @node.Color"
-                                     @onclick="() => OnPaletteNodeClick(node)">
-                                    <span class="node-icon">@GetNodeIcon(node)</span>
-                                    <span class="node-label">@node.DisplayName</span>
-                                </div>
+                                <span class="flow-tab-close" @onclick:stopPropagation="true" @onclick="() => DeleteFlow(flow.Id)">×</span>
                             }
                         </div>
                     }
-                </div>
-            }
-        </div>
-
-        <div id="diagram-space" class="diagram-space">
-            <div class="content-wrapper" style="border: 1px solid #D7D7D7; position: relative;">
-                <SfDiagramComponent @ref="@DiagramInstance" 
-                                    @bind-Nodes="@DiagramNodes" 
-                                    @bind-Connectors="@DiagramConnectors"
-                                    Height="687px"
-                                    Created="OnCreated"
-                                    SelectionChanged="@OnSelectionChanged"
-                                    NodeCreating="OnNodeCreating"
-                                    ConnectorCreating="OnConnectorCreating"
-                                    Click="@OnDiagramClick">
-                    <SnapSettings>
-                        <HorizontalGridLines LineColor="#e0e0e0" LineIntervals="@GridLineIntervals" />
-                        <VerticalGridLines LineColor="#e0e0e0" LineIntervals="@GridLineIntervals" />
-                    </SnapSettings>
-                    <PageSettings MultiplePage="true">
-                        <BackgroundStyle Background="#fafafa" />
-                    </PageSettings>
-                </SfDiagramComponent>
-                
-                @if (SelectedPaletteNode != null)
-                {
-                    <div class="placement-hint">
-                        Click on the canvas to place the <strong>@SelectedPaletteNode.DisplayName</strong> node. 
-                        <button class="btn-cancel" @onclick="CancelNodePlacement">Cancel</button>
+                    <div class="flow-tab-add" @onclick="AddNewFlow">
+                        <span class="e-icons e-plus"></span>
                     </div>
-                }
-            </div>
-        </div>
+                </div>
 
-        <div id="sidebar-space" class="sidebar-space">
-            <SfTab>
-                <TabItems>
-                    <TabItem>
-                        <ChildContent>
-                            <TabHeader Text="Info" />
-                        </ChildContent>
-                        <ContentTemplate>
-                            <div class="sidebar-content">
-                                @if (SelectedFlowNode != null)
-                                {
-                                    <h6>@SelectedFlowNode.Type</h6>
-                                    <p><strong>ID:</strong> @SelectedFlowNode.Id</p>
-                                    <p><strong>Name:</strong> @(string.IsNullOrEmpty(SelectedFlowNode.Name) ? "(none)" : SelectedFlowNode.Name)</p>
-                                }
-                                else
-                                {
-                                    <p class="text-muted">Select a node to see its properties</p>
-                                }
-                            </div>
-                        </ContentTemplate>
-                    </TabItem>
-                    <TabItem>
-                        <ChildContent>
-                            <TabHeader Text="Debug" />
-                        </ChildContent>
-                        <ContentTemplate>
-                            <div class="sidebar-content debug-panel">
-                                <div class="debug-header">
-                                    <SfButton CssClass="e-small" Content="Clear" OnClick="@ClearDebugMessages" />
-                                </div>
-                                <div class="debug-messages">
-                                    @foreach (var msg in DebugMessages.TakeLast(50).Reverse())
+                <!-- Diagram Canvas -->
+                <div class="content-wrapper" style="border: 1px solid #D7D7D7">
+                    <SfDiagramComponent @ref="@DiagramInstance" 
+                                        Connectors="@DiagramConnectors" 
+                                        Created="OnCreated" 
+                                        SelectionChanged="@OnSelectionChanged" 
+                                        Height="calc(100vh - 140px)" 
+                                        Nodes="@DiagramNodes" 
+                                        NodeCreating="OnNodeCreating" 
+                                        ConnectorCreating="OnConnectorCreating">
+                        <RulerSettings>
+                            <HorizontalRuler></HorizontalRuler>
+                            <VerticalRuler></VerticalRuler>
+                        </RulerSettings>
+                        <SnapSettings>
+                            <HorizontalGridLines LineColor="#e0e0e0" LineIntervals="@GridLineIntervals">
+                            </HorizontalGridLines>
+                            <VerticalGridLines LineColor="#e0e0e0" LineIntervals="@GridLineIntervals">
+                            </VerticalGridLines>
+                        </SnapSettings>
+                        <PageSettings MultiplePage="true">
+                            <BackgroundStyle Background="#fafafa" />
+                        </PageSettings>
+                        <ContextMenuSettings Show="true"></ContextMenuSettings>
+                    </SfDiagramComponent>
+                </div>
+            </div>
+
+            <!-- Right Sidebar: Properties & Debug -->
+            <div id="sidebar-space" class="sidebar-space">
+                <SfTab @bind-SelectedItem="@SelectedSidebarTab">
+                    <TabItems>
+                        <!-- Properties Tab -->
+                        <TabItem>
+                            <ChildContent>
+                                <TabHeader Text="Properties" />
+                            </ChildContent>
+                            <ContentTemplate>
+                                <div class="sidebar-content properties-panel">
+                                    @if (SelectedDiagramNode != null)
                                     {
-                                        <div class="debug-message">
-                                            <span class="debug-time">@msg.Timestamp.ToString("HH:mm:ss.fff")</span>
-                                            <span class="debug-node">@msg.NodeName</span>
-                                            <pre class="debug-data">@FormatDebugData(msg.Data)</pre>
+                                        <div class="property-group">
+                                            <label class="property-label">Node Type</label>
+                                            <div class="property-value node-type">@GetSelectedNodeType()</div>
                                         </div>
+                                        <div class="property-group">
+                                            <label class="property-label">ID</label>
+                                            <div class="property-value">@SelectedDiagramNode.ID</div>
+                                        </div>
+                                        <div class="property-group">
+                                            <label class="property-label">Name</label>
+                                            <SfTextBox @bind-Value="@SelectedNodeName" Placeholder="Enter node name" 
+                                                       ValueChange="@OnNodeNameChanged"></SfTextBox>
+                                        </div>
+                                        <div class="property-group">
+                                            <label class="property-label">Position X</label>
+                                            <SfNumericTextBox TValue="double" @bind-Value="@PositionX"></SfNumericTextBox>
+                                        </div>
+                                        <div class="property-group">
+                                            <label class="property-label">Position Y</label>
+                                            <SfNumericTextBox TValue="double" @bind-Value="@PositionY"></SfNumericTextBox>
+                                        </div>
+                                        @if (GetSelectedNodeType() == "function")
+                                        {
+                                            <div class="property-group">
+                                                <label class="property-label">Function Code</label>
+                                                <SfTextBox @bind-Value="@SelectedNodeFunctionCode" Multiline="true" 
+                                                           Placeholder="msg.Payload = msg.Payload * 2; return msg;"
+                                                           CssClass="function-editor"></SfTextBox>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted">Select a node to see its properties</p>
                                     }
                                 </div>
-                            </div>
-                        </ContentTemplate>
-                    </TabItem>
-                </TabItems>
-            </SfTab>
+                            </ContentTemplate>
+                        </TabItem>
+                        <!-- Debug/Output Tab -->
+                        <TabItem>
+                            <ChildContent>
+                                <TabHeader Text="Debug" />
+                            </ChildContent>
+                            <ContentTemplate>
+                                <div class="sidebar-content debug-panel">
+                                    <div class="debug-header">
+                                        <SfButton CssClass="e-small" Content="Clear" OnClick="@ClearDebugMessages" />
+                                        <span class="debug-count">@DebugMessages.Count messages</span>
+                                    </div>
+                                    <div class="debug-messages">
+                                        @foreach (var msg in DebugMessages.TakeLast(100).Reverse())
+                                        {
+                                            <div class="debug-message">
+                                                <span class="debug-time">@msg.Timestamp.ToString("HH:mm:ss.fff")</span>
+                                                <span class="debug-node">@msg.NodeName</span>
+                                                <pre class="debug-data">@FormatDebugData(msg.Data)</pre>
+                                            </div>
+                                        }
+                                        @if (DebugMessages.Count == 0)
+                                        {
+                                            <p class="text-muted" style="padding: 15px;">No debug messages yet. Deploy and run the flow to see output.</p>
+                                        }
+                                    </div>
+                                </div>
+                            </ContentTemplate>
+                        </TabItem>
+                        <!-- Info Tab -->
+                        <TabItem>
+                            <ChildContent>
+                                <TabHeader Text="Info" />
+                            </ChildContent>
+                            <ContentTemplate>
+                                <div class="sidebar-content info-panel">
+                                    <h6>Node-RED for .NET</h6>
+                                    <p>Visual flow-based programming tool.</p>
+                                    <hr />
+                                    <p><strong>Current Flow:</strong> @GetCurrentFlowLabel()</p>
+                                    <p><strong>Nodes:</strong> @(DiagramNodes?.Count ?? 0)</p>
+                                    <p><strong>Connectors:</strong> @(DiagramConnectors?.Count ?? 0)</p>
+                                    <p><strong>Runtime:</strong> @RuntimeStateText</p>
+                                </div>
+                            </ContentTemplate>
+                        </TabItem>
+                    </TabItems>
+                </SfTab>
+            </div>
         </div>
     </div>
 </div>
@@ -139,85 +239,94 @@
         overflow: hidden;
     }
 
+    .main-content {
+        display: flex;
+        height: calc(100vh - 50px);
+    }
+
     .palette-space {
         width: 200px;
-        height: calc(100vh - 50px);
-        float: left;
+        min-width: 200px;
         background: #f5f5f5;
         border-right: 1px solid #ddd;
         overflow-y: auto;
     }
 
-    .palette-header {
-        padding: 10px;
-        margin: 0;
-        background: #8f0000;
-        color: white;
-        font-size: 14px;
-    }
-    
-    .palette-hint {
-        padding: 8px 10px;
-        margin: 0;
-        font-size: 11px;
-        color: #666;
-        background: #eee;
-        border-bottom: 1px solid #ddd;
+    .diagram-space {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
 
-    .palette-category-header {
-        padding: 8px 10px;
-        cursor: pointer;
-        background: #eee;
-        border-bottom: 1px solid #ddd;
-        font-size: 12px;
-        font-weight: 500;
+    .flow-tabs {
+        display: flex;
+        background: #555;
+        padding: 0;
+        height: 35px;
+        align-items: flex-end;
     }
 
-    .palette-category-header:hover {
-        background: #e5e5e5;
-    }
-
-    .palette-category-nodes {
-        padding: 5px;
-    }
-
-    .palette-node {
+    .flow-tab {
         display: flex;
         align-items: center;
-        padding: 6px 10px;
-        margin: 3px 0;
-        border-radius: 4px;
+        padding: 8px 12px;
+        background: #666;
+        color: #ccc;
         cursor: pointer;
+        border-right: 1px solid #555;
         font-size: 12px;
+        transition: background 0.2s;
+    }
+
+    .flow-tab:hover {
+        background: #777;
+    }
+
+    .flow-tab.active {
+        background: #fafafa;
         color: #333;
-        border: 2px solid transparent;
-        transition: border-color 0.2s;
+        border-bottom: 3px solid #8f0000;
     }
 
-    .palette-node:hover {
-        filter: brightness(0.95);
-    }
-    
-    .palette-node.selected {
-        border-color: #0066cc;
-        box-shadow: 0 0 5px rgba(0, 102, 204, 0.5);
+    .flow-tab-name {
+        margin-right: 8px;
     }
 
-    .node-icon {
-        margin-right: 6px;
+    .flow-tab-close {
+        font-size: 16px;
+        font-weight: bold;
+        opacity: 0.6;
+        transition: opacity 0.2s;
     }
 
-    .diagram-space {
-        width: calc(100% - 500px);
-        height: calc(100vh - 50px);
-        float: left;
+    .flow-tab-close:hover {
+        opacity: 1;
+    }
+
+    .flow-tab-add {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        background: transparent;
+        color: #aaa;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .flow-tab-add:hover {
+        color: white;
+    }
+
+    .content-wrapper {
+        flex: 1;
+        overflow: hidden;
     }
 
     .sidebar-space {
         width: 300px;
-        height: calc(100vh - 50px);
-        float: left;
+        min-width: 300px;
         background: #fff;
         border-left: 1px solid #ddd;
     }
@@ -228,6 +337,35 @@
         height: calc(100vh - 130px);
     }
 
+    .properties-panel .property-group {
+        margin-bottom: 15px;
+    }
+
+    .properties-panel .property-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: #666;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+    }
+
+    .properties-panel .property-value {
+        font-size: 13px;
+        color: #333;
+        padding: 5px 0;
+    }
+
+    .properties-panel .node-type {
+        font-weight: 600;
+        color: #8f0000;
+    }
+
+    .function-editor {
+        font-family: monospace;
+        min-height: 100px;
+    }
+
     .debug-panel {
         padding: 0;
     }
@@ -235,6 +373,14 @@
     .debug-header {
         padding: 10px;
         border-bottom: 1px solid #ddd;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .debug-count {
+        font-size: 11px;
+        color: #888;
     }
 
     .debug-messages {
@@ -265,28 +411,22 @@
         border-radius: 3px;
         font-size: 11px;
         overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
     }
-    
-    .placement-hint {
-        position: absolute;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #333;
-        color: white;
-        padding: 10px 20px;
+
+    .info-panel h6 {
+        color: #8f0000;
+        margin-bottom: 10px;
+    }
+
+    .text-muted {
+        color: #888;
+        font-size: 13px;
+    }
+
+    /* Node styling in diagram */
+    .e-diagram .e-node {
         border-radius: 5px;
-        font-size: 14px;
-        z-index: 100;
-    }
-    
-    .placement-hint .btn-cancel {
-        margin-left: 10px;
-        background: #666;
-        color: white;
-        border: none;
-        padding: 3px 10px;
-        border-radius: 3px;
-        cursor: pointer;
     }
 </style>
