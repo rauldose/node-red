@@ -135,6 +135,13 @@ msg.query = 'SELECT * FROM users WHERE id = @id AND name = @name';
             {
                 foreach (var param in parameters)
                 {
+                    // Validate parameter name to prevent injection
+                    if (!IsValidParameterName(param.Key))
+                    {
+                        Error($"Invalid parameter name: {param.Key}");
+                        done(new Exception($"Invalid parameter name: {param.Key}"));
+                        return;
+                    }
                     command.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
                 }
             }
@@ -187,5 +194,12 @@ msg.query = 'SELECT * FROM users WHERE id = @id AND name = @name';
             byte[] bytes => Convert.ToBase64String(bytes),
             _ => value
         };
+    }
+
+    private static bool IsValidParameterName(string name)
+    {
+        // Only allow alphanumeric characters and underscores
+        return !string.IsNullOrEmpty(name) && 
+               name.All(c => char.IsLetterOrDigit(c) || c == '_');
     }
 }

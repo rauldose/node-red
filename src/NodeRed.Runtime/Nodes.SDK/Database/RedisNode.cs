@@ -288,7 +288,7 @@ Connects to **Redis** and executes various commands.
             {
                 return JsonSerializer.Deserialize<object>(str);
             }
-            catch
+            catch (JsonException)
             {
                 // Not valid JSON, return as string
             }

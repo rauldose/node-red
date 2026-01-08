@@ -142,6 +142,13 @@ Parameters from msg.payload are passed to the query using `@paramName` syntax.
             {
                 foreach (var param in parameters)
                 {
+                    // Validate parameter name to prevent injection
+                    if (!IsValidParameterName(param.Key))
+                    {
+                        Error($"Invalid parameter name: {param.Key}");
+                        done(new Exception($"Invalid parameter name: {param.Key}"));
+                        return;
+                    }
                     command.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
                 }
             }
@@ -196,5 +203,12 @@ Parameters from msg.payload are passed to the query using `@paramName` syntax.
             decimal d => (double)d,
             _ => value
         };
+    }
+
+    private static bool IsValidParameterName(string name)
+    {
+        // Only allow alphanumeric characters and underscores
+        return !string.IsNullOrEmpty(name) && 
+               name.All(c => char.IsLetterOrDigit(c) || c == '_');
     }
 }
