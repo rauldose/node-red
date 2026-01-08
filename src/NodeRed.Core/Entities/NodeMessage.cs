@@ -15,14 +15,32 @@ public class NodeMessage
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
     /// <summary>
-    /// The main payload of the message.
+    /// The main payload of the message (uppercase, C# convention).
     /// </summary>
     public object? Payload { get; set; }
 
     /// <summary>
-    /// The topic of the message, used for routing and filtering.
+    /// Lowercase alias for Payload to match Node-RED JavaScript convention (msg.payload).
+    /// </summary>
+    public object? payload
+    {
+        get => Payload;
+        set => Payload = value;
+    }
+
+    /// <summary>
+    /// The topic of the message, used for routing and filtering (uppercase, C# convention).
     /// </summary>
     public string? Topic { get; set; }
+
+    /// <summary>
+    /// Lowercase alias for Topic to match Node-RED JavaScript convention (msg.topic).
+    /// </summary>
+    public string? topic
+    {
+        get => Topic;
+        set => Topic = value;
+    }
 
     /// <summary>
     /// Additional properties attached to the message.
