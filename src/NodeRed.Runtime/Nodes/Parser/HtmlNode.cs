@@ -9,6 +9,9 @@ namespace NodeRed.Runtime.Nodes.Parser;
 
 /// <summary>
 /// HTML node - extracts data from HTML documents using CSS selectors.
+/// Note: This implementation uses regex for basic tag/class/id extraction.
+/// For production use with complex HTML, consider adding HtmlAgilityPack or AngleSharp.
+/// Supported selectors: tag names, .className, #idName
 /// </summary>
 public class HtmlNode : NodeBase
 {

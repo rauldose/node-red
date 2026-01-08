@@ -46,7 +46,21 @@ public class ExecNode : NodeBase
             return;
         }
 
+        // Security: Validate command doesn't contain dangerous patterns
+        // This is a basic check - in production, consider whitelisting specific commands
+        var dangerousPatterns = new[] { "rm -rf", "del /", "format ", "mkfs", ":(){", ">(", "| sh", "| bash", "eval " };
+        foreach (var pattern in dangerousPatterns)
+        {
+            if (command.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                Log($"Blocked potentially dangerous command pattern: {pattern}", LogLevel.Warning);
+                Done(new InvalidOperationException($"Command contains blocked pattern: {pattern}"));
+                return;
+            }
+        }
+
         // Build the command with payload if configured
+        // Security: Escape payload to prevent command injection
         var fullCommand = command;
         if (addpay == "payload" && message.Payload != null)
         {
