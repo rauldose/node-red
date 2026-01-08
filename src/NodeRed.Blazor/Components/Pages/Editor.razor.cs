@@ -384,6 +384,7 @@ public partial class Editor : IDisposable
 
         if (hasInput)
         {
+            // Input port - only accepts incoming connections (InConnect)
             ports.Add(new PointPort()
             {
                 ID = "port1",
@@ -393,12 +394,13 @@ public partial class Editor : IDisposable
                 Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
                 Width = 10,
                 Height = 10,
-                Constraints = PortConstraints.Default
+                Constraints = PortConstraints.InConnect
             });
         }
 
         if (hasOutput)
         {
+            // Output port - can draw connectors and allows outgoing connections
             ports.Add(new PointPort()
             {
                 ID = "port2",
@@ -408,7 +410,7 @@ public partial class Editor : IDisposable
                 Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
                 Width = 10,
                 Height = 10,
-                Constraints = PortConstraints.Default | PortConstraints.Draw
+                Constraints = PortConstraints.Draw | PortConstraints.OutConnect
             });
         }
 
