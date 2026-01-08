@@ -272,6 +272,32 @@ public class PropertyBuilder
     }
 
     /// <summary>
+    /// Adds a password input property (masked input for credentials).
+    /// </summary>
+    public PropertyBuilder AddPassword(
+        string name,
+        string label,
+        string? icon = null,
+        string? placeholder = null,
+        bool required = false,
+        string? showWhen = null,
+        string? hideWhen = null)
+    {
+        _properties.Add(new NodePropertyDefinition
+        {
+            Name = name,
+            Label = label,
+            Icon = icon ?? "fa fa-key",
+            Type = PropertyType.Password,
+            Placeholder = placeholder ?? "",
+            Required = required,
+            ShowWhen = showWhen,
+            HideWhen = hideWhen
+        });
+        return this;
+    }
+
+    /// <summary>
     /// Builds the list of property definitions.
     /// </summary>
     public List<NodePropertyDefinition> Build() => _properties;

@@ -241,6 +241,21 @@ public partial class Editor : IDisposable
             }
         };
 
+        var databaseNodes = new PaletteCategory
+        {
+            Name = "database",
+            IsExpanded = false,
+            Nodes = new List<PaletteNodeInfo>
+            {
+                new PaletteNodeInfo { Type = "sqlserver", Label = "sqlserver", Color = "#CC2936", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
+                new PaletteNodeInfo { Type = "postgres", Label = "postgres", Color = "#336791", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
+                new PaletteNodeInfo { Type = "mysql", Label = "mysql", Color = "#00758F", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
+                new PaletteNodeInfo { Type = "sqlite", Label = "sqlite", Color = "#003B57", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
+                new PaletteNodeInfo { Type = "mongodb", Label = "mongodb", Color = "#4DB33D", IconClass = "fa fa-leaf", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
+                new PaletteNodeInfo { Type = "redis", Label = "redis", Color = "#D82C20", IconClass = "fa fa-bolt", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
+            }
+        };
+
         PaletteCategories = new List<PaletteCategory>
         {
             commonNodes,
@@ -248,7 +263,8 @@ public partial class Editor : IDisposable
             networkNodes,
             sequenceNodes,
             parserNodes,
-            storageNodes
+            storageNodes,
+            databaseNodes
         };
     }
 

@@ -537,6 +537,154 @@ public static class NodePropertySchemas
         ["comment"] = new List<NodePropertyField>
         {
             new() { Name = "text", Label = "Comment", Type = PropertyFieldType.TextArea, Placeholder = "Enter comment text...", Rows = 5, IsFullWidth = true }
+        },
+
+        // Database nodes
+        ["sqlserver"] = new List<NodePropertyField>
+        {
+            new() { Name = "server", Label = "Server", Icon = "fa fa-server", Type = PropertyFieldType.Text, DefaultValue = "localhost", Placeholder = "localhost" },
+            new() { Name = "port", Label = "Port", Type = PropertyFieldType.Number, DefaultValue = "1433", Min = 1, Max = 65535, IsSmall = true },
+            new() { Name = "database", Label = "Database", Icon = "fa fa-database", Type = PropertyFieldType.Text, Placeholder = "database name" },
+            new() { Name = "username", Label = "Username", Icon = "fa fa-user", Type = PropertyFieldType.Text },
+            new() { Name = "password", Label = "Password", Type = PropertyFieldType.Text, Placeholder = "password" },
+            new() { Name = "operation", Label = "Operation", Type = PropertyFieldType.Select, DefaultValue = "query",
+                Options = new List<PropertyOption>
+                {
+                    new() { Value = "query", Label = "Query (SELECT)" },
+                    new() { Value = "execute", Label = "Execute (INSERT/UPDATE/DELETE)" },
+                    new() { Value = "storedproc", Label = "Stored Procedure" }
+                }
+            },
+            new() { Name = "query", Label = "Query", Type = PropertyFieldType.TextArea, Placeholder = "SELECT * FROM table WHERE id = @id", Rows = 5, IsFullWidth = true },
+            new() { Name = "timeout", Label = "Timeout", Type = PropertyFieldType.Number, DefaultValue = "30", Min = 0, Suffix = "seconds", IsSmall = true }
+        },
+
+        ["postgres"] = new List<NodePropertyField>
+        {
+            new() { Name = "host", Label = "Host", Icon = "fa fa-server", Type = PropertyFieldType.Text, DefaultValue = "localhost", Placeholder = "localhost" },
+            new() { Name = "port", Label = "Port", Type = PropertyFieldType.Number, DefaultValue = "5432", Min = 1, Max = 65535, IsSmall = true },
+            new() { Name = "database", Label = "Database", Icon = "fa fa-database", Type = PropertyFieldType.Text, Placeholder = "database name" },
+            new() { Name = "schema", Label = "Schema", Type = PropertyFieldType.Text, DefaultValue = "public", Placeholder = "public" },
+            new() { Name = "username", Label = "Username", Icon = "fa fa-user", Type = PropertyFieldType.Text },
+            new() { Name = "password", Label = "Password", Type = PropertyFieldType.Text, Placeholder = "password" },
+            new() { Name = "operation", Label = "Operation", Type = PropertyFieldType.Select, DefaultValue = "query",
+                Options = new List<PropertyOption>
+                {
+                    new() { Value = "query", Label = "Query (SELECT)" },
+                    new() { Value = "execute", Label = "Execute (INSERT/UPDATE/DELETE)" },
+                    new() { Value = "function", Label = "Call Function" }
+                }
+            },
+            new() { Name = "query", Label = "Query", Type = PropertyFieldType.TextArea, Placeholder = "SELECT * FROM table WHERE id = $1", Rows = 5, IsFullWidth = true },
+            new() { Name = "useSsl", Label = "", Type = PropertyFieldType.Checkbox, DefaultValue = "false", Suffix = "Use SSL" },
+            new() { Name = "timeout", Label = "Timeout", Type = PropertyFieldType.Number, DefaultValue = "30", Min = 0, Suffix = "seconds", IsSmall = true }
+        },
+
+        ["mysql"] = new List<NodePropertyField>
+        {
+            new() { Name = "host", Label = "Host", Icon = "fa fa-server", Type = PropertyFieldType.Text, DefaultValue = "localhost", Placeholder = "localhost" },
+            new() { Name = "port", Label = "Port", Type = PropertyFieldType.Number, DefaultValue = "3306", Min = 1, Max = 65535, IsSmall = true },
+            new() { Name = "database", Label = "Database", Icon = "fa fa-database", Type = PropertyFieldType.Text, Placeholder = "database name" },
+            new() { Name = "username", Label = "Username", Icon = "fa fa-user", Type = PropertyFieldType.Text },
+            new() { Name = "password", Label = "Password", Type = PropertyFieldType.Text, Placeholder = "password" },
+            new() { Name = "operation", Label = "Operation", Type = PropertyFieldType.Select, DefaultValue = "query",
+                Options = new List<PropertyOption>
+                {
+                    new() { Value = "query", Label = "Query (SELECT)" },
+                    new() { Value = "execute", Label = "Execute (INSERT/UPDATE/DELETE)" },
+                    new() { Value = "procedure", Label = "Call Stored Procedure" }
+                }
+            },
+            new() { Name = "query", Label = "Query", Type = PropertyFieldType.TextArea, Placeholder = "SELECT * FROM table WHERE id = ?", Rows = 5, IsFullWidth = true },
+            new() { Name = "charset", Label = "Charset", Type = PropertyFieldType.Select, DefaultValue = "utf8mb4",
+                Options = new List<PropertyOption>
+                {
+                    new() { Value = "utf8mb4", Label = "UTF-8 (utf8mb4)" },
+                    new() { Value = "utf8", Label = "UTF-8 (utf8)" },
+                    new() { Value = "latin1", Label = "Latin1" }
+                }
+            },
+            new() { Name = "timeout", Label = "Timeout", Type = PropertyFieldType.Number, DefaultValue = "30", Min = 0, Suffix = "seconds", IsSmall = true }
+        },
+
+        ["sqlite"] = new List<NodePropertyField>
+        {
+            new() { Name = "database", Label = "Database File", Icon = "fa fa-file", Type = PropertyFieldType.Text, Placeholder = "/path/to/database.db" },
+            new() { Name = "mode", Label = "Mode", Type = PropertyFieldType.Select, DefaultValue = "readwrite",
+                Options = new List<PropertyOption>
+                {
+                    new() { Value = "readwrite", Label = "Read/Write" },
+                    new() { Value = "readonly", Label = "Read Only" },
+                    new() { Value = "memory", Label = "In-Memory" }
+                }
+            },
+            new() { Name = "operation", Label = "Operation", Type = PropertyFieldType.Select, DefaultValue = "query",
+                Options = new List<PropertyOption>
+                {
+                    new() { Value = "query", Label = "Query (SELECT)" },
+                    new() { Value = "execute", Label = "Execute (INSERT/UPDATE/DELETE)" },
+                    new() { Value = "batch", Label = "Batch Execute" }
+                }
+            },
+            new() { Name = "query", Label = "Query", Type = PropertyFieldType.TextArea, Placeholder = "SELECT * FROM table WHERE id = @id", Rows = 5, IsFullWidth = true },
+            new() { Name = "createIfNotExists", Label = "", Type = PropertyFieldType.Checkbox, DefaultValue = "true", Suffix = "Create database if it doesn't exist" }
+        },
+
+        ["mongodb"] = new List<NodePropertyField>
+        {
+            new() { Name = "uri", Label = "Connection URI", Icon = "fa fa-link", Type = PropertyFieldType.Text, DefaultValue = "mongodb://localhost:27017", Placeholder = "mongodb://localhost:27017" },
+            new() { Name = "database", Label = "Database", Icon = "fa fa-database", Type = PropertyFieldType.Text, Placeholder = "database name" },
+            new() { Name = "collection", Label = "Collection", Icon = "fa fa-table", Type = PropertyFieldType.Text, Placeholder = "collection name" },
+            new() { Name = "operation", Label = "Operation", Type = PropertyFieldType.Select, DefaultValue = "find",
+                Options = new List<PropertyOption>
+                {
+                    new() { Value = "find", Label = "Find" },
+                    new() { Value = "findOne", Label = "Find One" },
+                    new() { Value = "insertOne", Label = "Insert One" },
+                    new() { Value = "insertMany", Label = "Insert Many" },
+                    new() { Value = "updateOne", Label = "Update One" },
+                    new() { Value = "updateMany", Label = "Update Many" },
+                    new() { Value = "deleteOne", Label = "Delete One" },
+                    new() { Value = "deleteMany", Label = "Delete Many" },
+                    new() { Value = "aggregate", Label = "Aggregate" },
+                    new() { Value = "count", Label = "Count" }
+                }
+            },
+            new() { Name = "query", Label = "Query/Filter", Type = PropertyFieldType.TextArea, Placeholder = "{ \"status\": \"active\" }", Rows = 4, IsFullWidth = true },
+            new() { Name = "update", Label = "Update/Document", Type = PropertyFieldType.TextArea, Placeholder = "{ \"$set\": { \"status\": \"inactive\" } }", Rows = 4, IsFullWidth = true },
+            new() { Name = "limit", Label = "Limit", Type = PropertyFieldType.Number, DefaultValue = "0", Min = 0, Suffix = "0 = no limit", IsSmall = true },
+            new() { Name = "skip", Label = "Skip", Type = PropertyFieldType.Number, DefaultValue = "0", Min = 0, IsSmall = true }
+        },
+
+        ["redis"] = new List<NodePropertyField>
+        {
+            new() { Name = "host", Label = "Host", Icon = "fa fa-server", Type = PropertyFieldType.Text, DefaultValue = "localhost", Placeholder = "localhost" },
+            new() { Name = "port", Label = "Port", Type = PropertyFieldType.Number, DefaultValue = "6379", Min = 1, Max = 65535, IsSmall = true },
+            new() { Name = "password", Label = "Password", Type = PropertyFieldType.Text, Placeholder = "password (optional)" },
+            new() { Name = "database", Label = "Database", Type = PropertyFieldType.Number, DefaultValue = "0", Min = 0, Max = 15, Suffix = "index", IsSmall = true },
+            new() { Name = "operation", Label = "Operation", Type = PropertyFieldType.Select, DefaultValue = "get",
+                Options = new List<PropertyOption>
+                {
+                    new() { Value = "get", Label = "GET - Get value" },
+                    new() { Value = "set", Label = "SET - Set value" },
+                    new() { Value = "del", Label = "DEL - Delete key" },
+                    new() { Value = "exists", Label = "EXISTS - Check if key exists" },
+                    new() { Value = "keys", Label = "KEYS - Get keys by pattern" },
+                    new() { Value = "hget", Label = "HGET - Hash get" },
+                    new() { Value = "hset", Label = "HSET - Hash set" },
+                    new() { Value = "hgetall", Label = "HGETALL - Get all hash fields" },
+                    new() { Value = "lpush", Label = "LPUSH - Push to list (left)" },
+                    new() { Value = "rpush", Label = "RPUSH - Push to list (right)" },
+                    new() { Value = "lpop", Label = "LPOP - Pop from list (left)" },
+                    new() { Value = "rpop", Label = "RPOP - Pop from list (right)" },
+                    new() { Value = "incr", Label = "INCR - Increment" },
+                    new() { Value = "decr", Label = "DECR - Decrement" },
+                    new() { Value = "publish", Label = "PUBLISH - Publish message" }
+                }
+            },
+            new() { Name = "key", Label = "Key", Icon = "fa fa-key", Type = PropertyFieldType.Text, Placeholder = "key" },
+            new() { Name = "field", Label = "Field", Type = PropertyFieldType.Text, Placeholder = "field (for hash operations)" },
+            new() { Name = "expiry", Label = "Expiry", Type = PropertyFieldType.Number, DefaultValue = "0", Min = 0, Suffix = "seconds (0 = no expiry)", IsSmall = true }
         }
     };
 

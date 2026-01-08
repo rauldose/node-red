@@ -48,6 +48,7 @@ public enum NodeCategory
     Sequence,
     Parser,
     Storage,
+    Database,
     Config  // Configuration nodes (not shown in palette)
 }
 
