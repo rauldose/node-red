@@ -436,34 +436,17 @@ public partial class Editor : IDisposable
     {
         var handles = new DiagramObjectCollection<NodeFixedUserHandle>();
 
-        // Add icon background as a fixed user handle (left side of node)
-        handles.Add(new NodeFixedUserHandle()
-        {
-            ID = "iconBackground",
-            Width = 30,
-            Height = 28,
-            Offset = new DiagramPoint() { X = 0, Y = 0.5 },
-            Margin = new DiagramThickness() { Left = 1 },
-            PathData = "M0,0 L30,0 L30,28 L0,28 Z", // Rectangle
-            Visibility = true,
-            CornerRadius = 4,
-            Fill = "rgba(0,0,0,0.1)",
-            Stroke = "transparent",
-            StrokeThickness = 0,
-            IconStroke = "transparent",
-            IconStrokeThickness = 0
-        });
-
-        // Add inject button only for inject nodes (positioned to the left of the node)
+        // Only add inject button for inject nodes - positioned far to the left outside the node
+        // so it doesn't interfere with ports
         if (nodeType == "inject")
         {
             handles.Add(new NodeFixedUserHandle()
             {
                 ID = "injectButton",
-                Width = 18,
-                Height = 18,
+                Width = 16,
+                Height = 16,
                 Offset = new DiagramPoint() { X = 0, Y = 0.5 },
-                Margin = new DiagramThickness() { Left = -14 },
+                Margin = new DiagramThickness() { Left = -25 }, // Move further left, outside the node
                 PathData = "M8 5v14l11-7z", // Play icon SVG path
                 Visibility = true,
                 CornerRadius = 2,
