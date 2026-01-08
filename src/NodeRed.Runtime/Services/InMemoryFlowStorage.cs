@@ -22,7 +22,12 @@ public class InMemoryFlowStorage : IFlowStorage
 
     public InMemoryFlowStorage()
     {
-        // Create a default workspace
+        // Create a default workspace with sample flow
+        var flowId = Guid.NewGuid().ToString();
+        var injectNodeId = Guid.NewGuid().ToString();
+        var functionNodeId = Guid.NewGuid().ToString();
+        var debugNodeId = Guid.NewGuid().ToString();
+
         var defaultWorkspace = new Workspace
         {
             Id = "default",
@@ -31,9 +36,59 @@ public class InMemoryFlowStorage : IFlowStorage
             {
                 new()
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    Label = "Flow 1",
-                    Order = 0
+                    Id = flowId,
+                    Label = "Sample Flow",
+                    Order = 0,
+                    Nodes = new List<FlowNode>
+                    {
+                        new()
+                        {
+                            Id = injectNodeId,
+                            Type = "inject",
+                            Name = "Timestamp",
+                            X = 150,
+                            Y = 100,
+                            FlowId = flowId,
+                            Wires = new List<List<string>> { new() { functionNodeId } },
+                            Config = new Dictionary<string, object?>
+                            {
+                                { "payload", "" },
+                                { "payloadType", "date" },
+                                { "repeat", "" },
+                                { "once", false }
+                            }
+                        },
+                        new()
+                        {
+                            Id = functionNodeId,
+                            Type = "function",
+                            Name = "Process",
+                            X = 350,
+                            Y = 100,
+                            FlowId = flowId,
+                            Wires = new List<List<string>> { new() { debugNodeId } },
+                            Config = new Dictionary<string, object?>
+                            {
+                                { "func", "msg.Payload = \"Processed: \" + msg.Payload; msg" }
+                            }
+                        },
+                        new()
+                        {
+                            Id = debugNodeId,
+                            Type = "debug",
+                            Name = "Output",
+                            X = 550,
+                            Y = 100,
+                            FlowId = flowId,
+                            Wires = new List<List<string>>(),
+                            Config = new Dictionary<string, object?>
+                            {
+                                { "active", true },
+                                { "tosidebar", true },
+                                { "console", false }
+                            }
+                        }
+                    }
                 }
             }
         };

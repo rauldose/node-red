@@ -1,31 +1,33 @@
 @page "/editor"
 @page "/"
 @rendermode InteractiveServer
+@using Syncfusion.Blazor.Diagram
+@using Syncfusion.Blazor.Diagram.SymbolPalette
+@using System.Collections.ObjectModel
 @inject INodeRegistry NodeRegistry
 @inject IFlowRuntime FlowRuntime
 @inject IFlowStorage FlowStorage
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Node-RED Flow Editor</PageTitle>
 
-<div class="editor-container">
-    @* Toolbar *@
-    <div class="editor-toolbar">
+<div class="control-section">
+    <div style="width: 100%">
         <SfToolbar>
+            <ToolbarEvents Clicked="@ToolbarClick"></ToolbarEvents>
             <ToolbarItems>
-                <ToolbarItem Text="Deploy" PrefixIcon="e-icons e-play" OnClick="@OnDeployClick" />
-                <ToolbarItem Type="ItemType.Separator" />
-                <ToolbarItem Text="Import" PrefixIcon="e-icons e-import" OnClick="@OnImportClick" />
-                <ToolbarItem Text="Export" PrefixIcon="e-icons e-export" OnClick="@OnExportClick" />
-                <ToolbarItem Type="ItemType.Separator" />
-                <ToolbarItem Text="@RuntimeStateText" PrefixIcon="@RuntimeStateIcon" />
+                <ToolbarItem Text="Deploy" PrefixIcon="e-icons e-play" TooltipText="Deploy"></ToolbarItem>
+                <ToolbarItem Type="ItemType.Separator"></ToolbarItem>
+                <ToolbarItem Text="Import" PrefixIcon="e-icons e-import" TooltipText="Import"></ToolbarItem>
+                <ToolbarItem Text="Export" PrefixIcon="e-icons e-export" TooltipText="Export"></ToolbarItem>
+                <ToolbarItem Type="ItemType.Separator"></ToolbarItem>
+                <ToolbarItem Text="@RuntimeStateText" PrefixIcon="@RuntimeStateIcon"></ToolbarItem>
             </ToolbarItems>
         </SfToolbar>
-    </div>
 
-    <div class="editor-main">
-        @* Node Palette *@
-        <div class="editor-palette">
+        <div id="palette-space" class="palette-space">
             <h5 class="palette-header">Nodes</h5>
+            <p class="palette-hint">Click a node, then click on canvas to add</p>
             @foreach (var category in NodeCategories)
             {
                 <div class="palette-category">
@@ -38,10 +40,9 @@
                         <div class="palette-category-nodes">
                             @foreach (var node in category.Value)
                             {
-                                <div class="palette-node" 
+                                <div class="palette-node @(SelectedPaletteNode?.Type == node.Type ? "selected" : "")" 
                                      style="background-color: @node.Color"
-                                     draggable="true"
-                                     @ondragstart="() => OnPaletteNodeDragStart(node)">
+                                     @onclick="() => OnPaletteNodeClick(node)">
                                     <span class="node-icon">@GetNodeIcon(node)</span>
                                     <span class="node-label">@node.DisplayName</span>
                                 </div>
@@ -52,47 +53,37 @@
             }
         </div>
 
-        @* Flow Canvas *@
-        <div class="editor-canvas">
-            @* Flow Tabs *@
-            <div class="flow-tabs">
-                <SfTab @bind-SelectedItem="@SelectedFlowIndex">
-                    <TabItems>
-                        @foreach (var flow in CurrentWorkspace.Flows)
-                        {
-                            <TabItem>
-                                <ChildContent>
-                                    <TabHeader Text="@flow.Label" />
-                                </ChildContent>
-                            </TabItem>
-                        }
-                    </TabItems>
-                </SfTab>
-                <SfButton CssClass="e-small" IconCss="e-icons e-plus" OnClick="@AddNewFlow" />
+        <div id="diagram-space" class="diagram-space">
+            <div class="content-wrapper" style="border: 1px solid #D7D7D7; position: relative;">
+                <SfDiagramComponent @ref="@DiagramInstance" 
+                                    @bind-Nodes="@DiagramNodes" 
+                                    @bind-Connectors="@DiagramConnectors"
+                                    Height="687px"
+                                    Created="OnCreated"
+                                    SelectionChanged="@OnSelectionChanged"
+                                    NodeCreating="OnNodeCreating"
+                                    ConnectorCreating="OnConnectorCreating"
+                                    Click="@OnDiagramClick">
+                    <SnapSettings>
+                        <HorizontalGridLines LineColor="#e0e0e0" LineIntervals="@GridLineIntervals" />
+                        <VerticalGridLines LineColor="#e0e0e0" LineIntervals="@GridLineIntervals" />
+                    </SnapSettings>
+                    <PageSettings MultiplePage="true">
+                        <BackgroundStyle Background="#fafafa" />
+                    </PageSettings>
+                </SfDiagramComponent>
+                
+                @if (SelectedPaletteNode != null)
+                {
+                    <div class="placement-hint">
+                        Click on the canvas to place the <strong>@SelectedPaletteNode.DisplayName</strong> node. 
+                        <button class="btn-cancel" @onclick="CancelNodePlacement">Cancel</button>
+                    </div>
+                }
             </div>
-
-            @* Diagram *@
-            <SfDiagramComponent @ref="Diagram"
-                                Width="100%"
-                                Height="calc(100% - 40px)"
-                                Nodes="@DiagramNodes"
-                                Connectors="@DiagramConnectors"
-                                NodeCreating="@OnNodeCreating"
-                                ConnectorCreating="@OnConnectorCreating"
-                                SelectionChanged="@OnSelectionChanged"
-                                DragDrop="@OnDragDrop">
-                <SnapSettings>
-                    <HorizontalGridLines LineColor="#e0e0e0" LineDashArray="2,2" />
-                    <VerticalGridLines LineColor="#e0e0e0" LineDashArray="2,2" />
-                </SnapSettings>
-                <PageSettings>
-                    <BackgroundStyle Background="#fafafa" />
-                </PageSettings>
-            </SfDiagramComponent>
         </div>
 
-        @* Sidebar *@
-        <div class="editor-sidebar">
+        <div id="sidebar-space" class="sidebar-space">
             <SfTab>
                 <TabItems>
                     <TabItem>
@@ -101,11 +92,11 @@
                         </ChildContent>
                         <ContentTemplate>
                             <div class="sidebar-content">
-                                @if (SelectedNode != null)
+                                @if (SelectedFlowNode != null)
                                 {
-                                    <h6>@SelectedNode.Type</h6>
-                                    <p><strong>ID:</strong> @SelectedNode.Id</p>
-                                    <p><strong>Name:</strong> @(string.IsNullOrEmpty(SelectedNode.Name) ? "(none)" : SelectedNode.Name)</p>
+                                    <h6>@SelectedFlowNode.Type</h6>
+                                    <p><strong>ID:</strong> @SelectedFlowNode.Id</p>
+                                    <p><strong>Name:</strong> @(string.IsNullOrEmpty(SelectedFlowNode.Name) ? "(none)" : SelectedFlowNode.Name)</p>
                                 }
                                 else
                                 {
@@ -142,53 +133,16 @@
     </div>
 </div>
 
-@* Node Edit Dialog *@
-<SfDialog @bind-Visible="@ShowNodeEditDialog"
-          Header="@($"Edit {SelectedNode?.Type} node")"
-          Width="500px"
-          IsModal="true"
-          ShowCloseIcon="true">
-    <DialogTemplates>
-        <Content>
-            @if (SelectedNode != null)
-            {
-                <div class="node-edit-form">
-                    <div class="form-group">
-                        <label>Name</label>
-                        <SfTextBox @bind-Value="@EditNodeName" Placeholder="Node name (optional)" />
-                    </div>
-                    @* Add type-specific fields here based on SelectedNode.Type *@
-                </div>
-            }
-        </Content>
-    </DialogTemplates>
-    <DialogButtons>
-        <DialogButton Content="Cancel" OnClick="@CloseNodeEditDialog" />
-        <DialogButton Content="Done" IsPrimary="true" OnClick="@SaveNodeEdit" />
-    </DialogButtons>
-</SfDialog>
-
 <style>
-    .editor-container {
-        display: flex;
-        flex-direction: column;
+    .control-section {
         height: 100vh;
         overflow: hidden;
     }
 
-    .editor-toolbar {
-        border-bottom: 1px solid #ddd;
-        background: #fff;
-    }
-
-    .editor-main {
-        display: flex;
-        flex: 1;
-        overflow: hidden;
-    }
-
-    .editor-palette {
+    .palette-space {
         width: 200px;
+        height: calc(100vh - 50px);
+        float: left;
         background: #f5f5f5;
         border-right: 1px solid #ddd;
         overflow-y: auto;
@@ -200,6 +154,15 @@
         background: #8f0000;
         color: white;
         font-size: 14px;
+    }
+    
+    .palette-hint {
+        padding: 8px 10px;
+        margin: 0;
+        font-size: 11px;
+        color: #666;
+        background: #eee;
+        border-bottom: 1px solid #ddd;
     }
 
     .palette-category-header {
@@ -225,43 +188,38 @@
         padding: 6px 10px;
         margin: 3px 0;
         border-radius: 4px;
-        cursor: grab;
+        cursor: pointer;
         font-size: 12px;
         color: #333;
-        border: 1px solid rgba(0,0,0,0.1);
+        border: 2px solid transparent;
+        transition: border-color 0.2s;
     }
 
     .palette-node:hover {
         filter: brightness(0.95);
+    }
+    
+    .palette-node.selected {
+        border-color: #0066cc;
+        box-shadow: 0 0 5px rgba(0, 102, 204, 0.5);
     }
 
     .node-icon {
         margin-right: 6px;
     }
 
-    .editor-canvas {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+    .diagram-space {
+        width: calc(100% - 500px);
+        height: calc(100vh - 50px);
+        float: left;
     }
 
-    .flow-tabs {
-        display: flex;
-        align-items: center;
-        background: #fff;
-        border-bottom: 1px solid #ddd;
-    }
-
-    .flow-tabs .e-tab {
-        flex: 1;
-    }
-
-    .editor-sidebar {
+    .sidebar-space {
         width: 300px;
+        height: calc(100vh - 50px);
+        float: left;
         background: #fff;
         border-left: 1px solid #ddd;
-        overflow: hidden;
     }
 
     .sidebar-content {
@@ -308,14 +266,27 @@
         font-size: 11px;
         overflow-x: auto;
     }
-
-    .node-edit-form .form-group {
-        margin-bottom: 15px;
+    
+    .placement-hint {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #333;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 14px;
+        z-index: 100;
     }
-
-    .node-edit-form label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: 500;
+    
+    .placement-hint .btn-cancel {
+        margin-left: 10px;
+        background: #666;
+        color: white;
+        border: none;
+        padding: 3px 10px;
+        border-radius: 3px;
+        cursor: pointer;
     }
 </style>
