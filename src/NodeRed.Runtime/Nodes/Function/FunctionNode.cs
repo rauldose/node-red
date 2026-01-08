@@ -1,7 +1,8 @@
 // Copyright OpenJS Foundation and other contributors
 // Licensed under the Apache License, Version 2.0
 
-using DynamicExpresso;
+using Microsoft.CodeAnalysis.CSharp.Scripting;
+using Microsoft.CodeAnalysis.Scripting;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.Core.Interfaces;
@@ -9,19 +10,18 @@ using NodeRed.Core.Interfaces;
 namespace NodeRed.Runtime.Nodes.Function;
 
 /// <summary>
-/// Function node - allows custom C# expressions to process messages.
-/// Uses DynamicExpresso for expression evaluation.
+/// Function node - allows custom C# code to process messages.
+/// Uses Roslyn Scripting for full C# code execution including variables, loops, conditionals, etc.
 /// </summary>
 /// <remarks>
-/// Security Note: This node executes user-provided expressions. DynamicExpresso 
-/// is sandboxed and only evaluates expressions (not full C# code), but care should
-/// be taken when allowing untrusted users to create function nodes. Consider 
-/// implementing additional restrictions for multi-tenant scenarios.
+/// Security Note: This node executes user-provided C# code. Roslyn scripting can execute
+/// arbitrary code. Care should be taken when allowing untrusted users to create function nodes.
+/// Consider implementing additional restrictions for multi-tenant scenarios.
 /// </remarks>
 public class FunctionNode : NodeBase
 {
-    private Interpreter? _interpreter;
-    private Lambda? _compiledFunction;
+    private ScriptRunner<object?>? _compiledFunction;
+    private ScriptOptions? _scriptOptions;
 
     public override NodeDefinition Definition => new()
     {
@@ -35,38 +35,43 @@ public class FunctionNode : NodeBase
         Defaults = new Dictionary<string, object?>
         {
             { "name", "" },
-            { "func", "msg" },
+            { "func", "return msg;" },
             { "outputs", 1 },
             { "timeout", 0 },
             { "noerr", 0 },
             { "initialize", "" },
             { "finalize", "" }
         },
-        HelpText = @"A C# expression to process messages. 
-Available variables: msg (NodeMessage), payload, topic, node, flow, global.
+        HelpText = @"A C# code block to process messages. 
+Available variables: msg (NodeMessage), node (helpers), flow (context), global (context).
+
 Examples:
-- msg (pass through)
-- msg.Payload = msg.Payload.ToString().ToUpper(); msg (transform payload)
-- msg.Payload = (int)msg.Payload * 2; msg (numeric operation)
-- null (drop message)"
+- return msg;  // pass through
+- msg.payload = msg.payload.ToString().ToUpper(); return msg;  // transform
+- var count = (int)(flow.Get(""count"") ?? 0); count++; flow.Set(""count"", count); msg.payload = count; return msg;  // use context
+- if (msg.payload is int num && num > 10) { return msg; } return null;  // conditional
+- for (int i = 0; i < 3; i++) { node.Send(node.NewMessage(i)); } return null;  // loop with send"
     };
 
     public override async Task InitializeAsync(FlowNode config, INodeContext context)
     {
         await base.InitializeAsync(config, context);
         
-        _interpreter = CreateInterpreter();
+        _scriptOptions = ScriptOptions.Default
+            .AddReferences(typeof(object).Assembly)
+            .AddReferences(typeof(Enumerable).Assembly)
+            .AddReferences(typeof(NodeMessage).Assembly)
+            .AddImports("System", "System.Collections.Generic", "System.Linq", "System.Text");
         
-        var func = GetConfig("func", "msg");
+        var func = GetConfig("func", "return msg;");
         try
         {
-            _compiledFunction = _interpreter.Parse(func, 
-                new Parameter("msg", typeof(NodeMessage)),
-                new Parameter("payload", typeof(object)),
-                new Parameter("topic", typeof(string)),
-                new Parameter("node", typeof(FunctionNodeHelper)),
-                new Parameter("flow", typeof(ContextAccessor)),
-                new Parameter("global", typeof(ContextAccessor)));
+            var script = CSharpScript.Create<object?>(
+                func,
+                _scriptOptions,
+                typeof(FunctionGlobals));
+            
+            _compiledFunction = script.CreateDelegate();
         }
         catch (Exception ex)
         {
@@ -79,8 +84,7 @@ Examples:
         {
             try
             {
-                var initLambda = _interpreter.Parse(initialize);
-                initLambda.Invoke();
+                await CSharpScript.RunAsync(initialize, _scriptOptions);
             }
             catch (Exception ex)
             {
@@ -89,28 +93,7 @@ Examples:
         }
     }
 
-    private Interpreter CreateInterpreter()
-    {
-        var interpreter = new Interpreter();
-        
-        // Register common types
-        interpreter.Reference(typeof(NodeMessage));
-        interpreter.Reference(typeof(Math));
-        interpreter.Reference(typeof(DateTime));
-        interpreter.Reference(typeof(DateTimeOffset));
-        interpreter.Reference(typeof(TimeSpan));
-        interpreter.Reference(typeof(Guid));
-        interpreter.Reference(typeof(Convert));
-        interpreter.Reference(typeof(String));
-        interpreter.Reference(typeof(Enumerable));
-        
-        // Register helper types
-        interpreter.SetVariable("console", new ConsoleHelper(this));
-        
-        return interpreter;
-    }
-
-    public override Task OnInputAsync(NodeMessage message, int inputPort = 0)
+    public override async Task OnInputAsync(NodeMessage message, int inputPort = 0)
     {
         try
         {
@@ -119,20 +102,12 @@ Examples:
                 // No valid function, pass through
                 Send(message.Clone());
                 Done();
-                return Task.CompletedTask;
+                return;
             }
 
-            var nodeHelper = new FunctionNodeHelper(this, message);
-            var flowContext = new ContextAccessor(key => Context.GetFlowContext<object>(key), (key, val) => Context.SetFlowContext(key, val));
-            var globalContext = new ContextAccessor(key => Context.GetGlobalContext<object>(key), (key, val) => Context.SetGlobalContext(key, val));
+            var globals = new FunctionGlobals(this, message);
 
-            var result = _compiledFunction.Invoke(
-                message,
-                message.Payload,
-                message.Topic,
-                nodeHelper,
-                flowContext,
-                globalContext);
+            var result = await _compiledFunction(globals);
 
             if (result is NodeMessage resultMsg)
             {
@@ -146,6 +121,17 @@ Examples:
                     if (messages[i] != null)
                     {
                         Send(i, messages[i]);
+                    }
+                }
+            }
+            else if (result is IEnumerable<NodeMessage> messageList)
+            {
+                int i = 0;
+                foreach (var m in messageList)
+                {
+                    if (m != null)
+                    {
+                        Send(i++, m);
                     }
                 }
             }
@@ -166,20 +152,17 @@ Examples:
             SetStatus(NodeStatus.Error(ex.Message));
             Done(ex);
         }
-
-        return Task.CompletedTask;
     }
 
     public override async Task CloseAsync()
     {
         // Run finalize function if present
         var finalize = GetConfig("finalize", "");
-        if (!string.IsNullOrWhiteSpace(finalize) && _interpreter != null)
+        if (!string.IsNullOrWhiteSpace(finalize) && _scriptOptions != null)
         {
             try
             {
-                var finalizeLambda = _interpreter.Parse(finalize);
-                finalizeLambda.Invoke();
+                await CSharpScript.RunAsync(finalize, _scriptOptions);
             }
             catch (Exception ex)
             {
@@ -188,6 +171,40 @@ Examples:
         }
 
         await base.CloseAsync();
+    }
+
+    /// <summary>
+    /// Globals class that provides variables to the script.
+    /// Using lowercase property names to match Node-RED JavaScript conventions.
+    /// </summary>
+    public class FunctionGlobals
+    {
+        private readonly FunctionNode _node;
+        
+        public FunctionGlobals(FunctionNode node, NodeMessage message)
+        {
+            _node = node;
+            msg = message;
+            this.node = new FunctionNodeHelper(node, message);
+            flow = new ContextAccessor(
+                key => node.Context.GetFlowContext<object>(key), 
+                (key, val) => node.Context.SetFlowContext(key, val));
+            global = new ContextAccessor(
+                key => node.Context.GetGlobalContext<object>(key), 
+                (key, val) => node.Context.SetGlobalContext(key, val));
+        }
+
+        /// <summary>The incoming message (Node-RED style lowercase)</summary>
+        public NodeMessage msg { get; set; }
+        
+        /// <summary>Node helper functions</summary>
+        public FunctionNodeHelper node { get; }
+        
+        /// <summary>Flow context accessor</summary>
+        public ContextAccessor flow { get; }
+        
+        /// <summary>Global context accessor</summary>
+        public ContextAccessor global { get; }
     }
 
     /// <summary>
@@ -202,6 +219,14 @@ Examples:
         {
             _node = node;
             _currentMessage = currentMessage;
+        }
+
+        /// <summary>
+        /// Sends a message to the next node(s).
+        /// </summary>
+        public void Send(NodeMessage message, int port = 0)
+        {
+            _node.Send(port, message);
         }
 
         /// <summary>
@@ -293,23 +318,6 @@ Examples:
         {
             return _currentMessage.Clone();
         }
-    }
-
-    /// <summary>
-    /// Console helper for logging from functions.
-    /// </summary>
-    public class ConsoleHelper
-    {
-        private readonly FunctionNode _node;
-
-        public ConsoleHelper(FunctionNode node)
-        {
-            _node = node;
-        }
-
-        public void Log(object? message) => _node.Log(message?.ToString() ?? "null", LogLevel.Info);
-        public void Warn(object? message) => _node.Log(message?.ToString() ?? "null", LogLevel.Warning);
-        public void Error(object? message) => _node.Log(message?.ToString() ?? "null", LogLevel.Error);
     }
 
     /// <summary>
