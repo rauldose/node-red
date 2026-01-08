@@ -19,8 +19,12 @@ public partial class Editor : IDisposable
     public SfDiagramComponent? DiagramInstance { get; set; }
     public SfSymbolPaletteComponent? PaletteInstance { get; set; }
     
-    // Selection settings
-    public DiagramSelectionSettings SelectionSettings { get; set; } = new DiagramSelectionSettings();
+    // Selection settings - hide resize handles
+    public DiagramSelectionSettings SelectionSettings { get; set; } = new DiagramSelectionSettings()
+    {
+        // Remove resize and rotate handles from selection
+        Constraints = SelectorConstraints.All & ~SelectorConstraints.ResizeAll & ~SelectorConstraints.Rotate
+    };
     
     // Symbol palette settings
     public DiagramSize? SymbolPreview { get; set; }
@@ -87,8 +91,11 @@ public partial class Editor : IDisposable
     private int ConnectorCount = 0;
     
     // Default node constraints: disable resize and rotate for Node-RED style nodes
+    // Use explicit constraints instead of removing from Default to ensure no resize handles appear
     private static readonly NodeConstraints DefaultNodeConstraints = 
-        NodeConstraints.Default & ~NodeConstraints.Resize & ~NodeConstraints.Rotate;
+        NodeConstraints.Select | NodeConstraints.Drag | NodeConstraints.Delete | 
+        NodeConstraints.InConnect | NodeConstraints.OutConnect | 
+        NodeConstraints.PointerEvents | NodeConstraints.AllowDrop;
     
     // Application state
     private Workspace CurrentWorkspace = new();
@@ -197,7 +204,7 @@ public partial class Editor : IDisposable
         // port2 = output port (right side) - can draw outgoing connections
         var palettePorts = new DiagramObjectCollection<PointPort>();
         
-        // Input port (left side) - only accepts incoming connections, cannot draw from here
+        // Input port (left side) - accepts incoming connections, cannot draw from it
         palettePorts.Add(new PointPort()
         {
             ID = "port1",
@@ -207,8 +214,7 @@ public partial class Editor : IDisposable
             Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" },
             Width = 8,
             Height = 8,
-            // Input port: allow incoming connections but not drawing from it
-            Constraints = PortConstraints.Default & ~PortConstraints.Draw
+            Constraints = PortConstraints.InConnect
         });
         
         // Output port (right side) - can draw connections from here
@@ -221,8 +227,7 @@ public partial class Editor : IDisposable
             Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" },
             Width = 8,
             Height = 8,
-            // Output port: allow drawing connections from it
-            Constraints = PortConstraints.Default | PortConstraints.Draw
+            Constraints = PortConstraints.Draw | PortConstraints.OutConnect
         });
         
         var node = new Node()
@@ -291,7 +296,6 @@ public partial class Editor : IDisposable
     private DiagramObjectCollection<PointPort> CreatePorts()
     {
         var ports = new DiagramObjectCollection<PointPort>();
-        // Input port (left side)
         // Input port (left side) - accepts incoming connections, cannot draw from here
         ports.Add(new PointPort()
         {
@@ -302,7 +306,7 @@ public partial class Editor : IDisposable
             Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" },
             Width = 10,
             Height = 10,
-            Constraints = PortConstraints.Default & ~PortConstraints.Draw
+            Constraints = PortConstraints.InConnect
         });
         // Output port (right side) - can draw connections from here
         ports.Add(new PointPort()
@@ -314,7 +318,7 @@ public partial class Editor : IDisposable
             Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" },
             Width = 10,
             Height = 10,
-            Constraints = PortConstraints.Default | PortConstraints.Draw
+            Constraints = PortConstraints.Draw | PortConstraints.OutConnect
         });
         return ports;
     }
@@ -452,15 +456,20 @@ public partial class Editor : IDisposable
             {
                 foreach (var port in node.Ports)
                 {
+                    port.Visibility = PortVisibility.Visible;
+                    port.Width = 10;
+                    port.Height = 10;
+                    port.Style = new ShapeStyle { Fill = "#888", StrokeColor = "#666" };
+                    
                     if (port.ID == "port1")
                     {
                         // Input port: accept connections but cannot draw from it
-                        port.Constraints = PortConstraints.Default & ~PortConstraints.Draw;
+                        port.Constraints = PortConstraints.InConnect;
                     }
                     else if (port.ID == "port2")
                     {
                         // Output port: can draw connections from it
-                        port.Constraints = PortConstraints.Default | PortConstraints.Draw;
+                        port.Constraints = PortConstraints.Draw | PortConstraints.OutConnect;
                     }
                 }
             }
