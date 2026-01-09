@@ -30,7 +30,7 @@
         
         <ul class="red-ui-header-toolbar">
             <li class="red-ui-deploy-button-group">
-                <a id="red-ui-header-button-deploy" class="red-ui-deploy-button @(HasUnsavedChanges ? "" : "disabled")" @onclick="OnDeployClick">
+                <a id="red-ui-header-button-deploy" class="red-ui-deploy-button @(HasUnsavedChanges ? "" : "disabled") @(HasBeenDeployed && !HasUnsavedChanges ? "deployed" : "")" @onclick="OnDeployClick">
                     <span class="red-ui-deploy-button-content">
                         <i class="fa fa-download"></i>
                         <span>Deploy</span>
@@ -626,6 +626,7 @@
             <div id="red-ui-workspace-footer">
                 <span class="red-ui-footer-left">
                     <i class="fa @(FlowRuntime.State == FlowState.Running ? "fa-circle status-running" : "fa-circle-o status-stopped")"></i>
+                    <span class="flow-state-text">@(FlowRuntime.State == FlowState.Running ? "Running" : (HasBeenDeployed ? "Stopped" : "Not deployed"))</span>
                 </span>
                 <span class="red-ui-footer-right">
                     <a href="javascript:void(0)" @onclick="ZoomIn"><i class="fa fa-plus"></i></a>
@@ -1328,6 +1329,17 @@
         color: #999;
     }
 
+    .flow-state-text {
+        margin-left: 6px;
+        font-size: 11px;
+        color: #666;
+    }
+
+    .red-ui-footer-left {
+        display: flex;
+        align-items: center;
+    }
+
     .red-ui-footer-right a {
         color: #888;
         padding: 2px 6px;
@@ -1813,6 +1825,14 @@
     .red-ui-deploy-button.disabled {
         opacity: 0.5;
         cursor: default;
+    }
+
+    .red-ui-deploy-button.deployed {
+        background: #5a0a10;
+    }
+
+    .red-ui-deploy-button.deployed:hover {
+        background: #5a0a10;
     }
 
     /* ========== DIALOGS ========== */

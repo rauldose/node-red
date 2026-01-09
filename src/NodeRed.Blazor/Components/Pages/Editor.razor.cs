@@ -46,6 +46,7 @@ public partial class Editor : IDisposable
     private bool IsDeployMenuOpen = false;
     private string DeployMode = "full";
     private bool HasUnsavedChanges = true;
+    private bool HasBeenDeployed = false;
 
     // Import/Export dialogs
     private bool IsImportDialogOpen = false;
@@ -1033,6 +1034,7 @@ public partial class Editor : IDisposable
         }
 
         HasUnsavedChanges = false;
+        HasBeenDeployed = true;
         StateHasChanged();
     }
 
