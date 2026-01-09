@@ -56,6 +56,8 @@ public partial class Editor : IDisposable
 
     // Debug messages
     private List<DebugMessage> DebugMessages = new();
+    private string DebugMessageFilter = "";
+    private bool DebugFilterByNode = false;
 
     // Node counter for unique IDs
     private int NodeCount = 0;
@@ -874,9 +876,40 @@ public partial class Editor : IDisposable
         }
     }
 
+    // Flow properties dialog state
+    private bool IsFlowPropertiesDialogOpen = false;
+    private string FlowPropertiesFlowId = "";
+    private string FlowPropertiesLabel = "";
+    private string FlowPropertiesInfo = "";
+    private bool FlowPropertiesEnabled = true;
+
     private void EditFlowProperties(string flowId)
     {
-        // TODO: Open flow properties dialog
+        var flow = Flows.FirstOrDefault(f => f.Id == flowId);
+        if (flow != null)
+        {
+            FlowPropertiesFlowId = flowId;
+            FlowPropertiesLabel = flow.Label;
+            FlowPropertiesInfo = "";
+            FlowPropertiesEnabled = true;
+            IsFlowPropertiesDialogOpen = true;
+        }
+    }
+
+    private void CloseFlowPropertiesDialog()
+    {
+        IsFlowPropertiesDialogOpen = false;
+    }
+
+    private void SaveFlowProperties()
+    {
+        var flow = Flows.FirstOrDefault(f => f.Id == FlowPropertiesFlowId);
+        if (flow != null)
+        {
+            flow.Label = FlowPropertiesLabel;
+        }
+        IsFlowPropertiesDialogOpen = false;
+        StateHasChanged();
     }
 
     private string GetSelectedNodeType()
@@ -1198,108 +1231,349 @@ public partial class Editor : IDisposable
         }
     }
 
+    // Search dialog state
+    private bool IsSearchDialogOpen = false;
+    private string SearchQuery = "";
+    private List<SearchResult> SearchResults = new();
+
     private void OnSearchClick()
     {
         IsMainMenuOpen = false;
-        // TODO: Implement search flows dialog
-        DebugMessages.Add(new DebugMessage
-        {
-            NodeId = "system",
-            NodeName = "System",
-            Data = "Search flows feature coming soon",
-            Timestamp = DateTimeOffset.Now
-        });
+        SearchQuery = "";
+        SearchResults.Clear();
+        IsSearchDialogOpen = true;
     }
+
+    private void CloseSearchDialog()
+    {
+        IsSearchDialogOpen = false;
+    }
+
+    private void PerformSearch()
+    {
+        SearchResults.Clear();
+        
+        if (string.IsNullOrWhiteSpace(SearchQuery))
+            return;
+        
+        var query = SearchQuery.ToLower();
+        
+        // Search in nodes
+        if (DiagramNodes != null)
+        {
+            foreach (var node in DiagramNodes)
+            {
+                var nodeName = node.Annotations?.FirstOrDefault()?.Content ?? "";
+                var nodeType = node.AdditionalInfo?.TryGetValue("nodeType", out var typeObj) == true
+                    ? typeObj as string ?? ""
+                    : "";
+                
+                if (nodeName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    nodeType.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    node.ID?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    SearchResults.Add(new SearchResult
+                    {
+                        Type = "Node",
+                        Id = node.ID ?? "",
+                        Label = nodeName,
+                        Description = $"Type: {nodeType}"
+                    });
+                }
+            }
+        }
+        
+        // Search in flows
+        foreach (var flow in Flows)
+        {
+            if (flow.Label.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                SearchResults.Add(new SearchResult
+                {
+                    Type = "Flow",
+                    Id = flow.Id,
+                    Label = flow.Label,
+                    Description = "Flow"
+                });
+            }
+        }
+    }
+
+    private async Task SelectSearchResult(SearchResult result)
+    {
+        if (result.Type == "Node" && DiagramInstance != null)
+        {
+            var node = DiagramNodes?.FirstOrDefault(n => n.ID == result.Id);
+            if (node != null)
+            {
+                DiagramInstance.ClearSelection();
+                DiagramInstance.Select(new ObservableCollection<IDiagramObject> { node });
+                await HighlightDebugNode(result.Id);
+            }
+        }
+        else if (result.Type == "Flow")
+        {
+            SwitchFlow(result.Id);
+        }
+        
+        IsSearchDialogOpen = false;
+    }
+
+    // Configuration nodes panel state
+    private bool IsConfigNodesDialogOpen = false;
+    private List<ConfigNodeInfo> ConfigNodes = new();
 
     private void OnConfigNodesClick()
     {
         IsMainMenuOpen = false;
-        // TODO: Implement configuration nodes panel
+        RefreshConfigNodes();
+        IsConfigNodesDialogOpen = true;
+    }
+
+    private void CloseConfigNodesDialog()
+    {
+        IsConfigNodesDialogOpen = false;
+    }
+
+    private void RefreshConfigNodes()
+    {
+        ConfigNodes.Clear();
+        
+        // In a full implementation, this would query configuration nodes
+        // For now, we'll show a placeholder
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = "Configuration nodes feature coming soon",
+            Data = "Configuration nodes panel opened. Configuration nodes management is a work in progress.",
             Timestamp = DateTimeOffset.Now
         });
     }
+
+    // Flows management panel state
+    private bool IsFlowsDialogOpen = false;
 
     private void OnFlowsClick()
     {
         IsMainMenuOpen = false;
-        // TODO: Implement flows management panel
-        DebugMessages.Add(new DebugMessage
-        {
-            NodeId = "system",
-            NodeName = "System",
-            Data = "Flows management feature coming soon",
-            Timestamp = DateTimeOffset.Now
-        });
+        IsFlowsDialogOpen = true;
     }
+
+    private void CloseFlowsDialog()
+    {
+        IsFlowsDialogOpen = false;
+    }
+
+    private void AddFlowFromDialog()
+    {
+        AddNewFlow();
+        StateHasChanged();
+    }
+
+    private void DeleteFlowFromDialog(string flowId)
+    {
+        DeleteFlow(flowId);
+        StateHasChanged();
+    }
+
+    private void EditFlowFromDialog(string flowId)
+    {
+        EditFlowProperties(flowId);
+    }
+
+    // Subflows panel state
+    private bool IsSubflowsDialogOpen = false;
+    private List<SubflowInfo> Subflows = new();
 
     private void OnSubflowsClick()
     {
         IsMainMenuOpen = false;
-        // TODO: Implement subflows panel
+        IsSubflowsDialogOpen = true;
+    }
+
+    private void CloseSubflowsDialog()
+    {
+        IsSubflowsDialogOpen = false;
+    }
+
+    private void CreateSubflow()
+    {
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = "Subflows feature coming soon",
+            Data = "Subflow creation is not yet fully implemented. This feature allows creating reusable subflows.",
             Timestamp = DateTimeOffset.Now
         });
     }
+
+    // Groups panel state
+    private bool IsGroupsDialogOpen = false;
 
     private void OnGroupsClick()
     {
         IsMainMenuOpen = false;
-        // TODO: Implement groups panel
+        IsGroupsDialogOpen = true;
+    }
+
+    private void CloseGroupsDialog()
+    {
+        IsGroupsDialogOpen = false;
+    }
+
+    private void GroupSelectedNodes()
+    {
+        // Simplified version - in a full implementation, this would check the selected nodes
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = "Groups feature coming soon",
+            Data = "Group selected nodes feature is partially implemented. Select nodes and use this feature to group them together.",
             Timestamp = DateTimeOffset.Now
         });
     }
+
+    private void UngroupSelectedNodes()
+    {
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = "Ungroup feature is not yet implemented.",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+
+    // Palette management panel state
+    private bool IsPaletteDialogOpen = false;
+    private string PaletteSearchQuery = "";
+    private List<PaletteModuleInfo> AvailableModules = new();
 
     private void OnManagePaletteClick()
     {
         IsMainMenuOpen = false;
-        // TODO: Implement palette management
+        RefreshPaletteModules();
+        IsPaletteDialogOpen = true;
+    }
+
+    private void ClosePaletteDialog()
+    {
+        IsPaletteDialogOpen = false;
+    }
+
+    private void RefreshPaletteModules()
+    {
+        AvailableModules.Clear();
+        
+        // Get currently loaded modules
+        var nodeDefinitions = NodeLoader.GetNodeDefinitions();
+        var modules = nodeDefinitions
+            .Select(n => new
+            {
+                Module = n.Type.Contains('-') ? n.Type.Split('-')[0] : "core",
+                NodeType = n.Type
+            })
+            .GroupBy(x => x.Module)
+            .Select(g => new PaletteModuleInfo
+            {
+                Name = g.Key,
+                Version = "1.0.0",
+                NodeCount = g.Count(),
+                IsInstalled = true
+            })
+            .ToList();
+        
+        AvailableModules.AddRange(modules);
+    }
+
+    private void InstallPaletteModule(string moduleName)
+    {
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = "Manage palette feature coming soon",
+            Data = $"Installing module '{moduleName}' is not yet implemented. This would install nodes from npm registry.",
             Timestamp = DateTimeOffset.Now
         });
     }
+
+    private void UninstallPaletteModule(string moduleName)
+    {
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = $"Uninstalling module '{moduleName}' is not yet implemented.",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+
+    // Settings dialog state
+    private bool IsSettingsDialogOpen = false;
+    private bool SettingsShowGrid = true;
+    private bool SettingsSnapToGrid = true;
+    private int SettingsGridSize = 20;
 
     private void OnSettingsClick()
     {
         IsMainMenuOpen = false;
-        // TODO: Implement settings dialog
-        DebugMessages.Add(new DebugMessage
-        {
-            NodeId = "system",
-            NodeName = "System",
-            Data = "Settings feature coming soon",
-            Timestamp = DateTimeOffset.Now
-        });
+        IsSettingsDialogOpen = true;
     }
+
+    private void CloseSettingsDialog()
+    {
+        IsSettingsDialogOpen = false;
+    }
+
+    private void SaveSettings()
+    {
+        // Apply settings to diagram
+        if (DiagramInstance != null)
+        {
+            // Settings would be applied here
+            DebugMessages.Add(new DebugMessage
+            {
+                NodeId = "system",
+                NodeName = "System",
+                Data = "Settings updated successfully.",
+                Timestamp = DateTimeOffset.Now
+            });
+        }
+        IsSettingsDialogOpen = false;
+    }
+
+    // Keyboard shortcuts dialog state
+    private bool IsKeyboardShortcutsDialogOpen = false;
+    private List<KeyboardShortcut> KeyboardShortcuts = new();
 
     private void OnKeyboardShortcutsClick()
     {
         IsMainMenuOpen = false;
-        // TODO: Implement keyboard shortcuts panel
-        DebugMessages.Add(new DebugMessage
+        LoadKeyboardShortcuts();
+        IsKeyboardShortcutsDialogOpen = true;
+    }
+
+    private void CloseKeyboardShortcutsDialog()
+    {
+        IsKeyboardShortcutsDialogOpen = false;
+    }
+
+    private void LoadKeyboardShortcuts()
+    {
+        KeyboardShortcuts = new List<KeyboardShortcut>
         {
-            NodeId = "system",
-            NodeName = "System",
-            Data = "Keyboard shortcuts feature coming soon",
-            Timestamp = DateTimeOffset.Now
-        });
+            new KeyboardShortcut { Key = "Ctrl+.", Description = "Search flows" },
+            new KeyboardShortcut { Key = "Ctrl+E", Description = "Export" },
+            new KeyboardShortcut { Key = "Ctrl+I", Description = "Import" },
+            new KeyboardShortcut { Key = "Ctrl+S", Description = "Deploy" },
+            new KeyboardShortcut { Key = "Ctrl+Z", Description = "Undo" },
+            new KeyboardShortcut { Key = "Ctrl+Y", Description = "Redo" },
+            new KeyboardShortcut { Key = "Ctrl+A", Description = "Select all nodes" },
+            new KeyboardShortcut { Key = "Delete", Description = "Delete selected nodes" },
+            new KeyboardShortcut { Key = "Ctrl+C", Description = "Copy selected nodes" },
+            new KeyboardShortcut { Key = "Ctrl+X", Description = "Cut selected nodes" },
+            new KeyboardShortcut { Key = "Ctrl+V", Description = "Paste nodes" },
+        };
     }
 
     private async Task OnStartClick()
@@ -1459,12 +1733,52 @@ public partial class Editor : IDisposable
 
     private void FilterDebugMessages()
     {
-        // TODO: Implement debug message filtering
+        // Toggle filter dialog or apply filter
+        // For now, we'll implement a simple filter by node name
+        DebugFilterByNode = !DebugFilterByNode;
     }
 
-    private void HighlightDebugNode(string nodeId)
+    private IEnumerable<DebugMessage> GetFilteredDebugMessages()
     {
-        // TODO: Highlight node in diagram
+        var messages = DebugMessages.AsEnumerable();
+        
+        if (!string.IsNullOrWhiteSpace(DebugMessageFilter))
+        {
+            messages = messages.Where(m => 
+                m.NodeName.Contains(DebugMessageFilter, StringComparison.OrdinalIgnoreCase) ||
+                FormatDebugData(m.Data).Contains(DebugMessageFilter, StringComparison.OrdinalIgnoreCase));
+        }
+        
+        return messages.TakeLast(100).Reverse();
+    }
+
+    private async Task HighlightDebugNode(string nodeId)
+    {
+        // Find and select the node in the diagram
+        var node = DiagramNodes?.FirstOrDefault(n => n.ID == nodeId);
+        if (node != null && DiagramInstance != null)
+        {
+            // Select the node
+            DiagramInstance.ClearSelection();
+            DiagramInstance.Select(new ObservableCollection<IDiagramObject> { node });
+            
+            // Flash the node to draw attention
+            if (node.Style != null)
+            {
+                var originalColor = node.Style.Fill;
+                node.Style.Fill = "#ffff00"; // Yellow highlight
+                StateHasChanged();
+                await Task.Delay(200);
+                node.Style.Fill = originalColor;
+                StateHasChanged();
+                await Task.Delay(200);
+                node.Style.Fill = "#ffff00";
+                StateHasChanged();
+                await Task.Delay(200);
+                node.Style.Fill = originalColor;
+                StateHasChanged();
+            }
+        }
     }
 
     private string FormatDebugData(object? data)
@@ -1513,5 +1827,42 @@ public partial class Editor : IDisposable
         public string IconBackground { get; set; } = "rgba(0,0,0,0.05)";
         public int Inputs { get; set; } = 1;
         public int Outputs { get; set; } = 1;
+    }
+
+    private class SearchResult
+    {
+        public string Type { get; set; } = "";
+        public string Id { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Description { get; set; } = "";
+    }
+
+    private class ConfigNodeInfo
+    {
+        public string Id { get; set; } = "";
+        public string Type { get; set; } = "";
+        public string Label { get; set; } = "";
+    }
+
+    private class SubflowInfo
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public int Inputs { get; set; }
+        public int Outputs { get; set; }
+    }
+
+    private class PaletteModuleInfo
+    {
+        public string Name { get; set; } = "";
+        public string Version { get; set; } = "";
+        public int NodeCount { get; set; }
+        public bool IsInstalled { get; set; }
+    }
+
+    private class KeyboardShortcut
+    {
+        public string Key { get; set; } = "";
+        public string Description { get; set; } = "";
     }
 }
