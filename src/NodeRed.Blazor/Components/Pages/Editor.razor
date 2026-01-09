@@ -1092,6 +1092,55 @@
         </div>
     };
 }
+
+@* Context Menus *@
+@if (IsNodeContextMenuOpen)
+{
+    <div class="red-ui-context-menu-overlay" @onclick="CloseContextMenus"></div>
+    <div class="red-ui-context-menu" style="left: @(ContextMenuX)px; top: @(ContextMenuY)px;">
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuEditNode">
+            <i class="fa fa-edit"></i> Edit
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuCopyNode">
+            <i class="fa fa-copy"></i> Copy
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuCutNode">
+            <i class="fa fa-cut"></i> Cut
+        </div>
+        <div class="red-ui-context-menu-divider"></div>
+        <div class="red-ui-context-menu-item red-ui-context-menu-item-danger" @onclick="ContextMenuDeleteNode">
+            <i class="fa fa-trash"></i> Delete
+        </div>
+    </div>
+}
+
+@if (IsCanvasContextMenuOpen)
+{
+    <div class="red-ui-context-menu-overlay" @onclick="CloseContextMenus"></div>
+    <div class="red-ui-context-menu" style="left: @(ContextMenuX)px; top: @(ContextMenuY)px;">
+        @if (!string.IsNullOrEmpty(_nodeClipboard))
+        {
+            <div class="red-ui-context-menu-item" @onclick="ContextMenuPaste">
+                <i class="fa fa-paste"></i> Paste
+            </div>
+            <div class="red-ui-context-menu-divider"></div>
+        }
+        <div class="red-ui-context-menu-label">Add node</div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddInject">
+            <i class="fa fa-play"></i> inject
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddDebug">
+            <i class="fa fa-bug"></i> debug
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddFunction">
+            <i class="fa fa-code"></i> function
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddChange">
+            <i class="fa fa-random"></i> change
+        </div>
+    </div>
+}
+
 <style>
     /* ========================================
        Node-RED Editor - Exact Replica CSS
@@ -2194,5 +2243,60 @@
 
     .red-ui-status-indicator.stopped {
         color: #a55;
+    }
+
+    /* ========== CONTEXT MENU ========== */
+    .red-ui-context-menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9999;
+    }
+
+    .red-ui-context-menu {
+        position: fixed;
+        z-index: 10000;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+        min-width: 160px;
+        padding: 5px 0;
+    }
+
+    .red-ui-context-menu-item {
+        padding: 8px 15px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+    }
+
+    .red-ui-context-menu-item:hover {
+        background: #f0f0f0;
+    }
+
+    .red-ui-context-menu-item-danger {
+        color: #c00;
+    }
+
+    .red-ui-context-menu-item-danger:hover {
+        background: #fee;
+    }
+
+    .red-ui-context-menu-divider {
+        height: 1px;
+        background: #ddd;
+        margin: 5px 0;
+    }
+
+    .red-ui-context-menu-label {
+        padding: 5px 15px;
+        font-size: 11px;
+        color: #999;
+        text-transform: uppercase;
     }
 </style>

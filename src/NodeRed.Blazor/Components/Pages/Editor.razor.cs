@@ -75,6 +75,13 @@ public partial class Editor : IDisposable
     private string _nodeClipboard = "";
     private bool _clipboardIsCut = false;
 
+    // Context menu state
+    private bool IsNodeContextMenuOpen = false;
+    private bool IsCanvasContextMenuOpen = false;
+    private double ContextMenuX = 0;
+    private double ContextMenuY = 0;
+    private Node? ContextMenuNode = null;
+
     // Node counter for unique IDs
     private int NodeCount = 0;
     private int ConnectorCount = 0;
@@ -1624,6 +1631,7 @@ public partial class Editor : IDisposable
 
     private void EditFlowFromDialog(string flowId)
     {
+        IsFlowsDialogOpen = false;
         EditFlowProperties(flowId);
     }
 
@@ -1862,10 +1870,11 @@ public partial class Editor : IDisposable
         
         // Create a subflow instance node in place of the removed nodes
         // Note: selectedNodes.Count > 0 is guaranteed by earlier check
-        var avgX = selectedNodes.Count > 0 ? selectedNodes.Average(n => n.OffsetX) : 300;
-        var avgY = selectedNodes.Count > 0 ? selectedNodes.Average(n => n.OffsetY) : 200;
+        var avgX = selectedNodes.Count > 0 ? selectedNodes.Average(n => n.OffsetX) : 300.0;
+        var avgY = selectedNodes.Count > 0 ? selectedNodes.Average(n => n.OffsetY) : 200.0;
         
-        var subflowInstanceNode = CreateNodeRedStyleNode(subflowName, "subflow:" + subflowId, avgX, avgY, "#DDAA99");
+        var subflowInstanceId = $"subflow_instance_{Guid.NewGuid():N}";
+        var subflowInstanceNode = CreateNodeRedStyleNode(subflowInstanceId, avgX, avgY, "subflow:" + subflowId, subflowName, "#DDAA99", null);
         DiagramNodes?.Add(subflowInstanceNode);
         
         AddSubflowToPalette(newSubflow);
@@ -1999,19 +2008,19 @@ public partial class Editor : IDisposable
             
             // Calculate bounding box for the group - initialize with first node
             var firstNode = selectedNodes[0];
-            double minX = firstNode.OffsetX - firstNode.Width / 2;
-            double minY = firstNode.OffsetY - firstNode.Height / 2;
-            double maxX = firstNode.OffsetX + firstNode.Width / 2;
-            double maxY = firstNode.OffsetY + firstNode.Height / 2;
+            double minX = (firstNode.OffsetX) - (firstNode.Width ?? 100.0) / 2;
+            double minY = (firstNode.OffsetY) - (firstNode.Height ?? 30.0) / 2;
+            double maxX = (firstNode.OffsetX) + (firstNode.Width ?? 100.0) / 2;
+            double maxY = (firstNode.OffsetY) + (firstNode.Height ?? 30.0) / 2;
             var nodeIds = new List<string> { firstNode.ID };
             
             foreach (var node in selectedNodes.Skip(1))
             {
                 nodeIds.Add(node.ID);
-                var nodeMinX = node.OffsetX - node.Width / 2;
-                var nodeMinY = node.OffsetY - node.Height / 2;
-                var nodeMaxX = node.OffsetX + node.Width / 2;
-                var nodeMaxY = node.OffsetY + node.Height / 2;
+                double nodeMinX = (node.OffsetX) - (node.Width ?? 100.0) / 2;
+                double nodeMinY = (node.OffsetY) - (node.Height ?? 30.0) / 2;
+                double nodeMaxX = (node.OffsetX) + (node.Width ?? 100.0) / 2;
+                double nodeMaxY = (node.OffsetY) + (node.Height ?? 30.0) / 2;
                 if (nodeMinX < minX) minX = nodeMinX;
                 if (nodeMinY < minY) minY = nodeMinY;
                 if (nodeMaxX > maxX) maxX = nodeMaxX;
@@ -2766,6 +2775,137 @@ public partial class Editor : IDisposable
     {
         public string Key { get; set; } = "";
         public string Description { get; set; } = "";
+    }
+
+    // Context menu methods
+    private void ShowNodeContextMenu(Node node, double x, double y)
+    {
+        ContextMenuNode = node;
+        ContextMenuX = x;
+        ContextMenuY = y;
+        IsNodeContextMenuOpen = true;
+        IsCanvasContextMenuOpen = false;
+        StateHasChanged();
+    }
+
+    private void ShowCanvasContextMenu(double x, double y)
+    {
+        ContextMenuX = x;
+        ContextMenuY = y;
+        IsCanvasContextMenuOpen = true;
+        IsNodeContextMenuOpen = false;
+        StateHasChanged();
+    }
+
+    private void CloseContextMenus()
+    {
+        IsNodeContextMenuOpen = false;
+        IsCanvasContextMenuOpen = false;
+        ContextMenuNode = null;
+        StateHasChanged();
+    }
+
+    private void ContextMenuEditNode()
+    {
+        if (ContextMenuNode != null)
+        {
+            SelectedDiagramNode = ContextMenuNode;
+            IsPropertyTrayOpen = true;
+            LoadNodeProperties(ContextMenuNode);
+        }
+        CloseContextMenus();
+    }
+
+    private void ContextMenuCopyNode()
+    {
+        if (ContextMenuNode != null)
+        {
+            SelectedDiagramNode = ContextMenuNode;
+            CopySelection();
+        }
+        CloseContextMenus();
+    }
+
+    private void ContextMenuCutNode()
+    {
+        if (ContextMenuNode != null)
+        {
+            SelectedDiagramNode = ContextMenuNode;
+            CutSelection();
+        }
+        CloseContextMenus();
+    }
+
+    private void ContextMenuDeleteNode()
+    {
+        if (ContextMenuNode != null)
+        {
+            // Record for undo
+            RecordAction(new EditorAction
+            {
+                Type = EditorActionType.DeleteNode,
+                NodeId = ContextMenuNode.ID,
+                NodeData = ContextMenuNode
+            });
+            DiagramNodes!.Remove(ContextMenuNode);
+            SelectedDiagramNode = null;
+            HasUnsavedChanges = true;
+        }
+        CloseContextMenus();
+    }
+
+    private void ContextMenuPaste()
+    {
+        PasteFromClipboard();
+        CloseContextMenus();
+    }
+
+    private void ContextMenuAddInject()
+    {
+        AddNodeAtPosition("inject", ContextMenuX, ContextMenuY);
+        CloseContextMenus();
+    }
+
+    private void ContextMenuAddDebug()
+    {
+        AddNodeAtPosition("debug", ContextMenuX, ContextMenuY);
+        CloseContextMenus();
+    }
+
+    private void ContextMenuAddFunction()
+    {
+        AddNodeAtPosition("function", ContextMenuX, ContextMenuY);
+        CloseContextMenus();
+    }
+
+    private void ContextMenuAddChange()
+    {
+        AddNodeAtPosition("change", ContextMenuX, ContextMenuY);
+        CloseContextMenus();
+    }
+
+    private void AddNodeAtPosition(string nodeType, double x, double y)
+    {
+        var paletteNode = GetPaletteNodeInfo(nodeType);
+        
+        if (paletteNode != null)
+        {
+            var nodeName = $"{paletteNode.Label}{++NodeCount}";
+            var nodeId = $"{nodeType}{NodeCount}";
+            var newNode = CreateNodeRedStyleNode(nodeId, x, y, paletteNode.Type, nodeName, paletteNode.Color, paletteNode);
+            DiagramNodes?.Add(newNode);
+            
+            // Record undo action
+            RecordAction(new EditorAction
+            {
+                Type = EditorActionType.AddNode,
+                NodeId = newNode.ID,
+                NodeData = newNode
+            });
+            
+            HasUnsavedChanges = true;
+            StateHasChanged();
+        }
     }
 
     // Undo/Redo action types
