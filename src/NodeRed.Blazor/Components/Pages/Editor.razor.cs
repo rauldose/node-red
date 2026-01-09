@@ -4,6 +4,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
+using NodeRed.Blazor.Components.Shared;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.Core.Interfaces;
@@ -58,6 +59,19 @@ public partial class Editor : IDisposable
     private string SelectedNodeName = "";
     private int SelectedSidebarTab = 0;
     private bool IsPropertyTrayOpen = false;
+
+    // Sidebar state
+    private bool _isSidebarClosed = false;
+    private string _activeSidebarTabId = "info";
+    // Sidebar tabs matching original Node-RED: info, help, config, context, debug
+    private List<RedUiSidebar.SidebarTab> _sidebarTabs = new()
+    {
+        new RedUiSidebar.SidebarTab { Id = "info", Name = "Info", Label = "info", IconClass = "fa fa-info", Pinned = true },
+        new RedUiSidebar.SidebarTab { Id = "help", Name = "Help", Label = "help", IconClass = "fa fa-book", Pinned = true },
+        new RedUiSidebar.SidebarTab { Id = "config", Name = "Configuration nodes", Label = "config", IconClass = "fa fa-cog", Pinned = true },
+        new RedUiSidebar.SidebarTab { Id = "context", Name = "Context Data", Label = "context", IconClass = "fa fa-database", Pinned = true },
+        new RedUiSidebar.SidebarTab { Id = "debug", Name = "Debug messages", Label = "debug", IconClass = "fa fa-bug", Pinned = true, EnableOnEdit = true }
+    };
 
     // Menu state
     private bool IsMainMenuOpen = false;

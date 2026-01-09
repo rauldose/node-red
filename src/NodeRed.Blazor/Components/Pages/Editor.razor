@@ -712,41 +712,32 @@
         </div>
 
         <!-- Property Editor Tray (slides out when double-clicking a node) -->
-        @if (IsPropertyTrayOpen && SelectedDiagramNode != null)
-        {
-            <div class="red-ui-tray">
-                <div class="red-ui-tray-header">
-                    <div class="red-ui-tray-titlebar">
-                        <ul class="red-ui-tray-breadcrumbs">
-                            <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
-                        </ul>
-                    </div>
-                    <div class="red-ui-tray-toolbar">
-                        <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
-                        <button class="red-ui-button red-ui-button-primary" @onclick="SaveAndClosePropertyTray">Done</button>
-                    </div>
+        <RedUiTray IsOpen="@(IsPropertyTrayOpen && SelectedDiagramNode != null)" TrayWidth="350">
+            <TitleTemplate>
+                <ul class="red-ui-tray-breadcrumbs">
+                    <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
+                </ul>
+            </TitleTemplate>
+            <ToolbarTemplate>
+                <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
+                <button class="red-ui-button primary" @onclick="SaveAndClosePropertyTray">Done</button>
+            </ToolbarTemplate>
+            <ChildContent>
+                <div class="red-ui-tray-content">
+                    @RenderNodePropertyPanel()
                 </div>
-                <div class="red-ui-tray-body">
-                    <div class="red-ui-tray-content">
-                        @RenderNodePropertyPanel()
-                    </div>
-                </div>
-            </div>
-        }
+            </ChildContent>
+        </RedUiTray>
 
-        <!-- Sidebar -->
-        <div id="red-ui-sidebar">
-            <ul id="red-ui-sidebar-tabs">
-                <li class="@(SelectedSidebarTab == 0 ? "active" : "")" @onclick="() => SelectedSidebarTab = 0">
-                    <a href="javascript:void(0)" title="Info"><i class="fa fa-info"></i></a>
-                </li>
-                <li class="@(SelectedSidebarTab == 1 ? "active" : "")" @onclick="() => SelectedSidebarTab = 1">
-                    <a href="javascript:void(0)" title="Debug"><i class="fa fa-bug"></i></a>
-                </li>
-            </ul>
-            
-            <div id="red-ui-sidebar-content">
-                @if (SelectedSidebarTab == 0)
+        <!-- Sidebar - uses RedUiSidebar component matching Node-RED structure -->
+        <RedUiSidebar Tabs="@_sidebarTabs"
+                      ActiveTabId="@_activeSidebarTabId"
+                      ActiveTabIdChanged="@((string id) => { _activeSidebarTabId = id; SelectedSidebarTab = id == "info" ? 0 : 1; })"
+                      IsClosed="@_isSidebarClosed" 
+                      IsClosedChanged="@((bool closed) => _isSidebarClosed = closed)"
+                      ShowShade="@IsPropertyTrayOpen">
+            <ContentTemplate Context="tabId">
+                @if (tabId == "info")
                 {
                     <div class="red-ui-sidebar-info">
                         @if (SelectedDiagramNode != null)
@@ -857,7 +848,7 @@
                         }
                     </div>
                 }
-                else
+                else if (tabId == "debug")
                 {
                     <div class="red-ui-sidebar-debug">
                         <div class="red-ui-debug-toolbar">
@@ -891,8 +882,97 @@
                         </div>
                     </div>
                 }
-            </div>
-        </div>
+                else if (tabId == "help")
+                {
+                    @* Help tab - matches RED.sidebar.help *@
+                    <div class="red-ui-sidebar-help">
+                        @if (SelectedDiagramNode != null)
+                        {
+                            var nodeHelp = GetNodeHelp(GetSelectedNodeType());
+                            if (nodeHelp != null)
+                            {
+                                <div class="red-ui-help-content" style="padding: 10px;">
+                                    <h3 style="margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px;">@GetSelectedNodeType()</h3>
+                                    @if (!string.IsNullOrEmpty(nodeHelp.Summary))
+                                    {
+                                        <p>@nodeHelp.Summary</p>
+                                    }
+                                    @if (!string.IsNullOrEmpty(nodeHelp.Details))
+                                    {
+                                        <div style="white-space: pre-wrap;">@nodeHelp.Details</div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="red-ui-help-none" style="padding: 20px; text-align: center; color: #888;">
+                                    <p>No help available for this node type</p>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="red-ui-help-none" style="padding: 20px; text-align: center; color: #888;">
+                                <p>Select a node to view its help</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else if (tabId == "config")
+                {
+                    @* Config nodes tab - matches RED.sidebar.config *@
+                    <div class="red-ui-sidebar-config" style="padding: 10px;">
+                        <div class="red-ui-sidebar-header" style="padding: 5px 0; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
+                            <span style="font-weight: bold;">Configuration Nodes</span>
+                        </div>
+                        <div class="red-ui-config-list">
+                            @{
+                                var configNodes = GetConfigurationNodes();
+                                if (configNodes.Any())
+                                {
+                                    foreach (var configNode in configNodes)
+                                    {
+                                        <div class="red-ui-config-node" style="padding: 5px; border: 1px solid #ddd; margin-bottom: 5px; border-radius: 3px; cursor: pointer;">
+                                            <i class="fa fa-cog" style="margin-right: 5px;"></i>
+                                            <span>@configNode</span>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div style="color: #888; text-align: center; padding: 20px;">
+                                        <p>No configuration nodes</p>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                }
+                else if (tabId == "context")
+                {
+                    @* Context data tab - matches RED.sidebar.context *@
+                    <div class="red-ui-sidebar-context" style="padding: 10px;">
+                        <div class="red-ui-sidebar-header" style="padding: 5px 0; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
+                            <span style="font-weight: bold;">Context Data</span>
+                        </div>
+                        <div class="red-ui-context-sections">
+                            <div class="red-ui-context-section" style="margin-bottom: 15px;">
+                                <h4 style="font-size: 12px; color: #666; margin: 0 0 5px 0;">Node</h4>
+                                <div style="color: #888; font-size: 12px;">Select a node to view its context</div>
+                            </div>
+                            <div class="red-ui-context-section" style="margin-bottom: 15px;">
+                                <h4 style="font-size: 12px; color: #666; margin: 0 0 5px 0;">Flow</h4>
+                                <div style="color: #888; font-size: 12px;">No flow context data</div>
+                            </div>
+                            <div class="red-ui-context-section">
+                                <h4 style="font-size: 12px; color: #666; margin: 0 0 5px 0;">Global</h4>
+                                <div style="color: #888; font-size: 12px;">No global context data</div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </ContentTemplate>
+        </RedUiSidebar>
     </div>
 </div>
 

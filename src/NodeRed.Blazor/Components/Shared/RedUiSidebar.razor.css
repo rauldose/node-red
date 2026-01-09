@@ -1,0 +1,414 @@
+/**
+ * RedUiSidebar CSS - Matches the original Node-RED sidebar.scss exactly
+ * From: packages/node_modules/@node-red/editor-client/src/sass/sidebar.scss
+ */
+
+/* Main sidebar container */
+#red-ui-sidebar {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    bottom: 0px;
+    width: 315px;
+    background: var(--red-ui-primary-background, #fff);
+    box-sizing: border-box;
+    z-index: 10;
+    border-left: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+}
+
+#red-ui-sidebar.closing {
+    border-style: dashed;
+}
+
+/* Sidebar tabs wrapper - matches .red-ui-tabs */
+#red-ui-sidebar-tabs-wrapper {
+    position: relative;
+    background: var(--red-ui-tab-background, #f3f3f3);
+    overflow: hidden;
+    height: 35px;
+    box-sizing: border-box;
+}
+
+.red-ui-tabs-scroll-container {
+    height: 60px;
+    overflow-x: scroll;
+    overflow-y: hidden;
+}
+
+.red-ui-tabs-scroll-container::-webkit-scrollbar {
+    display: none;
+}
+
+/* Sidebar tabs list */
+#red-ui-sidebar-tabs {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    display: block;
+    height: 35px;
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    white-space: nowrap;
+    user-select: none;
+}
+
+#red-ui-sidebar-tabs li {
+    box-sizing: border-box;
+    display: inline-block;
+    border-left: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    border-top: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    border-right: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    border-bottom: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    background: var(--red-ui-tab-background-inactive, #e9e9e9);
+    margin: 3px 3px 0 3px;
+    height: 32px;
+    line-height: 29px;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+    cursor: pointer;
+}
+
+#red-ui-sidebar-tabs li.red-ui-tab-pinned {
+    width: 32px;
+    text-align: center;
+}
+
+#red-ui-sidebar-tabs li:not(.red-ui-tab-pinned) {
+    max-width: 200px;
+    width: 14%;
+    min-width: 80px;
+}
+
+#red-ui-sidebar-tabs li a.red-ui-tab-label {
+    display: block;
+    font-size: 14px;
+    padding-left: 12px;
+    width: 100%;
+    height: 100%;
+    color: var(--red-ui-tab-text-color-inactive, #888888);
+    text-decoration: none;
+}
+
+#red-ui-sidebar-tabs li.red-ui-tab-pinned a.red-ui-tab-label {
+    padding-left: 0;
+}
+
+#red-ui-sidebar-tabs li a:hover {
+    text-decoration: none;
+}
+
+#red-ui-sidebar-tabs li:not(.active):hover {
+    background: var(--red-ui-tab-background-hover, #f0f0f0);
+}
+
+#red-ui-sidebar-tabs li.active {
+    background: var(--red-ui-tab-background-active, #fff);
+    font-weight: bold;
+    border-bottom: 1px solid var(--red-ui-tab-background-active, #fff);
+    z-index: 2;
+}
+
+#red-ui-sidebar-tabs li.active a {
+    color: var(--red-ui-tab-text-color-active, #444);
+}
+
+/* Sidebar content area */
+#red-ui-sidebar-content {
+    position: absolute;
+    background: var(--red-ui-secondary-background, #fff);
+    top: 35px;
+    right: 0;
+    bottom: 25px;
+    left: 0px;
+    overflow-y: auto;
+}
+
+.red-ui-sidebar-tab-wrapper {
+    height: 100%;
+    position: relative;
+}
+
+.red-ui-sidebar-tab-wrapper.hide {
+    display: none;
+}
+
+/* Sidebar footer */
+#red-ui-sidebar-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 25px;
+    background: var(--red-ui-primary-background, #f3f3f3);
+    border-top: 1px solid var(--red-ui-secondary-border-color, #dddddd);
+    box-sizing: border-box;
+}
+
+/* Sidebar shade - for modal states */
+#red-ui-sidebar-shade {
+    position: absolute;
+    top: 35px;
+    left: 0;
+    right: 0;
+    bottom: 25px;
+    background: rgba(160, 160, 160, 0.5);
+    z-index: 5;
+}
+
+#red-ui-sidebar-shade.hide {
+    display: none;
+}
+
+.red-ui-sidebar-shade {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(160, 160, 160, 0.5);
+    z-index: 5;
+}
+
+/* Sidebar separator/resize handle */
+#red-ui-sidebar-separator {
+    position: absolute;
+    top: 5px;
+    right: 315px;
+    bottom: 10px;
+    width: 7px;
+    background-color: var(--red-ui-primary-background, #f3f3f3);
+    cursor: col-resize;
+    z-index: 11;
+}
+
+/* Sidebar closed state */
+.red-ui-sidebar-closed #red-ui-sidebar {
+    display: none;
+}
+
+.red-ui-sidebar-closed #red-ui-sidebar-separator {
+    right: 0px !important;
+}
+
+/* Sidebar control buttons */
+.red-ui-sidebar-control-right {
+    display: none;
+    position: absolute;
+    top: calc(50% - 26px);
+    right: 100%;
+    padding: 15px 8px;
+    border: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    background: var(--red-ui-primary-background, #f3f3f3);
+    color: var(--red-ui-secondary-text-color, #888);
+    text-align: center;
+    cursor: pointer;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+    z-index: 13;
+}
+
+#red-ui-sidebar-separator:hover .red-ui-sidebar-control-right {
+    display: block;
+}
+
+/* Sidebar info panel styles */
+.red-ui-sidebar-info {
+    padding: 10px;
+}
+
+.red-ui-info-header {
+    display: flex;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    margin-bottom: 10px;
+}
+
+.red-ui-info-icon {
+    width: 20px;
+    height: 17px;
+    border-radius: 3px;
+    border: 1px solid #999;
+    margin-right: 8px;
+}
+
+.red-ui-info-type {
+    font-weight: 500;
+    color: var(--red-ui-primary-text-color, #444);
+}
+
+.red-ui-info-table {
+    width: 100%;
+    font-size: 12px;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+}
+
+.red-ui-info-table td {
+    padding: 4px 0;
+    vertical-align: top;
+}
+
+.red-ui-info-table td:first-child {
+    width: 60px;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+.red-ui-info-value {
+    color: var(--red-ui-primary-text-color, #444);
+    word-break: break-all;
+}
+
+.red-ui-info-section {
+    margin-bottom: 15px;
+}
+
+.red-ui-info-section h4 {
+    font-size: 13px;
+    font-weight: bold;
+    margin: 0 0 8px 0;
+    color: var(--red-ui-primary-text-color, #444);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    padding-bottom: 5px;
+}
+
+.red-ui-info-section dl {
+    margin: 0;
+    padding: 0;
+}
+
+.red-ui-info-section dt {
+    font-weight: normal;
+    margin-top: 8px;
+}
+
+.red-ui-info-section dt code {
+    background: var(--red-ui-tertiary-background, #f7f7f7);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.red-ui-info-type-tag {
+    font-size: 11px;
+    color: var(--red-ui-secondary-text-color, #888);
+    margin-left: 5px;
+}
+
+.red-ui-info-section dd {
+    margin: 3px 0 0 15px;
+    color: var(--red-ui-secondary-text-color, #666);
+    font-size: 12px;
+}
+
+.red-ui-info-section ul {
+    margin: 5px 0;
+    padding-left: 20px;
+}
+
+.red-ui-info-section ul li {
+    margin-bottom: 3px;
+}
+
+.red-ui-info-section a {
+    color: var(--red-ui-text-color-link, #0066cc);
+}
+
+.red-ui-info-tips {
+    background: var(--red-ui-form-tips-background, #ffffc0);
+    padding: 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    margin-top: 15px;
+}
+
+.red-ui-info-tips p {
+    margin: 0;
+}
+
+.red-ui-info-none {
+    padding: 20px;
+    text-align: center;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+/* Debug panel styles */
+.red-ui-sidebar-debug {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.red-ui-debug-toolbar {
+    padding: 5px 10px;
+    background: var(--red-ui-primary-background, #f7f7f7);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.red-ui-debug-button {
+    color: var(--red-ui-secondary-text-color, #888);
+    cursor: pointer;
+}
+
+.red-ui-debug-button:hover {
+    color: var(--red-ui-primary-text-color, #444);
+}
+
+.red-ui-debug-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+.red-ui-debug-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.red-ui-debug-none {
+    padding: 20px;
+    text-align: center;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+.red-ui-debug-msg {
+    background: var(--red-ui-secondary-background, #fff);
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    border-radius: 3px;
+    margin-bottom: 5px;
+    padding: 8px;
+    cursor: pointer;
+}
+
+.red-ui-debug-msg:hover {
+    border-color: var(--red-ui-primary-border-color, #999);
+}
+
+.red-ui-debug-msg-date {
+    font-size: 11px;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+.red-ui-debug-msg-topic {
+    font-size: 11px;
+    color: var(--red-ui-secondary-text-color, #888);
+    margin-left: 10px;
+}
+
+.red-ui-debug-msg-payload {
+    margin: 5px 0 0 0;
+    padding: 5px;
+    background: var(--red-ui-tertiary-background, #f7f7f7);
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 200px;
+    overflow-y: auto;
+}

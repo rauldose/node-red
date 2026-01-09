@@ -1,0 +1,154 @@
+@* 
+    RedUiSidebar - Blazor implementation of Node-RED's red-ui-sidebar
+    Matches the exact structure from packages/node_modules/@node-red/editor-client/src/js/ui/sidebar.js
+    
+    Structure:
+    - #red-ui-sidebar (container)
+      - #red-ui-sidebar-tabs (ul.red-ui-tabs)
+      - #red-ui-sidebar-content (tab content wrappers)
+      - #red-ui-sidebar-footer.red-ui-component-footer
+      - #red-ui-sidebar-shade.hide
+    - #red-ui-sidebar-separator (resize handle)
+*@
+
+<div id="red-ui-sidebar">
+    @* Sidebar tabs - matches the red-ui-tabs component structure *@
+    <div class="red-ui-tabs" id="red-ui-sidebar-tabs-wrapper">
+        <div class="red-ui-tabs-scroll-container">
+            <ul id="red-ui-sidebar-tabs">
+                @foreach (var tab in Tabs)
+                {
+                    <li class="@(ActiveTabId == tab.Id ? "active" : "") @(tab.Pinned ? "red-ui-tab-pinned" : "")"
+                        @onclick="() => ActivateTab(tab.Id)"
+                        title="@tab.Name">
+                        <a href="javascript:void(0)" class="red-ui-tab-label">
+                            <i class="@tab.IconClass"></i>
+                            @if (!string.IsNullOrEmpty(tab.Label) && !tab.Pinned)
+                            {
+                                <span>@tab.Label</span>
+                            }
+                        </a>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+    
+    @* Sidebar content - matches #red-ui-sidebar-content from original *@
+    <div id="red-ui-sidebar-content">
+        @foreach (var tab in Tabs)
+        {
+            <div class="red-ui-sidebar-tab-wrapper @(ActiveTabId == tab.Id ? "" : "hide")" 
+                 style="height:100%">
+                @if (tab.Id == ActiveTabId && ContentTemplate != null)
+                {
+                    @ContentTemplate(tab.Id)
+                }
+                @if (!tab.EnableOnEdit && ShowShade)
+                {
+                    <div class="red-ui-sidebar-shade"></div>
+                }
+            </div>
+        }
+    </div>
+    
+    @* Sidebar footer - matches #red-ui-sidebar-footer from original *@
+    <div id="red-ui-sidebar-footer" class="red-ui-component-footer">
+        @if (FooterTemplate != null)
+        {
+            @FooterTemplate(ActiveTabId)
+        }
+    </div>
+    
+    @* Sidebar shade - for modal states *@
+    <div id="red-ui-sidebar-shade" class="@(ShowShade ? "" : "hide")"></div>
+</div>
+
+@* Sidebar separator (resize handle) - matches #red-ui-sidebar-separator from original *@
+<div id="red-ui-sidebar-separator">
+    <div class="red-ui-sidebar-control-right" @onclick="ToggleSidebar">
+        <i class="fa @(IsClosed ? "fa-chevron-left" : "fa-chevron-right")"></i>
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Tab definitions
+    /// </summary>
+    [Parameter]
+    public List<SidebarTab> Tabs { get; set; } = new();
+
+    /// <summary>
+    /// Currently active tab ID
+    /// </summary>
+    [Parameter]
+    public string ActiveTabId { get; set; } = "info";
+
+    /// <summary>
+    /// Event callback when active tab changes
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> ActiveTabIdChanged { get; set; }
+
+    /// <summary>
+    /// Content template - receives tab ID
+    /// </summary>
+    [Parameter]
+    public RenderFragment<string>? ContentTemplate { get; set; }
+
+    /// <summary>
+    /// Footer template - receives active tab ID
+    /// </summary>
+    [Parameter]
+    public RenderFragment<string>? FooterTemplate { get; set; }
+
+    /// <summary>
+    /// Whether the sidebar is closed/hidden
+    /// </summary>
+    [Parameter]
+    public bool IsClosed { get; set; } = false;
+
+    /// <summary>
+    /// Event callback when sidebar closed state changes
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> IsClosedChanged { get; set; }
+
+    /// <summary>
+    /// Whether to show the shade overlay (when tray is open)
+    /// </summary>
+    [Parameter]
+    public bool ShowShade { get; set; } = false;
+
+    /// <summary>
+    /// Activates a tab by ID
+    /// </summary>
+    private async Task ActivateTab(string tabId)
+    {
+        if (string.IsNullOrEmpty(tabId)) return;
+        ActiveTabId = tabId;
+        await ActiveTabIdChanged.InvokeAsync(tabId);
+    }
+
+    /// <summary>
+    /// Toggles the sidebar open/closed
+    /// </summary>
+    private async Task ToggleSidebar()
+    {
+        IsClosed = !IsClosed;
+        await IsClosedChanged.InvokeAsync(IsClosed);
+    }
+
+    /// <summary>
+    /// Represents a sidebar tab - matches tab options in original
+    /// </summary>
+    public class SidebarTab
+    {
+        public string Id { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string IconClass { get; set; } = "fa fa-square-o";
+        public bool Pinned { get; set; } = true;
+        public bool EnableOnEdit { get; set; } = false;
+    }
+}
