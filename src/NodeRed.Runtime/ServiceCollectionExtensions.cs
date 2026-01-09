@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NodeRed.Core.Interfaces;
 using NodeRed.Runtime.Execution;
 using NodeRed.Runtime.Services;
+using NodeRed.SDK;
 
 namespace NodeRed.Runtime;
 
@@ -22,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<INodeRegistry, NodeRegistry>();
         services.AddSingleton<IFlowStorage, InMemoryFlowStorage>();
         services.AddSingleton<IFlowRuntime, FlowRuntime>();
+        services.AddSingleton<NodeLoader>();
 
         return services;
     }
@@ -35,7 +37,47 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<INodeRegistry, NodeRegistry>();
         services.AddSingleton<IFlowStorage, TStorage>();
         services.AddSingleton<IFlowRuntime, FlowRuntime>();
+        services.AddSingleton<NodeLoader>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Loads node plugins from a directory.
+    /// Call this after building the service provider to discover and register external nodes.
+    /// </summary>
+    public static IServiceProvider LoadNodePlugins(this IServiceProvider serviceProvider, string pluginsPath)
+    {
+        var loader = serviceProvider.GetRequiredService<NodeLoader>();
+        var registry = serviceProvider.GetRequiredService<INodeRegistry>();
+
+        if (Directory.Exists(pluginsPath))
+        {
+            var nodeTypes = loader.LoadFromDirectory(pluginsPath);
+            
+            foreach (var nodeType in nodeTypes)
+            {
+                // Register each discovered node type with the registry
+                var attr = nodeType.ImplementationType.GetCustomAttributes(typeof(NodeTypeAttribute), false)
+                    .FirstOrDefault() as NodeTypeAttribute;
+
+                if (attr != null)
+                {
+                    Console.WriteLine($"[Plugin] Loaded node type: {attr.Type} ({attr.DisplayName}) from {nodeType.ImplementationType.Assembly.GetName().Name}");
+                }
+            }
+
+            // Log any errors
+            foreach (var (path, error) in loader.GetLoadErrors())
+            {
+                Console.WriteLine($"[Plugin] Failed to load {Path.GetFileName(path)}: {error}");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"[Plugin] Plugins directory not found: {pluginsPath}");
+        }
+
+        return serviceProvider;
     }
 }

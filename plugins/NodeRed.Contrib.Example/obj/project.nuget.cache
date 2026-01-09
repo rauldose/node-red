@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "ioze5Mx6uk8=",
+  "success": true,
+  "projectFilePath": "/home/runner/work/node-red/node-red/plugins/NodeRed.Contrib.Example/NodeRed.Contrib.Example.csproj",
+  "expectedPackageFiles": [
+    "/home/runner/.nuget/packages/humanizer.core/2.14.1/humanizer.core.2.14.1.nupkg.sha512"
+  ],
+  "logs": []
+}

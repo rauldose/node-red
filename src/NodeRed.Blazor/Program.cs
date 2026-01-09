@@ -24,6 +24,10 @@ builder.Services.AddRazorComponents()
 
 var app = builder.Build();
 
+// Load plugins from the plugins directory
+var pluginsPath = Path.Combine(app.Environment.ContentRootPath, "plugins");
+app.Services.LoadNodePlugins(pluginsPath);
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
