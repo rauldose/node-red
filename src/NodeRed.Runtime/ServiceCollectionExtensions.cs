@@ -1,6 +1,7 @@
 // Copyright OpenJS Foundation and other contributors
 // Licensed under the Apache License, Version 2.0
 
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using NodeRed.Core.Interfaces;
 using NodeRed.Runtime.Execution;
@@ -23,7 +24,15 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<INodeRegistry, NodeRegistry>();
         services.AddSingleton<IFlowStorage, InMemoryFlowStorage>();
         services.AddSingleton<IFlowRuntime, FlowRuntime>();
-        services.AddSingleton<NodeLoader>();
+        
+        // Register NodeLoader as singleton and discover built-in SDK nodes
+        services.AddSingleton<NodeLoader>(provider =>
+        {
+            var loader = new NodeLoader();
+            // Discover SDK nodes from the Runtime assembly
+            loader.DiscoverNodes(typeof(ServiceCollectionExtensions).Assembly);
+            return loader;
+        });
 
         return services;
     }
@@ -37,7 +46,15 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<INodeRegistry, NodeRegistry>();
         services.AddSingleton<IFlowStorage, TStorage>();
         services.AddSingleton<IFlowRuntime, FlowRuntime>();
-        services.AddSingleton<NodeLoader>();
+        
+        // Register NodeLoader as singleton and discover built-in SDK nodes
+        services.AddSingleton<NodeLoader>(provider =>
+        {
+            var loader = new NodeLoader();
+            // Discover SDK nodes from the Runtime assembly
+            loader.DiscoverNodes(typeof(ServiceCollectionExtensions).Assembly);
+            return loader;
+        });
 
         return services;
     }

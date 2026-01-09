@@ -145,179 +145,43 @@ public partial class Editor : IDisposable
 
     private void InitializePalette()
     {
-        // Common nodes category
-        var commonNodes = new PaletteCategory
-        {
-            Name = "common",
-            IsExpanded = true,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "inject", Label = "inject", Color = "#a6bbcf", IconClass = "fa fa-arrow-right", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "debug", Label = "debug", Color = "#87a980", IconClass = "fa fa-bug", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "complete", Label = "complete", Color = "#e2d96e", IconClass = "fa fa-check-circle-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "catch", Label = "catch", Color = "#e3b881", IconClass = "fa fa-warning", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "status", Label = "status", Color = "#c0c0c0", IconClass = "fa fa-circle-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "link in", Label = "link in", Color = "#ddd", IconClass = "fa fa-arrow-left", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "link out", Label = "link out", Color = "#ddd", IconClass = "fa fa-arrow-right", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "link call", Label = "link call", Color = "#ddd", IconClass = "fa fa-link", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "comment", Label = "comment", Color = "#fff", IconClass = "fa fa-comment-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 0 },
-            }
-        };
-
-        // Function nodes category
-        var functionNodes = new PaletteCategory
-        {
-            Name = "function",
-            IsExpanded = true,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "function", Label = "function", Color = "#fdd0a2", IconClass = "fa fa-code", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "switch", Label = "switch", Color = "#e2d96e", IconClass = "fa fa-random", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "change", Label = "change", Color = "#e2d96e", IconClass = "fa fa-edit", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "range", Label = "range", Color = "#e2d96e", IconClass = "fa fa-arrows-h", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "template", Label = "template", Color = "#bc9e5e", IconClass = "fa fa-file-text-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "delay", Label = "delay", Color = "#e6c4e0", IconClass = "fa fa-clock-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "trigger", Label = "trigger", Color = "#e6c4e0", IconClass = "fa fa-toggle-off", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "exec", Label = "exec", Color = "#ddd", IconClass = "fa fa-terminal", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 3 },
-                new PaletteNodeInfo { Type = "rbe", Label = "rbe", Color = "#e2d96e", IconClass = "fa fa-tasks", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-            }
-        };
-
-        // Network nodes category
-        var networkNodes = new PaletteCategory
-        {
-            Name = "network",
-            IsExpanded = false,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "mqtt in", Label = "mqtt in", Color = "#d8bfd8", IconClass = "fa fa-sign-in", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "mqtt out", Label = "mqtt out", Color = "#d8bfd8", IconClass = "fa fa-sign-out", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "http in", Label = "http in", Color = "#6baed6", IconClass = "fa fa-globe", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "http response", Label = "http response", Color = "#6baed6", IconClass = "fa fa-globe", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "http request", Label = "http request", Color = "#6baed6", IconClass = "fa fa-globe", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "websocket in", Label = "websocket in", Color = "#ddd", IconClass = "fa fa-plug", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "websocket out", Label = "websocket out", Color = "#ddd", IconClass = "fa fa-plug", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "tcp in", Label = "tcp in", Color = "#c0c0c0", IconClass = "fa fa-exchange", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "tcp out", Label = "tcp out", Color = "#c0c0c0", IconClass = "fa fa-exchange", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "udp in", Label = "udp in", Color = "#c0c0c0", IconClass = "fa fa-exchange", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "udp out", Label = "udp out", Color = "#c0c0c0", IconClass = "fa fa-exchange", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-            }
-        };
-
-        // Sequence nodes category
-        var sequenceNodes = new PaletteCategory
-        {
-            Name = "sequence",
-            IsExpanded = false,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "split", Label = "split", Color = "#e2d96e", IconClass = "fa fa-columns", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "join", Label = "join", Color = "#e2d96e", IconClass = "fa fa-compress", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "sort", Label = "sort", Color = "#e2d96e", IconClass = "fa fa-sort", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "batch", Label = "batch", Color = "#e2d96e", IconClass = "fa fa-list", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-            }
-        };
-
-        // Parser nodes category
-        var parserNodes = new PaletteCategory
-        {
-            Name = "parser",
-            IsExpanded = false,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "csv", Label = "csv", Color = "#dbb84d", IconClass = "fa fa-table", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "html", Label = "html", Color = "#dbb84d", IconClass = "fa fa-file-code-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "json", Label = "json", Color = "#dbb84d", IconClass = "fa fa-file-text-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "xml", Label = "xml", Color = "#dbb84d", IconClass = "fa fa-file-code-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "yaml", Label = "yaml", Color = "#dbb84d", IconClass = "fa fa-file-text-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-            }
-        };
-
-        // Storage nodes category
-        var storageNodes = new PaletteCategory
-        {
-            Name = "storage",
-            IsExpanded = false,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "file", Label = "file", Color = "#ddd", IconClass = "fa fa-file", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "file in", Label = "file in", Color = "#ddd", IconClass = "fa fa-file", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "watch", Label = "watch", Color = "#ddd", IconClass = "fa fa-eye", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-            }
-        };
-
-        var databaseNodes = new PaletteCategory
-        {
-            Name = "database",
-            IsExpanded = false,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "sqlserver", Label = "sqlserver", Color = "#CC2936", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "postgres", Label = "postgres", Color = "#336791", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "mysql", Label = "mysql", Color = "#00758F", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "sqlite", Label = "sqlite", Color = "#003B57", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "mongodb", Label = "mongodb", Color = "#4DB33D", IconClass = "fa fa-leaf", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "redis", Label = "redis", Color = "#D82C20", IconClass = "fa fa-bolt", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-            }
-        };
-
-        PaletteCategories = new List<PaletteCategory>
-        {
-            commonNodes,
-            functionNodes,
-            networkNodes,
-            sequenceNodes,
-            parserNodes,
-            storageNodes,
-            databaseNodes
-        };
-
-        // Dynamically add plugin nodes from NodeLoader
-        AddPluginNodesToPalette();
-    }
-
-    /// <summary>
-    /// Dynamically adds plugin nodes to the palette based on discovered node definitions.
-    /// </summary>
-    private void AddPluginNodesToPalette()
-    {
+        // Build palette entirely from SDK node definitions
+        PaletteCategories = new List<PaletteCategory>();
+        
         // Get all node definitions from the loader
         var nodeDefinitions = NodeLoader.GetNodeDefinitions();
         
-        // Group nodes by category (using module name as category for external plugins)
-        var pluginCategories = new Dictionary<string, List<PaletteNodeInfo>>();
+        // Define the preferred category order
+        var categoryOrder = new List<string> { "common", "function", "network", "sequence", "parser", "storage", "database" };
         
-        // Get the set of built-in node types to exclude
-        var builtInTypes = new HashSet<string>(
-            PaletteCategories.SelectMany(c => c.Nodes.Select(n => n.Type)),
-            StringComparer.OrdinalIgnoreCase);
+        // Group nodes by category
+        var nodesByCategory = new Dictionary<string, List<PaletteNodeInfo>>(StringComparer.OrdinalIgnoreCase);
         
         foreach (var nodeDef in nodeDefinitions)
         {
-            // Skip built-in nodes (already in palette)
-            if (builtInTypes.Contains(nodeDef.Type))
-                continue;
-            
-            // Determine category name - use the category from definition or module name
+            // Determine category name from the node definition
             var categoryName = nodeDef.Category.ToString().ToLowerInvariant();
             
-            // For external plugins, use a distinct category name
+            // For external plugins with hyphenated names (e.g., "example-upper"), use the prefix as category
             if (!string.IsNullOrEmpty(nodeDef.Type) && nodeDef.Type.Contains('-'))
             {
-                // Extract prefix (e.g., "example" from "example-upper")
                 var prefix = nodeDef.Type.Split('-')[0];
-                categoryName = prefix;
+                // Use prefix as category for external plugins
+                if (!categoryOrder.Contains(categoryName))
+                {
+                    categoryName = prefix;
+                }
             }
             
-            if (!pluginCategories.ContainsKey(categoryName))
+            if (!nodesByCategory.ContainsKey(categoryName))
             {
-                pluginCategories[categoryName] = new List<PaletteNodeInfo>();
+                nodesByCategory[categoryName] = new List<PaletteNodeInfo>();
             }
             
             // Map icon from definition or use default
             var iconClass = !string.IsNullOrEmpty(nodeDef.Icon) ? nodeDef.Icon : "fa fa-cube";
             
-            pluginCategories[categoryName].Add(new PaletteNodeInfo
+            nodesByCategory[categoryName].Add(new PaletteNodeInfo
             {
                 Type = nodeDef.Type,
                 Label = nodeDef.DisplayName ?? nodeDef.Type,
@@ -329,8 +193,23 @@ public partial class Editor : IDisposable
             });
         }
         
-        // Add plugin categories to palette
-        foreach (var (categoryName, nodes) in pluginCategories)
+        // Add categories in preferred order first
+        foreach (var categoryName in categoryOrder)
+        {
+            if (nodesByCategory.TryGetValue(categoryName, out var nodes) && nodes.Count > 0)
+            {
+                PaletteCategories.Add(new PaletteCategory
+                {
+                    Name = categoryName,
+                    IsExpanded = categoryName == "common" || categoryName == "function",
+                    Nodes = nodes
+                });
+                nodesByCategory.Remove(categoryName);
+            }
+        }
+        
+        // Add remaining categories (plugins, etc.)
+        foreach (var (categoryName, nodes) in nodesByCategory.OrderBy(kv => kv.Key))
         {
             if (nodes.Count > 0)
             {
