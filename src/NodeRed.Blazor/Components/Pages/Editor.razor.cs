@@ -572,7 +572,8 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
-    /// Handles position changes - when a group is moved, move its contained nodes too
+    /// Handles position changes - Syncfusion's NodeGroup automatically moves children
+    /// This handler now just tracks group positions for save/restore
     /// </summary>
     private void OnPositionChanged(PositionChangedEventArgs args)
     {
@@ -580,29 +581,15 @@ public partial class Editor : IDisposable
         {
             foreach (var movedNode in args.NewValue.Nodes)
             {
-                // Check if this is a group node
+                // Update group position info for save/restore
                 var group = Groups.FirstOrDefault(g => g.DiagramNodeId == movedNode.ID);
-                if (group != null && DiagramNodes != null)
+                if (group != null)
                 {
-                    // Calculate the delta movement
                     var oldNode = args.OldValue?.Nodes?.FirstOrDefault(n => n.ID == movedNode.ID);
                     if (oldNode != null)
                     {
                         double deltaX = movedNode.OffsetX - oldNode.OffsetX;
                         double deltaY = movedNode.OffsetY - oldNode.OffsetY;
-                        
-                        // Move all nodes that belong to this group
-                        foreach (var nodeId in group.NodeIds)
-                        {
-                            var node = DiagramNodes.FirstOrDefault(n => n.ID == nodeId);
-                            if (node != null)
-                            {
-                                node.OffsetX += deltaX;
-                                node.OffsetY += deltaY;
-                            }
-                        }
-                        
-                        // Update group position info
                         group.X += deltaX;
                         group.Y += deltaY;
                     }
@@ -911,39 +898,8 @@ public partial class Editor : IDisposable
             
             if (nodeData.IsGroup)
             {
-                // Create group node
-                var parts = nodeData.GroupStyle?.Split('|') ?? new[] { "rgba(255, 204, 204, 0.3)", "#FF9999" };
-                node = new Node
-                {
-                    ID = nodeData.Id,
-                    OffsetX = nodeData.OffsetX,
-                    OffsetY = nodeData.OffsetY,
-                    Width = nodeData.Width,
-                    Height = nodeData.Height,
-                    Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
-                    Style = new ShapeStyle
-                    {
-                        Fill = parts.Length > 0 ? parts[0] : "rgba(255, 204, 204, 0.3)",
-                        StrokeColor = parts.Length > 1 ? parts[1] : "#FF9999",
-                        StrokeWidth = 2,
-                        StrokeDashArray = "5,3"
-                    },
-                    ZIndex = -1,
-                    Constraints = NodeConstraints.Default & ~NodeConstraints.Resize,
-                    Annotations = new DiagramObjectCollection<ShapeAnnotation>
-                    {
-                        new ShapeAnnotation
-                        {
-                            ID = "groupLabel",
-                            Content = nodeData.LabelContent,
-                            Style = new TextStyle { Color = "#666", FontSize = 11, Bold = true },
-                            Offset = new DiagramPoint { X = 0, Y = 0 },
-                            Margin = new DiagramThickness { Left = 5, Top = 5, Right = 0, Bottom = 0 },
-                            HorizontalAlignment = HorizontalAlignment.Left,
-                            VerticalAlignment = VerticalAlignment.Top
-                        }
-                    }
-                };
+                // Skip group nodes on first pass - we'll add them after all regular nodes
+                continue;
             }
             else
             {
@@ -988,6 +944,40 @@ public partial class Editor : IDisposable
                 TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None }
             };
             DiagramConnectors.Add(connector);
+        }
+        
+        // Now add NodeGroup elements with Children referencing the regular nodes
+        foreach (var group in Groups)
+        {
+            var parts = group.Color?.Split('|') ?? new[] { "rgba(255, 204, 204, 0.3)", "#FF9999" };
+            var groupNode = new NodeGroup
+            {
+                ID = group.DiagramNodeId,
+                Children = group.NodeIds.ToArray(),
+                Style = new ShapeStyle
+                {
+                    Fill = parts.Length > 0 ? parts[0] : "rgba(255, 204, 204, 0.3)",
+                    StrokeColor = parts.Length > 1 ? parts[1] : "#FF9999",
+                    StrokeWidth = 2,
+                    StrokeDashArray = "5,3"
+                },
+                Padding = new DiagramThickness { Left = 20, Top = 20, Right = 20, Bottom = 20 },
+                Constraints = NodeConstraints.Default & ~NodeConstraints.Resize,
+                Annotations = new DiagramObjectCollection<ShapeAnnotation>
+                {
+                    new ShapeAnnotation
+                    {
+                        ID = "groupLabel",
+                        Content = group.Name,
+                        Style = new TextStyle { Color = "#666", FontSize = 11, Bold = true },
+                        Offset = new DiagramPoint { X = 0, Y = 0 },
+                        Margin = new DiagramThickness { Left = 5, Top = 5, Right = 0, Bottom = 0 },
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        VerticalAlignment = VerticalAlignment.Top
+                    }
+                }
+            };
+            DiagramNodes.Add(groupNode);
         }
     }
 
@@ -2272,15 +2262,13 @@ public partial class Editor : IDisposable
             maxX += padding;
             maxY += padding;
             
-            // Create visual group node (rectangle behind the nodes)
-            var groupNode = new Node
+            // Use Syncfusion's built-in grouping with Children property
+            // This automatically handles moving children when the group moves
+            var groupNode = new NodeGroup
             {
                 ID = groupId,
-                OffsetX = minX + (maxX - minX) / 2,
-                OffsetY = minY + (maxY - minY) / 2,
-                Width = maxX - minX,
-                Height = maxY - minY,
-                Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
+                // Add all selected node IDs as children - Syncfusion will move them together
+                Children = nodeIds.ToArray(),
                 Style = new ShapeStyle
                 {
                     Fill = "rgba(255, 204, 204, 0.3)",
@@ -2288,8 +2276,9 @@ public partial class Editor : IDisposable
                     StrokeWidth = 2,
                     StrokeDashArray = "5,3"
                 },
-                ZIndex = -1, // Behind other nodes
-                Constraints = NodeConstraints.Default & ~NodeConstraints.Resize // Can be selected but not resized
+                // Padding around children
+                Padding = new DiagramThickness { Left = 20, Top = 20, Right = 20, Bottom = 20 },
+                Constraints = NodeConstraints.Default & ~NodeConstraints.Resize
             };
             
             // Add label annotation for the group name
