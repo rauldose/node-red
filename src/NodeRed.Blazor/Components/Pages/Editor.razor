@@ -54,6 +54,25 @@
                             <i class="fa fa-check"></i> Modified Nodes
                             <span class="red-ui-menu-item-desc">only deploy nodes that have changed</span>
                         </a>
+                        <div class="red-ui-menu-divider"></div>
+                        @if (FlowRuntime.State == FlowState.Running)
+                        {
+                            <a class="red-ui-menu-item" @onclick="OnStopClick">
+                                <i class="fa fa-stop"></i> Stop flows
+                                <span class="red-ui-menu-item-desc">stop all running flows</span>
+                            </a>
+                        }
+                        else if (HasBeenDeployed)
+                        {
+                            <a class="red-ui-menu-item" @onclick="OnStartClick">
+                                <i class="fa fa-play"></i> Start flows
+                                <span class="red-ui-menu-item-desc">start all flows</span>
+                            </a>
+                        }
+                        <a class="red-ui-menu-item" @onclick="OnRestartClick">
+                            <i class="fa fa-refresh"></i> Restart flows
+                            <span class="red-ui-menu-item-desc">reload and restart all flows</span>
+                        </a>
                     </div>
                 }
             </li>
