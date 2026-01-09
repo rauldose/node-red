@@ -8,11 +8,11 @@
     <div class="red-ui-sidebar-header" style="padding: 8px 10px; border-bottom: 1px solid #ddd;">
         <span class="button-group">
             <a class="red-ui-sidebar-header-button-toggle @(FilterMode == "all" ? "selected" : "")" 
-               href="javascript:void(0)" @onclick="() => SetFilter('all')">
+               href="javascript:void(0)" @onclick="SetFilterAll">
                 <span>all</span>
             </a>
             <a class="red-ui-sidebar-header-button-toggle @(FilterMode == "unused" ? "selected" : "")" 
-               href="javascript:void(0)" @onclick="() => SetFilter('unused')">
+               href="javascript:void(0)" @onclick="SetFilterUnused">
                 <span>unused</span>
             </a>
         </span>
@@ -23,7 +23,7 @@
         <div class="red-ui-palette-category red-ui-sidebar-config-category">
             <div class="red-ui-sidebar-config-tray-header red-ui-palette-header" 
                  style="padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #ddd;"
-                 @onclick="() => ToggleSection('global')">
+                 @onclick="ToggleGlobalSection">
                 <i class="fa @(GlobalExpanded ? "fa-angle-down" : "fa-angle-right") expanded" style="width: 12px;"></i>
                 <span class="red-ui-palette-node-config-label" style="margin-left: 5px;">global</span>
                 <span class="red-ui-sidebar-node-config-filter-info" style="float: right; color: #888; font-size: 11px;">
@@ -71,7 +71,7 @@
         <div class="red-ui-palette-category red-ui-sidebar-config-category">
             <div class="red-ui-sidebar-config-tray-header red-ui-palette-header" 
                  style="padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #ddd;"
-                 @onclick="() => ToggleSection('flows')">
+                 @onclick="ToggleFlowsSection">
                 <i class="fa @(FlowsExpanded ? "fa-angle-down" : "fa-angle-right") expanded" style="width: 12px;"></i>
                 <span class="red-ui-palette-node-config-label" style="margin-left: 5px;">@CurrentFlowName</span>
                 <span class="red-ui-sidebar-node-config-filter-info" style="float: right; color: #888; font-size: 11px;">
@@ -127,16 +127,10 @@
     private bool GlobalExpanded { get; set; } = true;
     private bool FlowsExpanded { get; set; } = true;
 
-    private void SetFilter(string mode)
-    {
-        FilterMode = mode;
-    }
-
-    private void ToggleSection(string section)
-    {
-        if (section == "global") GlobalExpanded = !GlobalExpanded;
-        else if (section == "flows") FlowsExpanded = !FlowsExpanded;
-    }
+    private void SetFilterAll() => FilterMode = "all";
+    private void SetFilterUnused() => FilterMode = "unused";
+    private void ToggleGlobalSection() => GlobalExpanded = !GlobalExpanded;
+    private void ToggleFlowsSection() => FlowsExpanded = !FlowsExpanded;
 
     private async Task SelectConfig(string id)
     {

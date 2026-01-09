@@ -3425,6 +3425,192 @@ public partial class Editor : IDisposable
         }
     }
 
+    /// <summary>
+    /// Gets the status color for the sidebar info panel
+    /// </summary>
+    private string GetSidebarStatusColor()
+    {
+        if (SelectedDiagramNode == null) return "transparent";
+        var status = GetNodeStatus(SelectedDiagramNode.ID);
+        if (status == null) return "transparent";
+        return GetStatusColor(status.Color);
+    }
+
+    /// <summary>
+    /// Gets the current flow name
+    /// </summary>
+    private string GetCurrentFlowName()
+    {
+        return Flows.FirstOrDefault()?.Label ?? "Flow 1";
+    }
+
+    /// <summary>
+    /// Gets help inputs formatted for the Help sidebar component
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpProperty> GetHelpInputs()
+    {
+        var nodeHelp = GetNodeHelp(GetSelectedNodeType());
+        if (nodeHelp?.Inputs == null) return new();
+        
+        return nodeHelp.Inputs.Select(i => new RedUiSidebarHelp.HelpProperty
+        {
+            Name = i.Name,
+            Type = i.Type,
+            Description = i.Description
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets help outputs formatted for the Help sidebar component
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpProperty> GetHelpOutputs()
+    {
+        var nodeHelp = GetNodeHelp(GetSelectedNodeType());
+        if (nodeHelp?.Outputs == null) return new();
+        
+        return nodeHelp.Outputs.Select(o => new RedUiSidebarHelp.HelpProperty
+        {
+            Name = o.Name,
+            Type = o.Type,
+            Description = o.Description
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets help references formatted for the Help sidebar component
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpReference> GetHelpReferences()
+    {
+        var nodeHelp = GetNodeHelp(GetSelectedNodeType());
+        if (nodeHelp?.References == null) return new();
+        
+        return nodeHelp.References.Select(r => new RedUiSidebarHelp.HelpReference
+        {
+            Title = r.Title,
+            Url = r.Url
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets categories for the Help sidebar tree view
+    /// </summary>
+    private List<RedUiSidebarHelp.NodeCategory> GetHelpCategories()
+    {
+        return PaletteCategories.Select(c => new RedUiSidebarHelp.NodeCategory
+        {
+            Name = c.Name,
+            Expanded = false,
+            Nodes = c.Nodes.Select(n => new RedUiSidebarHelp.NodeInfo
+            {
+                Type = n.Type,
+                Label = n.Label,
+                Color = n.Color
+            }).ToList()
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Selects a node type to show help for
+    /// </summary>
+    private void SelectNodeTypeForHelp(string nodeType)
+    {
+        // This would select the node type and show its help
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Gets configuration nodes for the Config sidebar
+    /// </summary>
+    private List<RedUiSidebarConfig.ConfigNode> GetConfigNodes()
+    {
+        // Return config nodes from the palette categories
+        var configCategory = PaletteCategories.FirstOrDefault(c => c.Name == "config");
+        if (configCategory == null) return new();
+        
+        return configCategory.Nodes.Select(n => new RedUiSidebarConfig.ConfigNode
+        {
+            Id = n.Type,
+            Type = n.Type,
+            Label = n.Label,
+            Color = n.Color,
+            Scope = "global",
+            UsageCount = 0
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Selects a configuration node
+    /// </summary>
+    private void SelectConfigNode(string id)
+    {
+        // This would select the config node
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Gets node context data
+    /// </summary>
+    private Dictionary<string, object?> GetNodeContextData()
+    {
+        return new Dictionary<string, object?>();
+    }
+
+    /// <summary>
+    /// Gets flow context data
+    /// </summary>
+    private Dictionary<string, object?> GetFlowContextData()
+    {
+        return new Dictionary<string, object?>();
+    }
+
+    /// <summary>
+    /// Gets global context data
+    /// </summary>
+    private Dictionary<string, object?> GetGlobalContextData()
+    {
+        return new Dictionary<string, object?>();
+    }
+
+    /// <summary>
+    /// Refreshes node context data
+    /// </summary>
+    private void RefreshNodeContext()
+    {
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Refreshes flow context data
+    /// </summary>
+    private void RefreshFlowContext()
+    {
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Refreshes global context data
+    /// </summary>
+    private void RefreshGlobalContext()
+    {
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Gets debug messages formatted for the Debug sidebar component
+    /// </summary>
+    private List<RedUiSidebarDebug.DebugMessage> GetDebugMessagesForSidebar()
+    {
+        return DebugMessages.Select(m => new RedUiSidebarDebug.DebugMessage
+        {
+            NodeId = m.NodeId,
+            NodeName = m.NodeName,
+            Timestamp = m.Timestamp.DateTime,
+            Payload = m.Data,
+            Topic = "",
+            Level = "log"
+        }).ToList();
+    }
+
     public void Dispose()
     {
         FlowRuntime.OnDebugMessage -= OnDebugMessage;

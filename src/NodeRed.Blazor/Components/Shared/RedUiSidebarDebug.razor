@@ -1,0 +1,164 @@
+@*
+    RedUiSidebarDebug - Blazor implementation of Node-RED's debug sidebar
+    Matches the exact structure from packages/node_modules/@node-red/nodes/core/common/21-debug.html
+*@
+
+<div class="red-ui-sidebar-debug" style="display: flex; flex-direction: column; height: 100%;">
+    @* Debug toolbar *@
+    <div class="red-ui-debug-toolbar" style="padding: 5px 10px; background: #f7f7f7; border-bottom: 1px solid #ddd; display: flex; align-items: center;">
+        <a href="javascript:void(0)" class="red-ui-debug-button" title="Clear all messages" @onclick="ClearMessages">
+            <i class="fa fa-trash"></i>
+        </a>
+        <a href="javascript:void(0)" class="red-ui-debug-button" title="Filter messages" @onclick="ToggleFilter" style="margin-left: 10px;">
+            <i class="fa fa-filter @(ShowFilter ? "active" : "")"></i>
+        </a>
+        <a href="javascript:void(0)" class="red-ui-debug-button" title="@(LockScroll ? "Unlock scroll" : "Lock scroll")" @onclick="ToggleLockScroll" style="margin-left: 10px;">
+            <i class="fa @(LockScroll ? "fa-lock" : "fa-unlock")"></i>
+        </a>
+        <span class="red-ui-debug-msg-count" style="margin-left: auto; font-size: 11px; color: #888;">@Messages.Count</span>
+    </div>
+    
+    @* Filter input (shown when filter is active) *@
+    @if (ShowFilter)
+    {
+        <div class="red-ui-debug-filter" style="padding: 5px 10px; background: #f4f4f4; border-bottom: 1px solid #ddd;">
+            <input type="text" class="red-ui-searchBox" placeholder="Filter messages..." 
+                   @bind="FilterQuery" @bind:event="oninput"
+                   style="width: 100%; padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;" />
+        </div>
+    }
+    
+    @* Messages container *@
+    <div class="red-ui-debug-content" style="flex: 1; overflow-y: auto; padding: 5px;">
+        @if (!GetFilteredMessages().Any())
+        {
+            <div class="red-ui-debug-msg-empty" style="padding: 20px; text-align: center; color: #888;">
+                No messages
+            </div>
+        }
+        else
+        {
+            @foreach (var msg in GetFilteredMessages())
+            {
+                <div class="red-ui-debug-msg @(msg.Level == "error" ? "red-ui-debug-msg-error" : msg.Level == "warn" ? "red-ui-debug-msg-warn" : "")"
+                     style="background: @GetMessageBackground(msg.Level); border: 1px solid @GetMessageBorder(msg.Level); border-radius: 3px; margin-bottom: 5px; cursor: pointer;"
+                     @onclick="() => OnMessageClick.InvokeAsync(msg.NodeId)">
+                    @* Message header with timestamp and source *@
+                    <div class="red-ui-debug-msg-header" style="padding: 5px 8px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
+                        <span class="red-ui-debug-msg-date" style="font-size: 11px; color: #888;">
+                            @msg.Timestamp.ToString("M/d/yyyy, h:mm:ss tt")
+                        </span>
+                        <span class="red-ui-debug-msg-name" style="font-size: 11px; color: #888; margin-left: 10px;">
+                            node: @msg.NodeName
+                        </span>
+                        @if (!string.IsNullOrEmpty(msg.Topic))
+                        {
+                            <span class="red-ui-debug-msg-topic" style="font-size: 11px; color: #666; margin-left: 10px;">
+                                @msg.Topic
+                            </span>
+                        }
+                        <a href="javascript:void(0)" class="red-ui-debug-msg-button" title="Copy value" 
+                           style="margin-left: auto; color: #888;" @onclick="() => CopyMessage(msg)" @onclick:stopPropagation="true">
+                            <i class="fa fa-clipboard"></i>
+                        </a>
+                        <a href="javascript:void(0)" class="red-ui-debug-msg-button" title="Copy path" 
+                           style="margin-left: 8px; color: #888;" @onclick="() => CopyPath(msg)" @onclick:stopPropagation="true">
+                            <i class="fa fa-terminal"></i>
+                        </a>
+                    </div>
+                    @* Message payload *@
+                    <div class="red-ui-debug-msg-payload" style="padding: 8px; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;">
+                        @FormatPayload(msg.Payload)
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<DebugMessage> Messages { get; set; } = new();
+    [Parameter] public EventCallback<string> OnMessageClick { get; set; }
+    [Parameter] public EventCallback OnClearMessages { get; set; }
+
+    private bool ShowFilter { get; set; } = false;
+    private bool LockScroll { get; set; } = false;
+    private string FilterQuery { get; set; } = "";
+
+    private void ToggleFilter() => ShowFilter = !ShowFilter;
+    private void ToggleLockScroll() => LockScroll = !LockScroll;
+
+    private async Task ClearMessages()
+    {
+        await OnClearMessages.InvokeAsync();
+    }
+
+    private void CopyMessage(DebugMessage msg)
+    {
+        // Would use JSInterop to copy to clipboard
+    }
+
+    private void CopyPath(DebugMessage msg)
+    {
+        // Would use JSInterop to copy path to clipboard
+    }
+
+    private IEnumerable<DebugMessage> GetFilteredMessages()
+    {
+        if (string.IsNullOrEmpty(FilterQuery))
+            return Messages;
+        
+        return Messages.Where(m => 
+            m.NodeName.Contains(FilterQuery, StringComparison.OrdinalIgnoreCase) ||
+            m.Topic?.Contains(FilterQuery, StringComparison.OrdinalIgnoreCase) == true ||
+            FormatPayload(m.Payload).Contains(FilterQuery, StringComparison.OrdinalIgnoreCase)
+        );
+    }
+
+    private string GetMessageBackground(string level)
+    {
+        return level switch
+        {
+            "error" => "#ffe0e0",
+            "warn" => "#fff8e0",
+            _ => "#fff"
+        };
+    }
+
+    private string GetMessageBorder(string level)
+    {
+        return level switch
+        {
+            "error" => "#ffcccc",
+            "warn" => "#ffe0a0",
+            _ => "#ddd"
+        };
+    }
+
+    private string FormatPayload(object? payload)
+    {
+        if (payload == null) return "null";
+        if (payload is string s) return s;
+        try
+        {
+            return System.Text.Json.JsonSerializer.Serialize(payload, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+        }
+        catch
+        {
+            return payload.ToString() ?? "null";
+        }
+    }
+
+    public class DebugMessage
+    {
+        public string NodeId { get; set; } = "";
+        public string NodeName { get; set; } = "";
+        public DateTime Timestamp { get; set; } = DateTime.Now;
+        public object? Payload { get; set; }
+        public string? Topic { get; set; }
+        public string Level { get; set; } = "log"; // "log", "warn", "error"
+    }
+}

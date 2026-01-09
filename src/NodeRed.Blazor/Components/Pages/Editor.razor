@@ -732,244 +732,65 @@
         <!-- Sidebar - uses RedUiSidebar component matching Node-RED structure -->
         <RedUiSidebar Tabs="@_sidebarTabs"
                       ActiveTabId="@_activeSidebarTabId"
-                      ActiveTabIdChanged="@((string id) => { _activeSidebarTabId = id; SelectedSidebarTab = id == "info" ? 0 : 1; })"
+                      ActiveTabIdChanged="@((string id) => { _activeSidebarTabId = id; })"
                       IsClosed="@_isSidebarClosed" 
                       IsClosedChanged="@((bool closed) => _isSidebarClosed = closed)"
                       ShowShade="@IsPropertyTrayOpen">
             <ContentTemplate Context="tabId">
                 @if (tabId == "info")
                 {
-                    <div class="red-ui-sidebar-info">
-                        @if (SelectedDiagramNode != null)
-                        {
-                            <!-- Node Info (documentation/help style) -->
-                            <div class="red-ui-info-header">
-                                <span class="red-ui-info-icon" style="background-color: @GetSelectedNodeColor()"></span>
-                                <span class="red-ui-info-type">@GetSelectedNodeType()</span>
-                            </div>
-                            <table class="red-ui-info-table">
-                                <tr>
-                                    <td>node</td>
-                                    <td class="red-ui-info-value">@SelectedDiagramNode.ID</td>
-                                </tr>
-                                <tr>
-                                    <td>name</td>
-                                    <td class="red-ui-info-value">@(SelectedNodeName ?? "(none)")</td>
-                                </tr>
-                                @{
-                                    var nodeStatus = GetNodeStatus(SelectedDiagramNode.ID);
-                                    if (nodeStatus != null && !string.IsNullOrEmpty(nodeStatus.Text))
-                                    {
-                                        <tr>
-                                            <td>status</td>
-                                            <td class="red-ui-info-value">
-                                                <span class="red-ui-node-status-indicator" style="background-color: @GetStatusColor(nodeStatus.Color); border-radius: @(nodeStatus.Shape == StatusShape.Ring ? "0" : "50%"); border: @(nodeStatus.Shape == StatusShape.Ring ? "2px solid " + GetStatusColor(nodeStatus.Color) : "none"); width: 10px; height: 10px; display: inline-block;"></span>
-                                                <span style="margin-left: 5px;">@nodeStatus.Text</span>
-                                            </td>
-                                        </tr>
-                                    }
-                                }
-                            </table>
-                            
-                            @* Node Help/Documentation Section *@
-                            <text>
-                            @{
-                                var nodeHelp = GetNodeHelp(GetSelectedNodeType());
-                                if (nodeHelp != null)
-                                {
-                                    if (!string.IsNullOrEmpty(nodeHelp.Summary))
-                                    {
-                                        <div class="red-ui-info-section">
-                                            <p>@nodeHelp.Summary</p>
-                                        </div>
-                                    }
-                                    
-                                    if (nodeHelp.Inputs?.Count > 0)
-                                    {
-                                        <div class="red-ui-info-section">
-                                            <h4>Inputs</h4>
-                                            <dl>
-                                                @foreach (var input in nodeHelp.Inputs)
-                                                {
-                                                    <dt><code>@input.Name</code> <span class="red-ui-info-type-tag">@input.Type</span></dt>
-                                                    <dd>@input.Description</dd>
-                                                }
-                                            </dl>
-                                        </div>
-                                    }
-                                    
-                                    if (nodeHelp.Outputs?.Count > 0)
-                                    {
-                                        <div class="red-ui-info-section">
-                                            <h4>Outputs</h4>
-                                            <dl>
-                                                @foreach (var output in nodeHelp.Outputs)
-                                                {
-                                                    <dt><code>@output.Name</code> <span class="red-ui-info-type-tag">@output.Type</span></dt>
-                                                    <dd>@output.Description</dd>
-                                                }
-                                            </dl>
-                                        </div>
-                                    }
-                                    
-                                    if (!string.IsNullOrEmpty(nodeHelp.Details))
-                                    {
-                                        <div class="red-ui-info-section red-ui-info-details">
-                                            <h4>Details</h4>
-                                            <p style="white-space: pre-wrap;">@nodeHelp.Details</p>
-                                        </div>
-                                    }
-                                    
-                                    if (nodeHelp.References?.Count > 0)
-                                    {
-                                        <div class="red-ui-info-section">
-                                            <h4>References</h4>
-                                            <ul>
-                                                @foreach (var reference in nodeHelp.References)
-                                                {
-                                                    <li><a href="@reference.Url" target="_blank">@reference.Title</a></li>
-                                                }
-                                            </ul>
-                                        </div>
-                                    }
-                                }
-                            }
-                            </text>
-                            
-                            <div class="red-ui-info-tips">
-                                <p><strong>Tip:</strong> Double-click the node to edit its properties.</p>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="red-ui-info-none">
-                                <p>Select a node to see information about it, or double-click to edit</p>
-                            </div>
-                        }
-                    </div>
-                }
-                else if (tabId == "debug")
-                {
-                    <div class="red-ui-sidebar-debug">
-                        <div class="red-ui-debug-toolbar">
-                            <a href="javascript:void(0)" class="red-ui-debug-button" @onclick="ClearDebugMessages">
-                                <i class="fa fa-trash"></i>
-                            </a>
-                            <a href="javascript:void(0)" class="red-ui-debug-button" @onclick="FilterDebugMessages">
-                                <i class="fa fa-filter"></i>
-                            </a>
-                            <span class="red-ui-debug-count">@DebugMessages.Count</span>
-                        </div>
-                        @if (DebugFilterByNode)
-                        {
-                            <div style="padding: 5px; background: #f4f4f4;">
-                                <input type="text" @bind="DebugMessageFilter" @bind:event="oninput" placeholder="Filter messages..." style="width: 100%; padding: 5px;" />
-                            </div>
-                        }
-                        <div class="red-ui-debug-content">
-                            @if (DebugMessages.Count == 0)
-                            {
-                                <div class="red-ui-debug-none">No messages</div>
-                            }
-                            @foreach (var msg in GetFilteredDebugMessages())
-                            {
-                                <div class="red-ui-debug-msg" @onclick="() => HighlightDebugNode(msg.NodeId)">
-                                    <span class="red-ui-debug-msg-date">@msg.Timestamp.ToString("M/d/yyyy, h:mm:ss tt")</span>
-                                    <span class="red-ui-debug-msg-topic">node: @msg.NodeName</span>
-                                    <pre class="red-ui-debug-msg-payload">@FormatDebugData(msg.Data)</pre>
-                                </div>
-                            }
-                        </div>
-                    </div>
+                    <RedUiSidebarInfo 
+                        SelectedNode="@SelectedDiagramNode"
+                        NodeId="@(SelectedDiagramNode?.ID ?? "")"
+                        NodeType="@GetSelectedNodeType()"
+                        NodeName="@SelectedNodeName"
+                        NodeColor="@GetSelectedNodeColor()"
+                        NodeDescription="@GetNodeHelp(GetSelectedNodeType())?.Summary"
+                        StatusText="@GetNodeStatus(SelectedDiagramNode?.ID ?? "")?.Text"
+                        StatusColor="@GetSidebarStatusColor()"
+                        CurrentFlowName="@GetCurrentFlowName()"
+                        CurrentTip="Double-click a node to edit its properties"
+                        OnHelpClick="@(() => { _activeSidebarTabId = "help"; })" />
                 }
                 else if (tabId == "help")
                 {
-                    @* Help tab - matches RED.sidebar.help *@
-                    <div class="red-ui-sidebar-help">
-                        @if (SelectedDiagramNode != null)
-                        {
-                            var nodeHelp = GetNodeHelp(GetSelectedNodeType());
-                            if (nodeHelp != null)
-                            {
-                                <div class="red-ui-help-content" style="padding: 10px;">
-                                    <h3 style="margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px;">@GetSelectedNodeType()</h3>
-                                    @if (!string.IsNullOrEmpty(nodeHelp.Summary))
-                                    {
-                                        <p>@nodeHelp.Summary</p>
-                                    }
-                                    @if (!string.IsNullOrEmpty(nodeHelp.Details))
-                                    {
-                                        <div style="white-space: pre-wrap;">@nodeHelp.Details</div>
-                                    }
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="red-ui-help-none" style="padding: 20px; text-align: center; color: #888;">
-                                    <p>No help available for this node type</p>
-                                </div>
-                            }
-                        }
-                        else
-                        {
-                            <div class="red-ui-help-none" style="padding: 20px; text-align: center; color: #888;">
-                                <p>Select a node to view its help</p>
-                            </div>
-                        }
-                    </div>
+                    <RedUiSidebarHelp 
+                        SelectedNodeType="@GetSelectedNodeType()"
+                        HelpSummary="@GetNodeHelp(GetSelectedNodeType())?.Summary"
+                        HelpDetails="@GetNodeHelp(GetSelectedNodeType())?.Details"
+                        HelpInputs="@GetHelpInputs()"
+                        HelpOutputs="@GetHelpOutputs()"
+                        HelpReferences="@GetHelpReferences()"
+                        Categories="@GetHelpCategories()"
+                        OnNodeTypeSelected="@((string type) => SelectNodeTypeForHelp(type))" />
                 }
                 else if (tabId == "config")
                 {
-                    @* Config nodes tab - matches RED.sidebar.config *@
-                    <div class="red-ui-sidebar-config" style="padding: 10px;">
-                        <div class="red-ui-sidebar-header" style="padding: 5px 0; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
-                            <span style="font-weight: bold;">Configuration Nodes</span>
-                        </div>
-                        <div class="red-ui-config-list">
-                            @{
-                                var configNodes = GetConfigurationNodes();
-                                if (configNodes.Any())
-                                {
-                                    foreach (var configNode in configNodes)
-                                    {
-                                        <div class="red-ui-config-node" style="padding: 5px; border: 1px solid #ddd; margin-bottom: 5px; border-radius: 3px; cursor: pointer;">
-                                            <i class="fa fa-cog" style="margin-right: 5px;"></i>
-                                            <span>@configNode</span>
-                                        </div>
-                                    }
-                                }
-                                else
-                                {
-                                    <div style="color: #888; text-align: center; padding: 20px;">
-                                        <p>No configuration nodes</p>
-                                    </div>
-                                }
-                            }
-                        </div>
-                    </div>
+                    <RedUiSidebarConfig 
+                        ConfigNodes="@GetConfigNodes()"
+                        CurrentFlowName="@GetCurrentFlowName()"
+                        CurrentFlowId="@CurrentFlowId"
+                        OnConfigSelected="@((string id) => SelectConfigNode(id))" />
                 }
                 else if (tabId == "context")
                 {
-                    @* Context data tab - matches RED.sidebar.context *@
-                    <div class="red-ui-sidebar-context" style="padding: 10px;">
-                        <div class="red-ui-sidebar-header" style="padding: 5px 0; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
-                            <span style="font-weight: bold;">Context Data</span>
-                        </div>
-                        <div class="red-ui-context-sections">
-                            <div class="red-ui-context-section" style="margin-bottom: 15px;">
-                                <h4 style="font-size: 12px; color: #666; margin: 0 0 5px 0;">Node</h4>
-                                <div style="color: #888; font-size: 12px;">Select a node to view its context</div>
-                            </div>
-                            <div class="red-ui-context-section" style="margin-bottom: 15px;">
-                                <h4 style="font-size: 12px; color: #666; margin: 0 0 5px 0;">Flow</h4>
-                                <div style="color: #888; font-size: 12px;">No flow context data</div>
-                            </div>
-                            <div class="red-ui-context-section">
-                                <h4 style="font-size: 12px; color: #666; margin: 0 0 5px 0;">Global</h4>
-                                <div style="color: #888; font-size: 12px;">No global context data</div>
-                            </div>
-                        </div>
-                    </div>
+                    <RedUiSidebarContext 
+                        SelectedNodeId="@(SelectedDiagramNode?.ID)"
+                        CurrentFlowId="@CurrentFlowId"
+                        CurrentFlowName="@GetCurrentFlowName()"
+                        NodeContextData="@GetNodeContextData()"
+                        FlowContextData="@GetFlowContextData()"
+                        GlobalContextData="@GetGlobalContextData()"
+                        OnRefreshNodeContext="@RefreshNodeContext"
+                        OnRefreshFlowContext="@RefreshFlowContext"
+                        OnRefreshGlobalContext="@RefreshGlobalContext" />
+                }
+                else if (tabId == "debug")
+                {
+                    <RedUiSidebarDebug 
+                        Messages="@GetDebugMessagesForSidebar()"
+                        OnMessageClick="@((string nodeId) => HighlightDebugNode(nodeId))"
+                        OnClearMessages="@ClearDebugMessages" />
                 }
             </ContentTemplate>
         </RedUiSidebar>
