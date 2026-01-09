@@ -69,6 +69,26 @@
     cursor: pointer;
 }
 
+/* Collapsible tabs - only show icons for pinned tabs when not active */
+.red-ui-tabs-collapsible #red-ui-sidebar-tabs li:not(.active) {
+    display: none;
+}
+
+.red-ui-tabs-collapsible #red-ui-sidebar-tabs li.red-ui-tab-pinned:not(.active) {
+    display: inline-block;
+    width: 32px;
+    text-align: center;
+}
+
+.red-ui-tabs-collapsible #red-ui-sidebar-tabs li.red-ui-tab-pinned:not(.active) a.red-ui-tab-label {
+    padding-left: 0;
+    text-align: center;
+}
+
+.red-ui-tabs-collapsible #red-ui-sidebar-tabs li.red-ui-tab-pinned:not(.active) .red-ui-tab-label-text {
+    display: none;
+}
+
 #red-ui-sidebar-tabs li.red-ui-tab-pinned {
     width: 32px;
     text-align: center;
@@ -174,7 +194,6 @@
 #red-ui-sidebar-separator {
     position: absolute;
     top: 5px;
-    right: 315px;
     bottom: 10px;
     width: 7px;
     background-color: var(--red-ui-primary-background, #f3f3f3);
@@ -182,16 +201,17 @@
     z-index: 11;
 }
 
-/* Sidebar closed state */
-.red-ui-sidebar-closed #red-ui-sidebar {
-    display: none;
+#red-ui-sidebar-separator::before {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='3' height='20'%3E%3Ccircle cx='1.5' cy='5' r='1' fill='%23999'/%3E%3Ccircle cx='1.5' cy='10' r='1' fill='%23999'/%3E%3Ccircle cx='1.5' cy='15' r='1' fill='%23999'/%3E%3C/svg%3E");
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
-.red-ui-sidebar-closed #red-ui-sidebar-separator {
-    right: 0px !important;
-}
-
-/* Sidebar control buttons */
+/* Sidebar control buttons - shown on hover */
 .red-ui-sidebar-control-right {
     display: none;
     position: absolute;
@@ -208,8 +228,12 @@
     z-index: 13;
 }
 
-#red-ui-sidebar-separator:hover .red-ui-sidebar-control-right {
+.red-ui-sidebar-control-right.visible {
     display: block;
+}
+
+.red-ui-sidebar-control-right:hover {
+    background: var(--red-ui-workspace-button-background-hover, #e0e0e0);
 }
 
 /* Sidebar info panel styles */

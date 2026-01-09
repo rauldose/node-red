@@ -3441,7 +3441,97 @@ public partial class Editor : IDisposable
     /// </summary>
     private string GetCurrentFlowName()
     {
-        return Flows.FirstOrDefault()?.Label ?? "Flow 1";
+        return Flows.FirstOrDefault(f => f.Id == CurrentFlowId)?.Label ?? "Flow 1";
+    }
+
+    /// <summary>
+    /// Gets flows formatted for the Info sidebar outliner
+    /// </summary>
+    private List<RedUiSidebarInfo.FlowInfo> GetFlowsForOutliner()
+    {
+        return Flows.Select(f => new RedUiSidebarInfo.FlowInfo
+        {
+            Id = f.Id,
+            Label = f.Label,
+            Disabled = f.Disabled
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets global config nodes for the Info sidebar outliner
+    /// </summary>
+    private List<RedUiSidebarInfo.NodeInfo> GetGlobalConfigNodesForOutliner()
+    {
+        var configCategory = PaletteCategories.FirstOrDefault(c => c.Name == "config");
+        if (configCategory == null) return new();
+        
+        return configCategory.Nodes.Select(n => new RedUiSidebarInfo.NodeInfo
+        {
+            Id = n.Type,
+            Type = n.Type,
+            Name = n.Label,
+            Color = n.Color
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets nodes for a specific flow in the Info sidebar outliner
+    /// </summary>
+    private List<RedUiSidebarInfo.NodeInfo> GetFlowNodesForOutliner(string flowId)
+    {
+        var flow = Flows.FirstOrDefault(f => f.Id == flowId);
+        if (flow == null) return new();
+        
+        return flow.StoredNodes.Select(n => new RedUiSidebarInfo.NodeInfo
+        {
+            Id = n.Id,
+            Type = n.Type,
+            Name = n.LabelContent,
+            Color = n.Color
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Selects a node by ID from the outliner
+    /// </summary>
+    private async Task SelectNodeById(string nodeId)
+    {
+        // Find the node in the diagram and select it
+        var node = DiagramNodes?.FirstOrDefault(n => n.ID == nodeId);
+        if (node != null)
+        {
+            SelectedDiagramNode = node;
+            SelectedNodeName = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? "";
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Selects a flow by ID from the outliner
+    /// </summary>
+    private async Task SelectFlowById(string flowId)
+    {
+        if (flowId != CurrentFlowId)
+        {
+            SwitchFlow(flowId);
+        }
+    }
+
+    /// <summary>
+    /// Reveals the selected node in the workspace
+    /// </summary>
+    private void RevealSelectedNode()
+    {
+        // TODO: Pan/zoom to the selected node
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Copies the node link/path to clipboard
+    /// </summary>
+    private void CopyNodeLink()
+    {
+        // TODO: Copy node path to clipboard via JSInterop
     }
 
     /// <summary>

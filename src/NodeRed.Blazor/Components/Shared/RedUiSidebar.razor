@@ -4,69 +4,75 @@
     
     Structure:
     - #red-ui-sidebar (container)
-      - #red-ui-sidebar-tabs (ul.red-ui-tabs)
+      - .red-ui-tabs (collapsible tabs)
       - #red-ui-sidebar-content (tab content wrappers)
       - #red-ui-sidebar-footer.red-ui-component-footer
       - #red-ui-sidebar-shade.hide
-    - #red-ui-sidebar-separator (resize handle)
+    - #red-ui-sidebar-separator (resize handle with expand/collapse control)
 *@
 
-<div id="red-ui-sidebar">
-    @* Sidebar tabs - matches the red-ui-tabs component structure *@
-    <div class="red-ui-tabs" id="red-ui-sidebar-tabs-wrapper">
-        <div class="red-ui-tabs-scroll-container">
-            <ul id="red-ui-sidebar-tabs">
-                @foreach (var tab in Tabs)
-                {
-                    <li class="@(ActiveTabId == tab.Id ? "active" : "") @(tab.Pinned ? "red-ui-tab-pinned" : "")"
-                        @onclick="() => ActivateTab(tab.Id)"
-                        title="@tab.Name">
-                        <a href="javascript:void(0)" class="red-ui-tab-label">
-                            <i class="@tab.IconClass"></i>
-                            @if (!string.IsNullOrEmpty(tab.Label) && !tab.Pinned)
-                            {
-                                <span>@tab.Label</span>
-                            }
-                        </a>
-                    </li>
-                }
-            </ul>
-        </div>
-    </div>
-    
-    @* Sidebar content - matches #red-ui-sidebar-content from original *@
-    <div id="red-ui-sidebar-content">
-        @foreach (var tab in Tabs)
-        {
-            <div class="red-ui-sidebar-tab-wrapper @(ActiveTabId == tab.Id ? "" : "hide")" 
-                 style="height:100%">
-                @if (tab.Id == ActiveTabId && ContentTemplate != null)
-                {
-                    @ContentTemplate(tab.Id)
-                }
-                @if (!tab.EnableOnEdit && ShowShade)
-                {
-                    <div class="red-ui-sidebar-shade"></div>
-                }
+@if (!IsClosed)
+{
+    <div id="red-ui-sidebar" style="width: @(SidebarWidth)px;">
+        @* Sidebar tabs - matches the red-ui-tabs component with collapsible class *@
+        <div class="red-ui-tabs red-ui-tabs-collapsible" id="red-ui-sidebar-tabs-wrapper">
+            <div class="red-ui-tabs-scroll-container">
+                <ul id="red-ui-sidebar-tabs">
+                    @foreach (var tab in Tabs)
+                    {
+                        <li class="@(ActiveTabId == tab.Id ? "active" : "") @(tab.Pinned ? "red-ui-tab-pinned" : "")"
+                            @onclick="() => ActivateTab(tab.Id)"
+                            title="@tab.Name">
+                            <a href="javascript:void(0)" class="red-ui-tab-label">
+                                <i class="@tab.IconClass"></i>
+                                @if (!tab.Pinned)
+                                {
+                                    <span class="red-ui-tab-label-text">@tab.Label</span>
+                                }
+                            </a>
+                        </li>
+                    }
+                </ul>
             </div>
-        }
+        </div>
+        
+        @* Sidebar content - matches #red-ui-sidebar-content from original *@
+        <div id="red-ui-sidebar-content">
+            @foreach (var tab in Tabs)
+            {
+                <div class="red-ui-sidebar-tab-wrapper @(ActiveTabId == tab.Id ? "" : "hide")" 
+                     style="height:100%">
+                    @if (tab.Id == ActiveTabId && ContentTemplate != null)
+                    {
+                        @ContentTemplate(tab.Id)
+                    }
+                    @if (!tab.EnableOnEdit && ShowShade)
+                    {
+                        <div class="red-ui-sidebar-shade"></div>
+                    }
+                </div>
+            }
+        </div>
+        
+        @* Sidebar footer - matches #red-ui-sidebar-footer from original *@
+        <div id="red-ui-sidebar-footer" class="red-ui-component-footer">
+            @if (FooterTemplate != null)
+            {
+                @FooterTemplate(ActiveTabId)
+            }
+        </div>
+        
+        @* Sidebar shade - for modal states *@
+        <div id="red-ui-sidebar-shade" class="@(ShowShade ? "" : "hide")"></div>
     </div>
-    
-    @* Sidebar footer - matches #red-ui-sidebar-footer from original *@
-    <div id="red-ui-sidebar-footer" class="red-ui-component-footer">
-        @if (FooterTemplate != null)
-        {
-            @FooterTemplate(ActiveTabId)
-        }
-    </div>
-    
-    @* Sidebar shade - for modal states *@
-    <div id="red-ui-sidebar-shade" class="@(ShowShade ? "" : "hide")"></div>
-</div>
+}
 
 @* Sidebar separator (resize handle) - matches #red-ui-sidebar-separator from original *@
-<div id="red-ui-sidebar-separator">
-    <div class="red-ui-sidebar-control-right" @onclick="ToggleSidebar">
+<div id="red-ui-sidebar-separator" 
+     style="right: @(IsClosed ? 0 : SidebarWidth)px;"
+     @onmouseenter="ShowSidebarControl"
+     @onmouseleave="HideSidebarControl">
+    <div class="red-ui-sidebar-control-right @(_showControl ? "visible" : "")" @onclick="ToggleSidebar">
         <i class="fa @(IsClosed ? "fa-chevron-left" : "fa-chevron-right")"></i>
     </div>
 </div>
@@ -119,6 +125,37 @@
     /// </summary>
     [Parameter]
     public bool ShowShade { get; set; } = false;
+
+    /// <summary>
+    /// Sidebar width in pixels (default 315px like original)
+    /// </summary>
+    [Parameter]
+    public int SidebarWidth { get; set; } = 315;
+
+    /// <summary>
+    /// Event callback when sidebar width changes
+    /// </summary>
+    [Parameter]
+    public EventCallback<int> SidebarWidthChanged { get; set; }
+
+    // Private state for showing control button
+    private bool _showControl = false;
+
+    /// <summary>
+    /// Shows the sidebar control button on hover
+    /// </summary>
+    private void ShowSidebarControl()
+    {
+        _showControl = true;
+    }
+
+    /// <summary>
+    /// Hides the sidebar control button on mouse leave
+    /// </summary>
+    private void HideSidebarControl()
+    {
+        _showControl = false;
+    }
 
     /// <summary>
     /// Activates a tab by ID
