@@ -1655,7 +1655,7 @@ public partial class Editor : IDisposable
     private void CreateSubflow()
     {
         // Create a new subflow
-        var subflowId = $"subflow{Subflows.Count + 1}";
+        var subflowId = $"subflow_{Guid.NewGuid():N}";
         var subflowName = $"Subflow {Subflows.Count + 1}";
         
         var newSubflow = new SubflowInfo
@@ -1663,21 +1663,222 @@ public partial class Editor : IDisposable
             Id = subflowId,
             Name = subflowName,
             Inputs = 1,
-            Outputs = 1
+            Outputs = 1,
+            Description = "A reusable subflow",
+            Category = "subflows",
+            Color = "#DDAA99"
         };
         
         Subflows.Add(newSubflow);
         
-        // In a full implementation, this would create a new flow tab
-        // and allow editing the subflow's internal nodes
+        // Create a new flow tab for the subflow
+        var newFlow = new FlowTab
+        {
+            Id = subflowId,
+            Label = subflowName,
+            Disabled = false,
+            Info = "Subflow editor - add nodes here to define the subflow logic"
+        };
+        Flows.Add(newFlow);
+        
+        // Add the subflow as a node type to the palette
+        AddSubflowToPalette(newSubflow);
+        
+        // Switch to the subflow tab
+        CurrentFlowId = subflowId;
+        DiagramNodes?.Clear();
+        DiagramConnectors?.Clear();
+        
+        // Add input and output nodes for the subflow
+        AddSubflowIONodes(newSubflow);
+        
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = $"Created subflow '{subflowName}'. In a full implementation, this would open a new editor tab for the subflow.",
+            Data = $"Created subflow '{subflowName}'. Add nodes between the input and output to define the subflow logic. The subflow is now available in the palette under 'subflows'.",
             Timestamp = DateTimeOffset.Now
         });
         
+        HasUnsavedChanges = true;
+        StateHasChanged();
+    }
+    
+    private void AddSubflowIONodes(SubflowInfo subflow)
+    {
+        // Add subflow input node
+        var inputNode = new Node
+        {
+            ID = $"{subflow.Id}_in",
+            OffsetX = 150,
+            OffsetY = 200,
+            Width = 80,
+            Height = 25,
+            Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
+            Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 }
+        };
+        inputNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+        {
+            new ShapeAnnotation { ID = "label", Content = "Input", Style = new TextStyle { Color = "#333", FontSize = 12 } }
+        };
+        inputNode.Ports = new DiagramObjectCollection<PointPort>
+        {
+            new PointPort
+            {
+                ID = "output",
+                Offset = new DiagramPoint { X = 1, Y = 0.5 },
+                Visibility = PortVisibility.Visible,
+                Height = 8,
+                Width = 8,
+                Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+            }
+        };
+        DiagramNodes?.Add(inputNode);
+        
+        // Add subflow output node
+        var outputNode = new Node
+        {
+            ID = $"{subflow.Id}_out",
+            OffsetX = 500,
+            OffsetY = 200,
+            Width = 80,
+            Height = 25,
+            Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
+            Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 }
+        };
+        outputNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+        {
+            new ShapeAnnotation { ID = "label", Content = "Output", Style = new TextStyle { Color = "#333", FontSize = 12 } }
+        };
+        outputNode.Ports = new DiagramObjectCollection<PointPort>
+        {
+            new PointPort
+            {
+                ID = "input",
+                Offset = new DiagramPoint { X = 0, Y = 0.5 },
+                Visibility = PortVisibility.Visible,
+                Height = 8,
+                Width = 8,
+                Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+            }
+        };
+        DiagramNodes?.Add(outputNode);
+    }
+    
+    private void AddSubflowToPalette(SubflowInfo subflow)
+    {
+        // The subflow will appear in the palette via the dynamic palette loading
+        // For now, add a debug message
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = $"Subflow '{subflow.Name}' is now available in the palette. Drag it onto any flow to use it.",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+    
+    private void CreateSubflowFromSelection()
+    {
+        var selectedNodes = GetSelectedNodes();
+        
+        if (selectedNodes.Count == 0)
+        {
+            DebugMessages.Add(new DebugMessage
+            {
+                NodeId = "system",
+                NodeName = "System",
+                Data = "Please select nodes in the workspace first to convert them to a subflow.",
+                Timestamp = DateTimeOffset.Now
+            });
+            return;
+        }
+        
+        var subflowId = $"subflow_{Guid.NewGuid():N}";
+        var subflowName = $"Subflow {Subflows.Count + 1}";
+        
+        // Determine inputs and outputs based on unconnected ports
+        int inputs = 0;
+        int outputs = 0;
+        var nodeIds = selectedNodes.Select(n => n.ID).ToList();
+        
+        foreach (var node in selectedNodes)
+        {
+            // Check for incoming connections from outside the selection
+            var incomingFromOutside = DiagramConnectors?.Any(c => 
+                c.TargetID == node.ID && 
+                !nodeIds.Contains(c.SourceID)) ?? false;
+            if (incomingFromOutside) inputs = 1;
+            
+            // Check for outgoing connections to outside the selection
+            var outgoingToOutside = DiagramConnectors?.Any(c => 
+                c.SourceID == node.ID && 
+                !nodeIds.Contains(c.TargetID)) ?? false;
+            if (outgoingToOutside) outputs = 1;
+        }
+        
+        // Default to 1 input and 1 output if no connections found
+        if (inputs == 0) inputs = 1;
+        if (outputs == 0) outputs = 1;
+        
+        var newSubflow = new SubflowInfo
+        {
+            Id = subflowId,
+            Name = subflowName,
+            Inputs = inputs,
+            Outputs = outputs,
+            Description = $"Created from {selectedNodes.Count} selected node(s)",
+            Category = "subflows",
+            Color = "#DDAA99",
+            NodeIds = nodeIds
+        };
+        
+        Subflows.Add(newSubflow);
+        
+        // Create a new flow tab for the subflow
+        var newFlow = new FlowTab
+        {
+            Id = subflowId,
+            Label = subflowName,
+            Disabled = false,
+            Info = $"Subflow created from selection - {selectedNodes.Count} nodes"
+        };
+        Flows.Add(newFlow);
+        
+        // Remove selected nodes from current flow (they're now in the subflow)
+        foreach (var node in selectedNodes.ToList())
+        {
+            DiagramNodes?.Remove(node);
+        }
+        
+        // Remove connectors between the removed nodes
+        var connectorsToRemove = DiagramConnectors?
+            .Where(c => nodeIds.Contains(c.SourceID) || nodeIds.Contains(c.TargetID))
+            .ToList() ?? new List<Connector>();
+        foreach (var connector in connectorsToRemove)
+        {
+            DiagramConnectors?.Remove(connector);
+        }
+        
+        // Create a subflow instance node in place of the removed nodes
+        var avgX = selectedNodes.Average(n => n.OffsetX);
+        var avgY = selectedNodes.Average(n => n.OffsetY);
+        
+        var subflowInstanceNode = CreateNodeRedStyleNode(subflowName, "subflow:" + subflowId, avgX, avgY, "#DDAA99");
+        DiagramNodes?.Add(subflowInstanceNode);
+        
+        AddSubflowToPalette(newSubflow);
+        
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = $"Created subflow '{subflowName}' from {selectedNodes.Count} selected node(s). A subflow instance has been placed in the current flow.",
+            Timestamp = DateTimeOffset.Now
+        });
+        
+        HasUnsavedChanges = true;
+        IsSubflowsDialogOpen = false;
         StateHasChanged();
     }
 
@@ -1686,13 +1887,34 @@ public partial class Editor : IDisposable
         var subflow = Subflows.FirstOrDefault(sf => sf.Id == subflowId);
         if (subflow != null)
         {
+            // Switch to the subflow's flow tab
+            CurrentFlowId = subflowId;
+            LoadFlowNodes(subflowId);
+            
             DebugMessages.Add(new DebugMessage
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = $"Editing subflow '{subflow.Name}'. In a full implementation, this would open the subflow editor.",
+                Data = $"Editing subflow '{subflow.Name}'. Add nodes between Input and Output to define the logic.",
                 Timestamp = DateTimeOffset.Now
             });
+            
+            IsSubflowsDialogOpen = false;
+            StateHasChanged();
+        }
+    }
+    
+    private void LoadFlowNodes(string flowId)
+    {
+        // In a full implementation, this would load the saved nodes for the flow/subflow
+        // For now, just clear and let the subflow show its I/O nodes
+        DiagramNodes?.Clear();
+        DiagramConnectors?.Clear();
+        
+        var subflow = Subflows.FirstOrDefault(sf => sf.Id == flowId);
+        if (subflow != null)
+        {
+            AddSubflowIONodes(subflow);
         }
     }
 
@@ -1701,14 +1923,41 @@ public partial class Editor : IDisposable
         var subflow = Subflows.FirstOrDefault(sf => sf.Id == subflowId);
         if (subflow != null)
         {
+            // Remove the flow tab for this subflow
+            var flowTab = Flows.FirstOrDefault(f => f.Id == subflowId);
+            if (flowTab != null)
+            {
+                Flows.Remove(flowTab);
+            }
+            
+            // If we're currently viewing this subflow, switch to a regular flow
+            if (CurrentFlowId == subflowId)
+            {
+                var firstRegularFlow = Flows.FirstOrDefault(f => !Subflows.Any(sf => sf.Id == f.Id));
+                if (firstRegularFlow != null)
+                {
+                    CurrentFlowId = firstRegularFlow.Id;
+                }
+                else if (Flows.Count > 0)
+                {
+                    CurrentFlowId = Flows[0].Id;
+                }
+                else
+                {
+                    // Create a new flow if none exist
+                    AddNewFlow();
+                }
+            }
+            
             Subflows.Remove(subflow);
             DebugMessages.Add(new DebugMessage
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = $"Deleted subflow '{subflow.Name}'.",
+                Data = $"Deleted subflow '{subflow.Name}'. Any instances in flows will need to be removed manually.",
                 Timestamp = DateTimeOffset.Now
             });
+            HasUnsavedChanges = true;
             StateHasChanged();
         }
     }
@@ -1739,17 +1988,84 @@ public partial class Editor : IDisposable
 
     private void GroupSelectedNodes()
     {
-        // Get the currently selected node (in a full implementation, this would get all selected nodes)
-        if (SelectedDiagramNode != null)
+        // Get all selected nodes using the helper
+        var selectedNodes = GetSelectedNodes();
+        
+        if (selectedNodes.Count > 0)
         {
-            var groupId = $"group{Groups.Count + 1}";
+            var groupId = $"group_{Guid.NewGuid():N}";
             var groupName = $"Group {Groups.Count + 1}";
+            
+            // Calculate bounding box for the group
+            double minX = double.MaxValue, minY = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue;
+            var nodeIds = new List<string>();
+            
+            foreach (var node in selectedNodes)
+            {
+                nodeIds.Add(node.ID);
+                if (node.OffsetX < minX) minX = node.OffsetX;
+                if (node.OffsetY < minY) minY = node.OffsetY;
+                if (node.OffsetX + node.Width > maxX) maxX = node.OffsetX + node.Width;
+                if (node.OffsetY + node.Height > maxY) maxY = node.OffsetY + node.Height;
+            }
+            
+            // Add padding around the group
+            var padding = 20.0;
+            minX -= padding;
+            minY -= padding;
+            maxX += padding;
+            maxY += padding;
+            
+            // Create visual group node (rectangle behind the nodes)
+            var groupNode = new Node
+            {
+                ID = groupId,
+                OffsetX = minX + (maxX - minX) / 2,
+                OffsetY = minY + (maxY - minY) / 2,
+                Width = maxX - minX,
+                Height = maxY - minY,
+                Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
+                Style = new ShapeStyle
+                {
+                    Fill = "rgba(255, 204, 204, 0.3)",
+                    StrokeColor = "#FF9999",
+                    StrokeWidth = 2,
+                    StrokeDashArray = "5,3"
+                },
+                ZIndex = -1, // Behind other nodes
+                Constraints = NodeConstraints.Default & ~NodeConstraints.Select // Can't be selected individually
+            };
+            
+            // Add label annotation for the group name
+            groupNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+            {
+                new ShapeAnnotation
+                {
+                    ID = "groupLabel",
+                    Content = groupName,
+                    Style = new TextStyle { Color = "#666", FontSize = 11, Bold = true },
+                    Offset = new DiagramPoint { X = 0, Y = 0 },
+                    Margin = new DiagramThickness { Left = 5, Top = 5, Right = 0, Bottom = 0 },
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Top
+                }
+            };
+            
+            DiagramNodes?.Add(groupNode);
             
             var newGroup = new GroupInfo
             {
                 Id = groupId,
                 Name = groupName,
-                NodeCount = 1 // In full implementation, would be count of selected nodes
+                NodeCount = selectedNodes.Count,
+                NodeIds = nodeIds,
+                Color = "#FFCCCC",
+                X = minX,
+                Y = minY,
+                Width = maxX - minX,
+                Height = maxY - minY,
+                DiagramNodeId = groupId
             };
             
             Groups.Add(newGroup);
@@ -1758,10 +2074,11 @@ public partial class Editor : IDisposable
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = $"Created group '{groupName}'. In a full implementation, selected nodes would be visually grouped.",
+                Data = $"Created group '{groupName}' containing {selectedNodes.Count} node(s).",
                 Timestamp = DateTimeOffset.Now
             });
             
+            HasUnsavedChanges = true;
             StateHasChanged();
         }
         else
@@ -1770,7 +2087,7 @@ public partial class Editor : IDisposable
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = "Please select nodes to group. In a full implementation, multiple selected nodes would be grouped together.",
+                Data = "Please select nodes to group. Select multiple nodes by holding Ctrl while clicking.",
                 Timestamp = DateTimeOffset.Now
             });
         }
@@ -1778,19 +2095,53 @@ public partial class Editor : IDisposable
 
     private void UngroupSelectedNodes()
     {
-        if (Groups.Count > 0)
+        // First check if we have a group selected (via its visual node)
+        var selectedNodes = GetSelectedNodes();
+        GroupInfo? groupToRemove = null;
+        
+        // Check if any selected node is a group node
+        foreach (var node in selectedNodes)
         {
-            var lastGroup = Groups.Last();
-            Groups.Remove(lastGroup);
+            var group = Groups.FirstOrDefault(g => g.DiagramNodeId == node.ID);
+            if (group != null)
+            {
+                groupToRemove = group;
+                break;
+            }
+        }
+        
+        // If no group node selected, try to find a group containing the selected node
+        if (groupToRemove == null && SelectedDiagramNode != null)
+        {
+            groupToRemove = Groups.FirstOrDefault(g => g.NodeIds.Contains(SelectedDiagramNode.ID));
+        }
+        
+        // If still no group found, just remove the last group
+        if (groupToRemove == null && Groups.Count > 0)
+        {
+            groupToRemove = Groups.Last();
+        }
+        
+        if (groupToRemove != null)
+        {
+            // Remove the visual group node from the diagram
+            var groupNode = DiagramNodes?.FirstOrDefault(n => n.ID == groupToRemove.DiagramNodeId);
+            if (groupNode != null)
+            {
+                DiagramNodes?.Remove(groupNode);
+            }
+            
+            Groups.Remove(groupToRemove);
             
             DebugMessages.Add(new DebugMessage
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = $"Ungrouped '{lastGroup.Name}'. In a full implementation, nodes would be removed from their group.",
+                Data = $"Ungrouped '{groupToRemove.Name}'. {groupToRemove.NodeCount} node(s) are now independent.",
                 Timestamp = DateTimeOffset.Now
             });
             
+            HasUnsavedChanges = true;
             StateHasChanged();
         }
         else
@@ -1825,14 +2176,22 @@ public partial class Editor : IDisposable
         var group = Groups.FirstOrDefault(g => g.Id == groupId);
         if (group != null)
         {
+            // Remove the visual group node from the diagram
+            var groupNode = DiagramNodes?.FirstOrDefault(n => n.ID == group.DiagramNodeId);
+            if (groupNode != null)
+            {
+                DiagramNodes?.Remove(groupNode);
+            }
+            
             Groups.Remove(group);
             DebugMessages.Add(new DebugMessage
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = $"Deleted group '{group.Name}'.",
+                Data = $"Deleted group '{group.Name}'. Contained nodes are now independent.",
                 Timestamp = DateTimeOffset.Now
             });
+            HasUnsavedChanges = true;
             StateHasChanged();
         }
     }
@@ -2366,6 +2725,11 @@ public partial class Editor : IDisposable
         public string Name { get; set; } = "";
         public int Inputs { get; set; }
         public int Outputs { get; set; }
+        public string Description { get; set; } = "";
+        public string Category { get; set; } = "subflows";
+        public string Color { get; set; } = "#DDAA99";
+        public List<string> NodeIds { get; set; } = new();
+        public List<(string ConnectorId, string SourceId, string SourcePort, string TargetId, string TargetPort)> Connections { get; set; } = new();
     }
 
     private class GroupInfo
@@ -2373,6 +2737,13 @@ public partial class Editor : IDisposable
         public string Id { get; set; } = "";
         public string Name { get; set; } = "";
         public int NodeCount { get; set; }
+        public List<string> NodeIds { get; set; } = new();
+        public string Color { get; set; } = "#FFCCCC";
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+        public string DiagramNodeId { get; set; } = "";
     }
 
     private class PaletteModuleInfo

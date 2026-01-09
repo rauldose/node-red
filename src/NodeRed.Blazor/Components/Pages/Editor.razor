@@ -382,28 +382,41 @@
                     <a class="red-ui-dialog-close" @onclick="CloseSubflowsDialog"><i class="fa fa-times"></i></a>
                 </div>
                 <div class="red-ui-dialog-body">
-                    <p style="color: #666; margin-bottom: 15px;">Subflows allow you to create reusable groups of nodes.</p>
-                    <button class="red-ui-button red-ui-button-primary" @onclick="CreateSubflow" style="margin-bottom: 15px;">
-                        <i class="fa fa-plus"></i> Create Subflow
-                    </button>
+                    <p style="color: #666; margin-bottom: 15px;">Subflows are reusable flows that can be used as nodes in other flows.</p>
+                    <div style="margin-bottom: 15px;">
+                        <button class="red-ui-button red-ui-button-primary" @onclick="CreateSubflow" style="margin-right: 10px;">
+                            <i class="fa fa-plus"></i> Create Subflow
+                        </button>
+                        <button class="red-ui-button" @onclick="CreateSubflowFromSelection">
+                            <i class="fa fa-cut"></i> Selection to Subflow
+                        </button>
+                    </div>
                     @if (Subflows.Count == 0)
                     {
-                        <p style="color: #999;">No subflows defined</p>
+                        <p style="color: #999;">No subflows defined. Create a subflow to build reusable node configurations.</p>
                     }
                     else
                     {
+                        <h4 style="margin-top: 20px; margin-bottom: 10px;">Available Subflows</h4>
                         @foreach (var subflow in Subflows)
                         {
                             <div style="padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <div style="font-weight: bold;">@subflow.Name</div>
+                                    <div style="font-weight: bold;">
+                                        <span style="display: inline-block; width: 12px; height: 12px; background: @subflow.Color; margin-right: 8px; border-radius: 2px;"></span>
+                                        @subflow.Name
+                                    </div>
                                     <div style="font-size: 0.9em; color: #666;">Inputs: @subflow.Inputs, Outputs: @subflow.Outputs</div>
+                                    @if (!string.IsNullOrEmpty(subflow.Description))
+                                    {
+                                        <div style="font-size: 0.85em; color: #888;">@subflow.Description</div>
+                                    }
                                 </div>
                                 <div>
-                                    <button class="red-ui-button" @onclick="() => EditSubflow(subflow.Id)" style="margin-right: 5px;">
+                                    <button class="red-ui-button" @onclick="() => EditSubflow(subflow.Id)" style="margin-right: 5px;" title="Edit subflow">
                                         <i class="fa fa-edit"></i>
                                     </button>
-                                    <button class="red-ui-button" @onclick="() => DeleteSubflow(subflow.Id)">
+                                    <button class="red-ui-button" @onclick="() => DeleteSubflow(subflow.Id)" title="Delete subflow">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 </div>
