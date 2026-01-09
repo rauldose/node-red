@@ -320,13 +320,14 @@ public partial class Editor : IDisposable
         }
 
         // Create a node with child nodes for the icon area
+        // Match palette node dimensions: 122px wide, 25px tall
         var node = new Node()
         {
             ID = id,
             OffsetX = x,
             OffsetY = y,
-            Width = 130,
-            Height = 30,
+            Width = 122,
+            Height = 25,
             Ports = CreatePortsFromNodeInfo(hasInput, hasOutput),
             Style = new ShapeStyle { Fill = color, StrokeColor = "#999", StrokeWidth = 1 },
             Shape = new BasicShape() { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
@@ -435,24 +436,24 @@ public partial class Editor : IDisposable
     {
         var handles = new DiagramObjectCollection<NodeFixedUserHandle>();
 
-        // Only add inject button for inject nodes - positioned far to the left outside the node
-        // so it doesn't interfere with ports
+        // Only add inject button for inject nodes - positioned to the left like Node-RED JS
+        // Node-RED JS shows a small square button with play icon
         if (nodeType == "inject")
         {
             handles.Add(new NodeFixedUserHandle()
             {
                 ID = "injectButton",
-                Width = 16,
-                Height = 16,
+                Width = 14,
+                Height = 14,
                 Offset = new DiagramPoint() { X = 0, Y = 0.5 },
-                Margin = new DiagramThickness() { Left = -25 }, // Move further left, outside the node
-                PathData = "M8 5v14l11-7z", // Play icon SVG path
+                Margin = new DiagramThickness() { Left = -20 }, // Position outside node like Node-RED JS
+                PathData = "M0 0 L8 4 L0 8 Z", // Triangle play icon
                 Visibility = true,
-                CornerRadius = 2,
-                Fill = "#8aa3bc",
-                Stroke = "#7a93ac",
+                CornerRadius = 0,
+                Fill = "#d9d9d9",
+                Stroke = "#999",
                 StrokeThickness = 1,
-                IconStroke = "#fff",
+                IconStroke = "#777",
                 IconStrokeThickness = 0
             });
         }
@@ -526,7 +527,7 @@ public partial class Editor : IDisposable
             TargetID = targetId,
             SourcePortID = "port2",
             TargetPortID = "port1",
-            Type = ConnectorSegmentType.Orthogonal,
+            Type = ConnectorSegmentType.Bezier,
             Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
             TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
             // Fallback points to prevent null reference during initialization
@@ -692,7 +693,7 @@ public partial class Editor : IDisposable
             connector.Style.StrokeColor = "#999";
             connector.Style.StrokeWidth = 2;
             connector.TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None };
-            connector.Type = ConnectorSegmentType.Orthogonal;
+            connector.Type = ConnectorSegmentType.Bezier;
             
             // Initialize source and target points to prevent null reference during connection
             connector.SourcePoint ??= new DiagramPoint() { X = 0, Y = 0 };
