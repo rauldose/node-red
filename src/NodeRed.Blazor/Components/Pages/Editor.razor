@@ -122,16 +122,16 @@
                             <a class="red-ui-menu-item" @onclick="OnStopClick">
                                 <i class="fa fa-stop"></i> Stop flows
                             </a>
-                            <a class="red-ui-menu-item" @onclick="OnRestartClick">
-                                <i class="fa fa-refresh"></i> Restart flows
-                            </a>
                         }
-                        else
+                        else if (HasBeenDeployed)
                         {
                             <a class="red-ui-menu-item" @onclick="OnStartClick">
                                 <i class="fa fa-play"></i> Start flows
                             </a>
                         }
+                        <a class="red-ui-menu-item" @onclick="OnRestartClick">
+                            <i class="fa fa-refresh"></i> Restart flows
+                        </a>
                     </div>
                 }
             </li>
