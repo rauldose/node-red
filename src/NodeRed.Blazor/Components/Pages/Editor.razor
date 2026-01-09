@@ -802,6 +802,10 @@
     
     private bool ShouldShowField(NodePropertyField field)
     {
+        // Skip "name" field as it's shown separately
+        if (field.Name == "name")
+            return false;
+
         // Check ShowWhen condition
         if (!string.IsNullOrEmpty(field.ShowWhen))
         {
