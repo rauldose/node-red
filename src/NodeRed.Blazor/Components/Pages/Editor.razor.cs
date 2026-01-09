@@ -930,6 +930,42 @@ public partial class Editor : IDisposable
                 continue;
             }
             
+            // Handle special subflow I/O nodes
+            if (nodeData.Type == "subflow-in" || nodeData.Type == "subflow-out")
+            {
+                var isInput = nodeData.Type == "subflow-in";
+                var ioNode = new Node
+                {
+                    ID = nodeData.Id,
+                    OffsetX = nodeData.OffsetX,
+                    OffsetY = nodeData.OffsetY,
+                    Width = nodeData.Width,
+                    Height = nodeData.Height,
+                    Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
+                    Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
+                    AdditionalInfo = new Dictionary<string, object?>(nodeData.AdditionalInfo)
+                };
+                ioNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+                {
+                    new ShapeAnnotation { ID = "iconAnnotation", Content = isInput ? "→" : "←", Style = new TextStyle { Color = "#333", FontSize = 12 } },
+                    new ShapeAnnotation { ID = "labelAnnotation", Content = nodeData.LabelContent, Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
+                };
+                ioNode.Ports = new DiagramObjectCollection<PointPort>
+                {
+                    new PointPort
+                    {
+                        ID = isInput ? "output" : "input",
+                        Offset = new DiagramPoint { X = isInput ? 1 : 0, Y = 0.5 },
+                        Visibility = PortVisibility.Visible,
+                        Height = 8,
+                        Width = 8,
+                        Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+                    }
+                };
+                DiagramNodes.Add(ioNode);
+                continue;
+            }
+            
             // Find palette node info
             PaletteNodeInfo? paletteNode = null;
             foreach (var category in PaletteCategories)
@@ -1954,10 +1990,14 @@ public partial class Editor : IDisposable
         // Add the subflow as a node type to the palette
         AddSubflowToPalette(newSubflow);
         
+        // Save current flow state before switching
+        SaveCurrentFlowState();
+        
         // Switch to the subflow tab
         CurrentFlowId = subflowId;
         DiagramNodes?.Clear();
         DiagramConnectors?.Clear();
+        Groups.Clear();
         
         // Add input and output nodes for the subflow
         AddSubflowIONodes(newSubflow);
@@ -1985,11 +2025,17 @@ public partial class Editor : IDisposable
             Width = 80,
             Height = 25,
             Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
-            Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 }
+            Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
+            AdditionalInfo = new Dictionary<string, object?>
+            {
+                { "nodeType", "subflow-in" },
+                { "subflowId", subflow.Id }
+            }
         };
         inputNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
         {
-            new ShapeAnnotation { ID = "label", Content = "Input", Style = new TextStyle { Color = "#333", FontSize = 12 } }
+            new ShapeAnnotation { ID = "iconAnnotation", Content = "→", Style = new TextStyle { Color = "#333", FontSize = 12 } },
+            new ShapeAnnotation { ID = "labelAnnotation", Content = "Input", Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
         };
         inputNode.Ports = new DiagramObjectCollection<PointPort>
         {
@@ -2014,11 +2060,17 @@ public partial class Editor : IDisposable
             Width = 80,
             Height = 25,
             Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
-            Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 }
+            Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
+            AdditionalInfo = new Dictionary<string, object?>
+            {
+                { "nodeType", "subflow-out" },
+                { "subflowId", subflow.Id }
+            }
         };
         outputNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
         {
-            new ShapeAnnotation { ID = "label", Content = "Output", Style = new TextStyle { Color = "#333", FontSize = 12 } }
+            new ShapeAnnotation { ID = "iconAnnotation", Content = "←", Style = new TextStyle { Color = "#333", FontSize = 12 } },
+            new ShapeAnnotation { ID = "labelAnnotation", Content = "Output", Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
         };
         outputNode.Ports = new DiagramObjectCollection<PointPort>
         {
@@ -2057,7 +2109,7 @@ public partial class Editor : IDisposable
             Type = $"subflow:{subflow.Id}",
             Label = subflow.Name,
             Color = subflow.Color,
-            Icon = "fa fa-th-large",
+            IconClass = "fa fa-th-large",
             Inputs = subflow.Inputs,
             Outputs = subflow.Outputs
         };
@@ -2183,9 +2235,8 @@ public partial class Editor : IDisposable
         var subflow = Subflows.FirstOrDefault(sf => sf.Id == subflowId);
         if (subflow != null)
         {
-            // Switch to the subflow's flow tab
-            CurrentFlowId = subflowId;
-            LoadFlowNodes(subflowId);
+            // Use proper tab switching which saves/restores state
+            SwitchFlow(subflowId);
             
             DebugMessages.Add(new DebugMessage
             {
@@ -2202,16 +2253,9 @@ public partial class Editor : IDisposable
     
     private void LoadFlowNodes(string flowId)
     {
-        // In a full implementation, this would load the saved nodes for the flow/subflow
-        // For now, just clear and let the subflow show its I/O nodes
-        DiagramNodes?.Clear();
-        DiagramConnectors?.Clear();
-        
-        var subflow = Subflows.FirstOrDefault(sf => sf.Id == flowId);
-        if (subflow != null)
-        {
-            AddSubflowIONodes(subflow);
-        }
+        // This method is now deprecated - use RestoreFlowState instead
+        // Keeping for backward compatibility but it will use restore logic
+        RestoreFlowState(flowId);
     }
 
     private void DeleteSubflow(string subflowId)
