@@ -5,7 +5,7 @@ using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.Core.Events;
 using NodeRed.Core.Interfaces;
-using NodeRed.Runtime.Nodes.Common;
+using NodeRed.Runtime.Nodes.SDK.Common;
 
 namespace NodeRed.Runtime.Execution;
 

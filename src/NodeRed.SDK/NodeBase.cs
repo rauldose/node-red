@@ -307,6 +307,17 @@ public abstract class NodeBase : INode
     /// </summary>
     protected void Trace(string message) => _context?.Log(Id, message, LogLevel.Trace);
 
+    /// <summary>
+    /// Sends a message to the specified output port.
+    /// Use this when you need to send messages outside of OnInputAsync (e.g., from callbacks).
+    /// </summary>
+    /// <param name="port">Output port index (0-based)</param>
+    /// <param name="message">Message to send</param>
+    protected void Send(int port, NodeMessage message)
+    {
+        _context?.Send(Id, port, message);
+    }
+
     #endregion
 }
 

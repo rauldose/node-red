@@ -26,7 +26,6 @@ public class MqttInNode : SdkNodeBase
 {
     private IMqttClient? _client;
     private CancellationTokenSource? _cts;
-    private SendDelegate? _send;
 
     protected override List<NodePropertyDefinition> DefineProperties() =>
         PropertyBuilder.Create()
@@ -121,7 +120,7 @@ The **Topic** field can use MQTT wildcards:
                     Topic = e.ApplicationMessage.Topic
                 };
 
-                _send?.Invoke(0, msg);
+                Send(0, msg);
                 await Task.CompletedTask;
             };
 
@@ -179,13 +178,6 @@ The **Topic** field can use MQTT wildcards:
         {
             return data;
         }
-    }
-
-    protected override Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
-    {
-        _send = send;
-        done();
-        return Task.CompletedTask;
     }
 
     protected override async Task OnCloseAsync()

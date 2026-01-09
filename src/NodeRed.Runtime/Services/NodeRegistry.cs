@@ -3,9 +3,8 @@
 
 using NodeRed.Core.Entities;
 using NodeRed.Core.Interfaces;
-using NodeRed.Runtime.Nodes;
-using NodeRed.Runtime.Nodes.Common;
-using NodeRed.Runtime.Nodes.Function;
+using NodeRed.Runtime.Nodes.SDK.Common;
+using NodeRed.Runtime.Nodes.SDK.Function;
 
 namespace NodeRed.Runtime.Services;
 

@@ -749,7 +749,7 @@
     private RenderFragment RenderNodePropertyPanel() => __builder =>
     {
         var nodeType = GetSelectedNodeType();
-        var schema = NodePropertySchemas.GetSchema(nodeType);
+        var schema = GetNodeSchema(nodeType);
         
         <div class="red-ui-editor-form">
             @* Common name field *@
@@ -776,6 +776,29 @@
             }
         </div>
     };
+
+    /// <summary>
+    /// Gets the property schema for a node type, checking both hard-coded schemas
+    /// and SDK-defined properties from the NodeLoader.
+    /// </summary>
+    private List<NodePropertyField> GetNodeSchema(string nodeType)
+    {
+        // First try the hard-coded schemas
+        var schema = NodePropertySchemas.GetSchema(nodeType);
+        if (schema.Count > 0)
+        {
+            return schema;
+        }
+
+        // Try to get properties from the NodeLoader (for SDK nodes)
+        var nodeDef = NodeLoader.GetNodeDefinitions().FirstOrDefault(d => d.Type == nodeType);
+        if (nodeDef?.Properties != null && nodeDef.Properties.Count > 0)
+        {
+            return nodeDef.Properties.Select(NodePropertySchemas.FromDefinition).ToList();
+        }
+
+        return new List<NodePropertyField>();
+    }
     
     private bool ShouldShowField(NodePropertyField field)
     {

@@ -690,7 +690,61 @@ public static class NodePropertySchemas
 
     public static List<NodePropertyField> GetSchema(string nodeType)
     {
-        return _schemas.TryGetValue(nodeType, out var schema) ? schema : new List<NodePropertyField>();
+        // First check if we have a hard-coded schema
+        if (_schemas.TryGetValue(nodeType, out var schema))
+        {
+            return schema;
+        }
+        
+        // Return empty list - the UI will need to use NodeLoader.GetNodeDefinitions() 
+        // to get properties from SDK nodes dynamically
+        return new List<NodePropertyField>();
+    }
+
+    /// <summary>
+    /// Converts SDK NodePropertyDefinition to UI NodePropertyField.
+    /// </summary>
+    public static NodePropertyField FromDefinition(NodeRed.Core.Entities.NodePropertyDefinition def)
+    {
+        return new NodePropertyField
+        {
+            Name = def.Name,
+            Label = def.Label,
+            Icon = def.Icon,
+            Type = ConvertPropertyType(def.Type),
+            DefaultValue = def.DefaultValue?.ToString() ?? "",
+            Placeholder = def.Placeholder,
+            Prefix = def.Prefix,
+            Suffix = def.Suffix,
+            Options = def.Options?.Select(o => new PropertyOption { Value = o.Value, Label = o.Label }).ToList(),
+            Min = def.Min,
+            Max = def.Max,
+            Step = def.Step,
+            Rows = def.Rows,
+            ShowWhen = def.ShowWhen,
+            HideWhen = def.HideWhen,
+            IsSmall = def.IsSmall,
+            IsFullWidth = def.IsFullWidth
+        };
+    }
+
+    /// <summary>
+    /// Converts SDK PropertyType to UI PropertyFieldType.
+    /// </summary>
+    private static PropertyFieldType ConvertPropertyType(NodeRed.Core.Entities.PropertyType type)
+    {
+        return type switch
+        {
+            NodeRed.Core.Entities.PropertyType.Text => PropertyFieldType.Text,
+            NodeRed.Core.Entities.PropertyType.Number => PropertyFieldType.Number,
+            NodeRed.Core.Entities.PropertyType.Select => PropertyFieldType.Select,
+            NodeRed.Core.Entities.PropertyType.Checkbox => PropertyFieldType.Checkbox,
+            NodeRed.Core.Entities.PropertyType.TextArea => PropertyFieldType.TextArea,
+            NodeRed.Core.Entities.PropertyType.Code => PropertyFieldType.Code,
+            NodeRed.Core.Entities.PropertyType.Info => PropertyFieldType.Info,
+            NodeRed.Core.Entities.PropertyType.Button => PropertyFieldType.Button,
+            _ => PropertyFieldType.Text
+        };
     }
 
     public static bool HasSchema(string nodeType)
