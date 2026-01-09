@@ -33,9 +33,17 @@ public partial class Editor : IDisposable
         Constraints = SelectorConstraints.All & ~SelectorConstraints.ResizeAll & ~SelectorConstraints.Rotate
     };
 
-    // Diagram collections
+    // Diagram collections (VIEW - populated from central store based on current flow)
     private DiagramObjectCollection<Node>? DiagramNodes { get; set; } = new DiagramObjectCollection<Node>();
     private DiagramObjectCollection<Connector>? DiagramConnectors { get; set; } = new DiagramObjectCollection<Connector>();
+
+    // CENTRAL NODE REGISTRY (like RED.nodes in JS Node-RED)
+    // All nodes across all flows, keyed by node ID
+    private Dictionary<string, NodeData> AllNodes = new();
+    // All connectors across all flows, keyed by connector ID
+    private Dictionary<string, ConnectorData> AllConnectors = new();
+    // Groups across all flows, keyed by group ID
+    private Dictionary<string, GroupInfo> AllGroups = new();
 
     // Grid line intervals
     public double[]? GridLineIntervals { get; set; }
@@ -284,6 +292,9 @@ public partial class Editor : IDisposable
         var paletteNode = GetPaletteNodeInfo(nodeType);
         var node = CreateNodeRedStyleNode(id, x, y, nodeType, label, color, paletteNode);
         DiagramNodes!.Add(node);
+        
+        // Add to central registry (like RED.nodes.addNode in JS)
+        AddNodeToRegistry(id, CurrentFlowId, nodeType, x, y, label, color, paletteNode?.IconClass ?? "");
     }
 
     private void InitDiagramModel()
@@ -305,6 +316,285 @@ public partial class Editor : IDisposable
         var node = CreateNodeRedStyleNode(id, x, y, nodeType, label, color, paletteNode);
         DiagramNodes!.Add(node);
         NodeCount++;
+        
+        // Add to central registry (like RED.nodes.addNode in JS)
+        AddNodeToRegistry(id, CurrentFlowId, nodeType, x, y, label, color, paletteNode?.IconClass ?? "");
+    }
+    
+    /// <summary>
+    /// Add a node to the central registry (like RED.nodes.addNode in JS Node-RED)
+    /// </summary>
+    private void AddNodeToRegistry(string id, string flowId, string nodeType, double x, double y, string name, string color, string iconClass, Dictionary<string, object?>? props = null)
+    {
+        var nodeData = new NodeData
+        {
+            Id = id,
+            Z = flowId,
+            Type = nodeType,
+            X = x,
+            Y = y,
+            Name = name,
+            Color = color,
+            IconClass = iconClass,
+            Props = props ?? new Dictionary<string, object?>(),
+            Changed = true,
+            Dirty = true
+        };
+        AllNodes[id] = nodeData;
+    }
+    
+    /// <summary>
+    /// Remove a node from the central registry
+    /// </summary>
+    private void RemoveNodeFromRegistry(string id)
+    {
+        AllNodes.Remove(id);
+    }
+    
+    /// <summary>
+    /// Add a connector to the central registry
+    /// </summary>
+    private void AddConnectorToRegistry(string id, string flowId, string sourceId, string sourcePortId, string targetId, string targetPortId)
+    {
+        var connectorData = new ConnectorData
+        {
+            Id = id,
+            Z = flowId,
+            SourceId = sourceId,
+            SourcePortId = sourcePortId,
+            TargetId = targetId,
+            TargetPortId = targetPortId
+        };
+        AllConnectors[id] = connectorData;
+    }
+    
+    /// <summary>
+    /// Remove a connector from the central registry
+    /// </summary>
+    private void RemoveConnectorFromRegistry(string id)
+    {
+        AllConnectors.Remove(id);
+    }
+    
+    /// <summary>
+    /// Update a node's position in the central registry
+    /// </summary>
+    private void UpdateNodePosition(string id, double x, double y)
+    {
+        if (AllNodes.TryGetValue(id, out var nodeData))
+        {
+            nodeData.X = x;
+            nodeData.Y = y;
+            nodeData.Dirty = true;
+        }
+    }
+    
+    /// <summary>
+    /// Update a node's properties in the central registry
+    /// </summary>
+    private void UpdateNodeProps(string id, string name, Dictionary<string, object?>? props)
+    {
+        if (AllNodes.TryGetValue(id, out var nodeData))
+        {
+            nodeData.Name = name;
+            if (props != null)
+            {
+                foreach (var kvp in props)
+                {
+                    nodeData.Props[kvp.Key] = kvp.Value;
+                }
+            }
+            nodeData.Changed = true;
+            nodeData.Dirty = true;
+        }
+    }
+    
+    /// <summary>
+    /// Get all nodes for the current flow from the central registry
+    /// </summary>
+    private IEnumerable<NodeData> GetNodesForFlow(string flowId)
+    {
+        return AllNodes.Values.Where(n => n.Z == flowId);
+    }
+    
+    /// <summary>
+    /// Get all connectors for the current flow from the central registry
+    /// </summary>
+    private IEnumerable<ConnectorData> GetConnectorsForFlow(string flowId)
+    {
+        return AllConnectors.Values.Where(c => c.Z == flowId);
+    }
+    
+    /// <summary>
+    /// Populate the diagram view from the central registry for the given flow
+    /// </summary>
+    private void PopulateDiagramFromRegistry(string flowId)
+    {
+        DiagramNodes?.Clear();
+        DiagramConnectors?.Clear();
+        
+        // Add nodes for this flow
+        foreach (var nodeData in GetNodesForFlow(flowId))
+        {
+            var paletteNode = GetPaletteNodeInfo(nodeData.Type);
+            
+            // Handle special subflow I/O nodes
+            if (nodeData.Type == "subflow-in" || nodeData.Type == "subflow-out")
+            {
+                var isInput = nodeData.Type == "subflow-in";
+                var ioNode = new Node
+                {
+                    ID = nodeData.Id,
+                    OffsetX = nodeData.X,
+                    OffsetY = nodeData.Y,
+                    Width = nodeData.W,
+                    Height = nodeData.H,
+                    Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
+                    Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
+                    AdditionalInfo = new Dictionary<string, object?>(nodeData.Props) { ["nodeType"] = nodeData.Type }
+                };
+                ioNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+                {
+                    new ShapeAnnotation { ID = "iconAnnotation", Content = isInput ? "→" : "←", Style = new TextStyle { Color = "#333", FontSize = 12 } },
+                    new ShapeAnnotation { ID = "labelAnnotation", Content = nodeData.Name, Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
+                };
+                ioNode.Ports = new DiagramObjectCollection<PointPort>
+                {
+                    new PointPort
+                    {
+                        ID = isInput ? "output" : "input",
+                        Offset = new DiagramPoint { X = isInput ? 1 : 0, Y = 0.5 },
+                        Visibility = PortVisibility.Visible,
+                        Height = 8,
+                        Width = 8,
+                        Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+                    }
+                };
+                DiagramNodes?.Add(ioNode);
+            }
+            else
+            {
+                // Regular node
+                var node = CreateNodeRedStyleNode(
+                    nodeData.Id,
+                    nodeData.X,
+                    nodeData.Y,
+                    nodeData.Type,
+                    nodeData.Name,
+                    !string.IsNullOrEmpty(nodeData.Color) ? nodeData.Color : paletteNode?.Color ?? "#ddd",
+                    paletteNode
+                );
+                
+                // Restore additional info/props
+                if (nodeData.Props.Count > 0)
+                {
+                    node.AdditionalInfo = new Dictionary<string, object?>(nodeData.Props);
+                    node.AdditionalInfo["nodeType"] = nodeData.Type;
+                }
+                
+                DiagramNodes?.Add(node);
+            }
+        }
+        
+        // Add connectors for this flow
+        foreach (var connData in GetConnectorsForFlow(flowId))
+        {
+            var connector = new Connector
+            {
+                ID = connData.Id,
+                SourceID = connData.SourceId,
+                SourcePortID = connData.SourcePortId,
+                TargetID = connData.TargetId,
+                TargetPortID = connData.TargetPortId,
+                Type = ConnectorSegmentType.Orthogonal,
+                Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
+                TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
+                SourcePoint = new DiagramPoint() { X = FallbackSourcePointX, Y = FallbackSourcePointY },
+                TargetPoint = new DiagramPoint() { X = FallbackTargetPointX, Y = FallbackTargetPointY }
+            };
+            DiagramConnectors?.Add(connector);
+        }
+        
+        // Restore groups
+        Groups.Clear();
+        foreach (var group in AllGroups.Values.Where(g => g.FlowId == flowId))
+        {
+            Groups.Add(group);
+            // Add group visual node
+            var parts = group.Color?.Split('|') ?? new[] { DefaultGroupFillColor, DefaultGroupStrokeColor };
+            var groupNode = new Node
+            {
+                ID = group.DiagramNodeId,
+                OffsetX = group.X + group.Width / 2,
+                OffsetY = group.Y + group.Height / 2,
+                Width = group.Width,
+                Height = group.Height,
+                Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
+                Style = new ShapeStyle
+                {
+                    Fill = parts.Length > 0 ? parts[0] : DefaultGroupFillColor,
+                    StrokeColor = parts.Length > 1 ? parts[1] : DefaultGroupStrokeColor,
+                    StrokeWidth = 2,
+                    StrokeDashArray = "5,3"
+                },
+                ZIndex = -1,
+                Ports = new DiagramObjectCollection<PointPort>(),
+                Constraints = GroupNodeConstraints,
+                Annotations = new DiagramObjectCollection<ShapeAnnotation>
+                {
+                    new ShapeAnnotation
+                    {
+                        ID = "groupLabel",
+                        Content = group.Name,
+                        Style = new TextStyle { Color = "#666", FontSize = 11, Bold = true },
+                        Offset = new DiagramPoint { X = 0, Y = 0 },
+                        Margin = new DiagramThickness { Left = 5, Top = 5, Right = 0, Bottom = 0 },
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        VerticalAlignment = VerticalAlignment.Top
+                    }
+                }
+            };
+            DiagramNodes?.Add(groupNode);
+        }
+    }
+    
+    /// <summary>
+    /// Sync diagram state back to the central registry (call after any diagram modification)
+    /// </summary>
+    private void SyncDiagramToRegistry()
+    {
+        if (DiagramNodes == null || DiagramConnectors == null) return;
+        
+        // Sync node positions and properties
+        foreach (var node in DiagramNodes)
+        {
+            if (AllNodes.TryGetValue(node.ID, out var nodeData))
+            {
+                nodeData.X = node.OffsetX;
+                nodeData.Y = node.OffsetY;
+                nodeData.W = node.Width ?? 122;
+                nodeData.H = node.Height ?? 25;
+                
+                // Get name from label annotation
+                var labelAnnotation = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation");
+                if (labelAnnotation != null)
+                {
+                    nodeData.Name = labelAnnotation.Content ?? nodeData.Name;
+                }
+                
+                // Sync additional props
+                if (node.AdditionalInfo != null)
+                {
+                    foreach (var kvp in node.AdditionalInfo)
+                    {
+                        if (kvp.Key != "nodeType")
+                        {
+                            nodeData.Props[kvp.Key] = kvp.Value;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private PaletteNodeInfo? GetPaletteNodeInfo(string nodeType)
@@ -595,6 +885,9 @@ public partial class Editor : IDisposable
         {
             foreach (var movedNode in args.NewValue.Nodes)
             {
+                // Update position in central registry
+                UpdateNodePosition(movedNode.ID, movedNode.OffsetX, movedNode.OffsetY);
+                
                 // Check if this is a group node
                 var group = Groups.FirstOrDefault(g => g.DiagramNodeId == movedNode.ID);
                 if (group != null && DiagramNodes != null)
@@ -614,6 +907,8 @@ public partial class Editor : IDisposable
                             {
                                 node.OffsetX += deltaX;
                                 node.OffsetY += deltaY;
+                                // Also update in registry
+                                UpdateNodePosition(nodeId, node.OffsetX, node.OffsetY);
                             }
                         }
                         
@@ -809,14 +1104,14 @@ public partial class Editor : IDisposable
     {
         if (flowId == CurrentFlowId) return;
         
-        // Save current flow's nodes and connectors
-        SaveCurrentFlowState();
+        // Sync current diagram state to the central registry
+        SyncDiagramToRegistry();
         
         // Switch to the new flow
         CurrentFlowId = flowId;
         
-        // Restore the new flow's nodes and connectors
-        RestoreFlowState(flowId);
+        // Populate the diagram from the central registry for the new flow
+        PopulateDiagramFromRegistry(flowId);
         
         StateHasChanged();
     }
@@ -1990,17 +2285,15 @@ public partial class Editor : IDisposable
         // Add the subflow as a node type to the palette
         AddSubflowToPalette(newSubflow);
         
-        // Save current flow state before switching
-        SaveCurrentFlowState();
+        // Sync current flow to the central registry before switching
+        SyncDiagramToRegistry();
         
-        // Switch to the subflow tab
+        // Add subflow I/O nodes to the central registry
+        AddSubflowIONodesToRegistry(newSubflow);
+        
+        // Switch to the subflow tab and populate from registry
         CurrentFlowId = subflowId;
-        DiagramNodes?.Clear();
-        DiagramConnectors?.Clear();
-        Groups.Clear();
-        
-        // Add input and output nodes for the subflow
-        AddSubflowIONodes(newSubflow);
+        PopulateDiagramFromRegistry(subflowId);
         
         DebugMessages.Add(new DebugMessage
         {
@@ -2012,6 +2305,46 @@ public partial class Editor : IDisposable
         
         HasUnsavedChanges = true;
         StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Add subflow I/O nodes to the central registry
+    /// </summary>
+    private void AddSubflowIONodesToRegistry(SubflowInfo subflow)
+    {
+        // Add input node
+        var inputId = $"{subflow.Id}_in";
+        AllNodes[inputId] = new NodeData
+        {
+            Id = inputId,
+            Z = subflow.Id,
+            Type = "subflow-in",
+            X = 150,
+            Y = 200,
+            W = 80,
+            H = 25,
+            Name = "Input",
+            Color = "#A6BBCF",
+            IconClass = "→",
+            Props = new Dictionary<string, object?> { { "subflowId", subflow.Id } }
+        };
+        
+        // Add output node
+        var outputId = $"{subflow.Id}_out";
+        AllNodes[outputId] = new NodeData
+        {
+            Id = outputId,
+            Z = subflow.Id,
+            Type = "subflow-out",
+            X = 500,
+            Y = 200,
+            W = 80,
+            H = 25,
+            Name = "Output",
+            Color = "#A6BBCF",
+            IconClass = "←",
+            Props = new Dictionary<string, object?> { { "subflowId", subflow.Id } }
+        };
     }
     
     private void AddSubflowIONodes(SubflowInfo subflow)
@@ -3091,6 +3424,40 @@ public partial class Editor : IDisposable
         public string TargetPortId { get; set; } = "";
     }
 
+    /// <summary>
+    /// Central node data storage (like RED.nodes in JS Node-RED)
+    /// Each node has a 'z' property indicating which flow it belongs to
+    /// </summary>
+    private class NodeData
+    {
+        public string Id { get; set; } = "";
+        public string Z { get; set; } = ""; // Flow ID (like JS Node-RED's z property)
+        public string Type { get; set; } = "";
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double W { get; set; } = 122;
+        public double H { get; set; } = 25;
+        public string Name { get; set; } = "";
+        public string Color { get; set; } = "#ddd";
+        public string IconClass { get; set; } = "";
+        public Dictionary<string, object?> Props { get; set; } = new();
+        public bool Changed { get; set; } = false;
+        public bool Dirty { get; set; } = false;
+    }
+
+    /// <summary>
+    /// Central connector data storage
+    /// </summary>
+    private class ConnectorData
+    {
+        public string Id { get; set; } = "";
+        public string Z { get; set; } = ""; // Flow ID
+        public string SourceId { get; set; } = "";
+        public string SourcePortId { get; set; } = "";
+        public string TargetId { get; set; } = "";
+        public string TargetPortId { get; set; } = "";
+    }
+
     private class PaletteCategory
     {
         public string Name { get; set; } = "";
@@ -3141,6 +3508,7 @@ public partial class Editor : IDisposable
     {
         public string Id { get; set; } = "";
         public string Name { get; set; } = "";
+        public string FlowId { get; set; } = ""; // Which flow this group belongs to
         public int NodeCount { get; set; }
         public List<string> NodeIds { get; set; } = new();
         public string Color { get; set; } = "#FFCCCC";
