@@ -890,54 +890,63 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
-    /// Handles position changes - when a group is moved, move its contained nodes too
+    /// Handles position changes - when a group is moved, move its contained nodes too.
+    /// Note: async void is acceptable here as this is an event handler.
     /// </summary>
     private async void OnPositionChanged(PositionChangedEventArgs args)
     {
-        if (args.NewValue?.Nodes?.Count > 0)
+        try
         {
-            foreach (var movedNode in args.NewValue.Nodes)
+            if (args.NewValue?.Nodes?.Count > 0)
             {
-                // Update position in central registry
-                UpdateNodePosition(movedNode.ID, movedNode.OffsetX, movedNode.OffsetY);
-                
-                // Check if this is a group node
-                var group = Groups.FirstOrDefault(g => g.DiagramNodeId == movedNode.ID);
-                if (group != null && DiagramNodes != null && group.NodeIds.Count > 0)
+                foreach (var movedNode in args.NewValue.Nodes)
                 {
-                    // Calculate the delta movement
-                    var oldNode = args.OldValue?.Nodes?.FirstOrDefault(n => n.ID == movedNode.ID);
-                    if (oldNode != null)
+                    // Update position in central registry
+                    UpdateNodePosition(movedNode.ID, movedNode.OffsetX, movedNode.OffsetY);
+                    
+                    // Check if this is a group node
+                    var group = Groups.FirstOrDefault(g => g.DiagramNodeId == movedNode.ID);
+                    if (group != null && DiagramNodes != null && group.NodeIds.Count > 0)
                     {
-                        double deltaX = movedNode.OffsetX - oldNode.OffsetX;
-                        double deltaY = movedNode.OffsetY - oldNode.OffsetY;
-                        
-                        // Only move if there's actual movement
-                        if (Math.Abs(deltaX) > 0.001 || Math.Abs(deltaY) > 0.001)
+                        // Calculate the delta movement
+                        var oldNode = args.OldValue?.Nodes?.FirstOrDefault(n => n.ID == movedNode.ID);
+                        if (oldNode != null)
                         {
-                            // Move all nodes that belong to this group
-                            foreach (var nodeId in group.NodeIds)
+                            double deltaX = movedNode.OffsetX - oldNode.OffsetX;
+                            double deltaY = movedNode.OffsetY - oldNode.OffsetY;
+                            
+                            // Only move if there's actual movement
+                            if (Math.Abs(deltaX) > 0.001 || Math.Abs(deltaY) > 0.001)
                             {
-                                var node = DiagramNodes.FirstOrDefault(n => n.ID == nodeId);
-                                if (node != null)
+                                // Move all nodes that belong to this group
+                                foreach (var nodeId in group.NodeIds)
                                 {
-                                    node.OffsetX += deltaX;
-                                    node.OffsetY += deltaY;
-                                    // Also update in registry
-                                    UpdateNodePosition(nodeId, node.OffsetX, node.OffsetY);
+                                    var node = DiagramNodes.FirstOrDefault(n => n.ID == nodeId);
+                                    if (node != null)
+                                    {
+                                        node.OffsetX += deltaX;
+                                        node.OffsetY += deltaY;
+                                        // Also update in registry
+                                        UpdateNodePosition(nodeId, node.OffsetX, node.OffsetY);
+                                    }
                                 }
+                                
+                                // Update group position info
+                                group.X += deltaX;
+                                group.Y += deltaY;
+                                
+                                // Force diagram to refresh and show updated positions
+                                await InvokeAsync(StateHasChanged);
                             }
-                            
-                            // Update group position info
-                            group.X += deltaX;
-                            group.Y += deltaY;
-                            
-                            // Force diagram to refresh and show updated positions
-                            await InvokeAsync(StateHasChanged);
                         }
                     }
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't crash - this is an event handler
+            Console.WriteLine($"Error in OnPositionChanged: {ex.Message}");
         }
     }
 
