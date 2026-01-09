@@ -769,6 +769,36 @@ public partial class Editor : IDisposable
                 TemplateFormat = GetNodeProperty<string>(node, "syntax", "mustache");
                 TemplateOutputAs = GetNodeProperty<string>(node, "output", "str");
                 break;
+
+            default:
+                // For SDK nodes, load all properties from AdditionalInfo into _nodePropertyValues
+                LoadDynamicNodeProperties(node);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Loads properties for SDK nodes dynamically from AdditionalInfo.
+    /// </summary>
+    private void LoadDynamicNodeProperties(Node node)
+    {
+        _nodePropertyValues.Clear();
+        
+        // Get the schema for this node type
+        var nodeType = GetSelectedNodeType();
+        var schema = GetNodeSchema(nodeType);
+        
+        // Load each property from the node's AdditionalInfo
+        foreach (var field in schema)
+        {
+            if (node.AdditionalInfo?.TryGetValue(field.Name, out var value) == true)
+            {
+                _nodePropertyValues[field.Name] = value;
+            }
+            else if (!string.IsNullOrEmpty(field.DefaultValue))
+            {
+                _nodePropertyValues[field.Name] = field.DefaultValue;
+            }
         }
     }
 
@@ -995,7 +1025,26 @@ public partial class Editor : IDisposable
                     SaveNodeProperty("syntax", TemplateFormat);
                     SaveNodeProperty("output", TemplateOutputAs);
                     break;
+
+                default:
+                    // For SDK nodes, save all properties from _nodePropertyValues
+                    SaveDynamicNodeProperties();
+                    break;
             }
+        }
+    }
+
+    /// <summary>
+    /// Saves properties for SDK nodes dynamically to AdditionalInfo.
+    /// </summary>
+    private void SaveDynamicNodeProperties()
+    {
+        if (SelectedDiagramNode?.AdditionalInfo == null)
+            return;
+
+        foreach (var (key, value) in _nodePropertyValues)
+        {
+            SelectedDiagramNode.AdditionalInfo[key] = value;
         }
     }
 
