@@ -105,6 +105,11 @@ public partial class Editor : IDisposable
         NodeConstraints.Select | NodeConstraints.Drag | NodeConstraints.Delete |
         NodeConstraints.InConnect | NodeConstraints.OutConnect |
         NodeConstraints.PointerEvents | NodeConstraints.AllowDrop;
+    
+    // Group node constraints - no connections allowed (groups don't have ports)
+    private static readonly NodeConstraints GroupNodeConstraints =
+        NodeConstraints.Select | NodeConstraints.Drag | NodeConstraints.Delete |
+        NodeConstraints.PointerEvents;
 
     // Application state
     private Workspace CurrentWorkspace = new();
@@ -538,7 +543,7 @@ public partial class Editor : IDisposable
             TargetID = targetId,
             SourcePortID = "port2",
             TargetPortID = "port1",
-            Type = ConnectorSegmentType.Bezier,
+            Type = ConnectorSegmentType.Orthogonal,
             Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
             TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
             // Fallback points to prevent null reference during initialization
@@ -744,7 +749,8 @@ public partial class Editor : IDisposable
             connector.Style.StrokeColor = "#999";
             connector.Style.StrokeWidth = 2;
             connector.TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None };
-            connector.Type = ConnectorSegmentType.Bezier;
+            // Use Orthogonal connectors for now - Bezier requires additional segment configuration
+            connector.Type = ConnectorSegmentType.Orthogonal;
             
             // Initialize source and target points to prevent null reference during connection
             connector.SourcePoint ??= new DiagramPoint() { X = 0, Y = 0 };
@@ -952,7 +958,7 @@ public partial class Editor : IDisposable
                 SourcePortID = connectorData.SourcePortId,
                 TargetID = connectorData.TargetId,
                 TargetPortID = connectorData.TargetPortId,
-                Type = ConnectorSegmentType.Bezier,
+                Type = ConnectorSegmentType.Orthogonal,
                 Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
                 TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
                 // Fallback points to prevent null reference during initialization
@@ -982,7 +988,8 @@ public partial class Editor : IDisposable
                     StrokeDashArray = "5,3"
                 },
                 ZIndex = -1,
-                Constraints = NodeConstraints.Default & ~NodeConstraints.Resize,
+                Ports = new DiagramObjectCollection<PointPort>(), // Empty ports - groups don't have connections
+                Constraints = GroupNodeConstraints, // No connections - groups don't have ports
                 Annotations = new DiagramObjectCollection<ShapeAnnotation>
                 {
                     new ShapeAnnotation
@@ -2300,7 +2307,8 @@ public partial class Editor : IDisposable
                     StrokeDashArray = "5,3"
                 },
                 ZIndex = -1, // Behind other nodes
-                Constraints = NodeConstraints.Default & ~NodeConstraints.Resize
+                Ports = new DiagramObjectCollection<PointPort>(), // Empty ports - groups don't have connections
+                Constraints = GroupNodeConstraints // No connections - groups don't have ports
             };
             
             // Add label annotation for the group name
