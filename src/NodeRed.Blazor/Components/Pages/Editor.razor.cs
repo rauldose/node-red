@@ -59,6 +59,9 @@ public partial class Editor : IDisposable
     private string DebugMessageFilter = "";
     private bool DebugFilterByNode = false;
 
+    // Node statuses (node ID -> status)
+    private Dictionary<string, NodeStatus> _nodeStatuses = new();
+
     // Node counter for unique IDs
     private int NodeCount = 0;
     private int ConnectorCount = 0;
@@ -2009,7 +2012,32 @@ public partial class Editor : IDisposable
 
     private void OnNodeStatusChanged(string nodeId, NodeStatus status)
     {
+        _nodeStatuses[nodeId] = status;
         InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Gets the status for a node.
+    /// </summary>
+    private NodeStatus? GetNodeStatus(string nodeId)
+    {
+        return _nodeStatuses.TryGetValue(nodeId, out var status) ? status : null;
+    }
+
+    /// <summary>
+    /// Gets the CSS color for a node status.
+    /// </summary>
+    private string GetStatusColor(StatusColor color)
+    {
+        return color switch
+        {
+            StatusColor.Red => "#c00",
+            StatusColor.Green => "#5a8",
+            StatusColor.Yellow => "#f90",
+            StatusColor.Blue => "#53a3f3",
+            StatusColor.Grey => "#999",
+            _ => "#999"
+        };
     }
 
     private void ClearDebugMessages()

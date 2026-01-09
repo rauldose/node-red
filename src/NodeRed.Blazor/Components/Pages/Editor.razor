@@ -689,6 +689,19 @@
                                     <td>name</td>
                                     <td class="red-ui-info-value">@(SelectedNodeName ?? "(none)")</td>
                                 </tr>
+                                @{
+                                    var nodeStatus = GetNodeStatus(SelectedDiagramNode.ID);
+                                    if (nodeStatus != null && !string.IsNullOrEmpty(nodeStatus.Text))
+                                    {
+                                        <tr>
+                                            <td>status</td>
+                                            <td class="red-ui-info-value">
+                                                <span class="red-ui-node-status-indicator" style="background-color: @GetStatusColor(nodeStatus.Color); border-radius: @(nodeStatus.Shape == StatusShape.Ring ? "0" : "50%"); border: @(nodeStatus.Shape == StatusShape.Ring ? "2px solid " + GetStatusColor(nodeStatus.Color) : "none"); width: 10px; height: 10px; display: inline-block;"></span>
+                                                <span style="margin-left: 5px;">@nodeStatus.Text</span>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
                             </table>
                             <div class="red-ui-info-tips">
                                 <p><strong>Tip:</strong> Double-click the node to edit its properties.</p>
@@ -783,18 +796,11 @@
     /// </summary>
     private List<NodePropertyField> GetNodeSchema(string nodeType)
     {
-        // First try to get properties from the NodeLoader (SDK nodes define properties via DefineProperties())
+        // Get properties from the NodeLoader (SDK nodes define properties via DefineProperties())
         var nodeDef = NodeLoader.GetNodeDefinitions().FirstOrDefault(d => d.Type == nodeType);
         if (nodeDef?.Properties != null && nodeDef.Properties.Count > 0)
         {
-            return nodeDef.Properties.Select(NodePropertySchemas.FromDefinition).ToList();
-        }
-
-        // Fall back to hard-coded schemas for backwards compatibility
-        var schema = NodePropertySchemas.GetSchema(nodeType);
-        if (schema.Count > 0)
-        {
-            return schema;
+            return nodeDef.Properties.Select(NodePropertyField.FromDefinition).ToList();
         }
 
         return new List<NodePropertyField>();
