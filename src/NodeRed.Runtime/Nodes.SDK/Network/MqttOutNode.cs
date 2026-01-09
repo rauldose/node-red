@@ -110,8 +110,9 @@ The topic can be set in the node configuration or provided dynamically via **msg
 
         try
         {
-            // Topic: use msg.topic if available, otherwise node config
-            var topic = msg.Topic ?? GetConfig<string>("topic", "");
+            // Topic: node config takes precedence, then msg.topic (like JS Node-RED)
+            var nodeTopic = GetConfig<string>("topic", "");
+            var topic = !string.IsNullOrEmpty(nodeTopic) ? nodeTopic : msg.Topic;
             
             // QoS: node config takes precedence, then msg.qos, then default 0
             var nodeQos = GetConfig<string>("qos", "");
