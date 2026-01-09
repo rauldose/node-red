@@ -1,0 +1,6 @@
+# Plugin DLLs are copied here at build time
+# Don't commit these - they are build artifacts
+*.dll
+*.pdb
+*.deps.json
+*.xml
