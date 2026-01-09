@@ -100,6 +100,24 @@
                         <a class="red-ui-menu-item" @onclick="OnFlowsClick">
                             <i class="fa fa-sitemap"></i> Flows
                         </a>
+                        @{
+                            var currentFlow = Flows.FirstOrDefault(f => f.Id == CurrentFlowId);
+                        }
+                        @if (currentFlow != null)
+                        {
+                            @if (currentFlow.Disabled)
+                            {
+                                <a class="red-ui-menu-item" @onclick="EnableCurrentFlow">
+                                    <i class="fa fa-check"></i> Enable flow
+                                </a>
+                            }
+                            else
+                            {
+                                <a class="red-ui-menu-item" @onclick="DisableCurrentFlow">
+                                    <i class="fa fa-ban"></i> Disable flow
+                                </a>
+                            }
+                        }
                         <a class="red-ui-menu-item" @onclick="OnSubflowsClick">
                             <i class="fa fa-th-large"></i> Subflows
                         </a>
@@ -596,10 +614,14 @@
             <ul id="red-ui-workspace-tabs">
                 @foreach (var flow in Flows)
                 {
-                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "")"
+                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "") @(flow.Disabled ? "red-ui-workspace-disabled" : "")"
                         @onclick="() => SwitchFlow(flow.Id)"
                         @ondblclick="() => EditFlowProperties(flow.Id)">
                         <a href="javascript:void(0)">
+                            @if (flow.Disabled)
+                            {
+                                <i class="fa fa-ban red-ui-workspace-disabled-icon"></i>
+                            }
                             <span>@flow.Label</span>
                             @if (Flows.Count > 1)
                             {
@@ -1387,6 +1409,29 @@
 
     .red-ui-tab-button a:hover {
         color: #444;
+    }
+
+    /* Disabled flow tabs - dashed borders, italic text, disabled icon */
+    .red-ui-workspace-disabled {
+        border-top-style: dashed;
+        border-left-style: dashed;
+        border-right-style: dashed;
+    }
+
+    .red-ui-workspace-disabled a {
+        font-style: italic;
+        color: #aaa !important;
+    }
+
+    .red-ui-workspace-disabled.active a {
+        font-weight: normal;
+        color: #999 !important;
+    }
+
+    .red-ui-workspace-disabled-icon {
+        display: inline;
+        margin-right: 5px;
+        color: #aaa;
     }
 
     #red-ui-workspace-chart {

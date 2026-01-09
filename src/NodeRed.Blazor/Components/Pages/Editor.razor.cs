@@ -765,8 +765,8 @@ public partial class Editor : IDisposable
         {
             FlowPropertiesFlowId = flowId;
             FlowPropertiesLabel = flow.Label;
-            FlowPropertiesInfo = "";
-            FlowPropertiesEnabled = true;
+            FlowPropertiesInfo = flow.Info;
+            FlowPropertiesEnabled = !flow.Disabled;
             IsFlowPropertiesDialogOpen = true;
         }
     }
@@ -782,9 +782,36 @@ public partial class Editor : IDisposable
         if (flow != null)
         {
             flow.Label = FlowPropertiesLabel;
+            flow.Info = FlowPropertiesInfo;
+            flow.Disabled = !FlowPropertiesEnabled;
         }
         IsFlowPropertiesDialogOpen = false;
+        HasUnsavedChanges = true;
         StateHasChanged();
+    }
+
+    private void EnableCurrentFlow()
+    {
+        var flow = Flows.FirstOrDefault(f => f.Id == CurrentFlowId);
+        if (flow != null)
+        {
+            flow.Disabled = false;
+            HasUnsavedChanges = true;
+            IsMainMenuOpen = false;
+            StateHasChanged();
+        }
+    }
+
+    private void DisableCurrentFlow()
+    {
+        var flow = Flows.FirstOrDefault(f => f.Id == CurrentFlowId);
+        if (flow != null)
+        {
+            flow.Disabled = true;
+            HasUnsavedChanges = true;
+            IsMainMenuOpen = false;
+            StateHasChanged();
+        }
     }
 
     private string GetSelectedNodeType()
@@ -1957,6 +1984,8 @@ public partial class Editor : IDisposable
     {
         public string Id { get; set; } = "";
         public string Label { get; set; } = "";
+        public string Info { get; set; } = "";
+        public bool Disabled { get; set; } = false;
     }
 
     private class PaletteCategory
