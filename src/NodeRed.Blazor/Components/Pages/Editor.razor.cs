@@ -1039,8 +1039,11 @@ public partial class Editor : IDisposable
     /// </summary>
     private void SaveDynamicNodeProperties()
     {
-        if (SelectedDiagramNode?.AdditionalInfo == null)
+        if (SelectedDiagramNode == null)
             return;
+
+        // Initialize AdditionalInfo if null
+        SelectedDiagramNode.AdditionalInfo ??= new Dictionary<string, object>();
 
         foreach (var (key, value) in _nodePropertyValues)
         {
