@@ -266,6 +266,77 @@ public partial class Editor : IDisposable
             storageNodes,
             databaseNodes
         };
+
+        // Dynamically add plugin nodes from NodeLoader
+        AddPluginNodesToPalette();
+    }
+
+    /// <summary>
+    /// Dynamically adds plugin nodes to the palette based on discovered node definitions.
+    /// </summary>
+    private void AddPluginNodesToPalette()
+    {
+        // Get all node definitions from the loader
+        var nodeDefinitions = NodeLoader.GetNodeDefinitions();
+        
+        // Group nodes by category (using module name as category for external plugins)
+        var pluginCategories = new Dictionary<string, List<PaletteNodeInfo>>();
+        
+        // Get the set of built-in node types to exclude
+        var builtInTypes = new HashSet<string>(
+            PaletteCategories.SelectMany(c => c.Nodes.Select(n => n.Type)),
+            StringComparer.OrdinalIgnoreCase);
+        
+        foreach (var nodeDef in nodeDefinitions)
+        {
+            // Skip built-in nodes (already in palette)
+            if (builtInTypes.Contains(nodeDef.Type))
+                continue;
+            
+            // Determine category name - use the category from definition or module name
+            var categoryName = nodeDef.Category.ToString().ToLowerInvariant();
+            
+            // For external plugins, use a distinct category name
+            if (!string.IsNullOrEmpty(nodeDef.Type) && nodeDef.Type.Contains('-'))
+            {
+                // Extract prefix (e.g., "example" from "example-upper")
+                var prefix = nodeDef.Type.Split('-')[0];
+                categoryName = prefix;
+            }
+            
+            if (!pluginCategories.ContainsKey(categoryName))
+            {
+                pluginCategories[categoryName] = new List<PaletteNodeInfo>();
+            }
+            
+            // Map icon from definition or use default
+            var iconClass = !string.IsNullOrEmpty(nodeDef.Icon) ? nodeDef.Icon : "fa fa-cube";
+            
+            pluginCategories[categoryName].Add(new PaletteNodeInfo
+            {
+                Type = nodeDef.Type,
+                Label = nodeDef.DisplayName ?? nodeDef.Type,
+                Color = nodeDef.Color ?? "#999",
+                IconClass = iconClass,
+                IconBackground = "rgba(0,0,0,0.05)",
+                Inputs = nodeDef.Inputs,
+                Outputs = nodeDef.Outputs
+            });
+        }
+        
+        // Add plugin categories to palette
+        foreach (var (categoryName, nodes) in pluginCategories)
+        {
+            if (nodes.Count > 0)
+            {
+                PaletteCategories.Add(new PaletteCategory
+                {
+                    Name = categoryName,
+                    IsExpanded = true,
+                    Nodes = nodes
+                });
+            }
+        }
     }
 
     // Palette filtering
@@ -333,10 +404,10 @@ public partial class Editor : IDisposable
 
     private void InitDiagramModel()
     {
-        // Create sample flow nodes only (no connectors initially)
-        // Users can draw connections by clicking on ports
+        // Create a simple sample flow
+        // Users can add plugin nodes by dragging from the palette
         CreateNode("inject1", 150, 150, "inject", "timestamp", "#a6bbcf");
-        CreateNode("function1", 350, 150, "function", "function", "#fdd0a2");
+        CreateNode("function1", 350, 150, "function", "process", "#fdd0a2");
         CreateNode("debug1", 550, 150, "debug", "msg.payload", "#87a980");
 
         // Note: Connectors are not created here to avoid initialization issues
