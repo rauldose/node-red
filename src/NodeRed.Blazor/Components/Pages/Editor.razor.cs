@@ -321,11 +321,26 @@ public partial class Editor : IDisposable
     private Node CreateNodeRedStyleNode(string id, double x, double y, string nodeType, string label, string color, PaletteNodeInfo? paletteNode)
     {
         var iconClass = paletteNode?.IconClass ?? "fa fa-cube";
-        var hasInput = paletteNode?.Inputs > 0 || (nodeType != "inject" && nodeType != "complete" && nodeType != "catch" && 
-                        nodeType != "status" && nodeType != "link in" && nodeType != "comment");
-        var hasOutput = paletteNode?.Outputs > 0 || (nodeType != "debug" && nodeType != "link out" && nodeType != "http response" && 
-                         nodeType != "mqtt out" && nodeType != "websocket out" && nodeType != "tcp out" && 
-                         nodeType != "udp out" && nodeType != "comment");
+        
+        // Use palette node info if available, otherwise fall back to hardcoded lists
+        bool hasInput;
+        bool hasOutput;
+        if (paletteNode != null)
+        {
+            hasInput = paletteNode.Inputs > 0;
+            hasOutput = paletteNode.Outputs > 0;
+        }
+        else
+        {
+            // Fallback for nodes not found in palette
+            hasInput = nodeType != "inject" && nodeType != "complete" && nodeType != "catch" && 
+                       nodeType != "status" && nodeType != "link in" && nodeType != "comment" &&
+                       nodeType != "mqtt in" && nodeType != "http in" && nodeType != "tcp in" && 
+                       nodeType != "udp in" && nodeType != "websocket in" && nodeType != "watch";
+            hasOutput = nodeType != "debug" && nodeType != "link out" && nodeType != "http response" && 
+                        nodeType != "mqtt out" && nodeType != "websocket out" && nodeType != "tcp out" && 
+                        nodeType != "udp out" && nodeType != "comment";
+        }
 
         // Create a node with child nodes for the icon area
         var node = new Node()
@@ -335,7 +350,7 @@ public partial class Editor : IDisposable
             OffsetY = y,
             Width = 130,
             Height = 30,
-            Ports = CreatePorts(nodeType),
+            Ports = CreatePortsFromNodeInfo(hasInput, hasOutput),
             Style = new ShapeStyle { Fill = color, StrokeColor = "#999", StrokeWidth = 1 },
             Shape = new BasicShape() { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
             Constraints = DefaultNodeConstraints,
@@ -394,6 +409,9 @@ public partial class Editor : IDisposable
         return iconClass switch
         {
             "fa fa-arrow-right" => "\uf061",
+            "fa fa-arrow-left" => "\uf060",
+            "fa fa-arrow-down" => "\uf063",
+            "fa fa-arrow-up" => "\uf062",
             "fa fa-bug" => "\uf188",
             "fa fa-code" => "\uf121",
             "fa fa-edit" => "\uf044",
@@ -404,7 +422,6 @@ public partial class Editor : IDisposable
             "fa fa-warning" => "\uf071",
             "fa fa-check-circle-o" => "\uf05d",
             "fa fa-circle-o" => "\uf10c",
-            "fa fa-arrow-left" => "\uf060",
             "fa fa-link" => "\uf0c1",
             "fa fa-arrows-h" => "\uf07e",
             "fa fa-toggle-off" => "\uf204",
@@ -423,6 +440,16 @@ public partial class Editor : IDisposable
             "fa fa-file-code-o" => "\uf1c9",
             "fa fa-file" => "\uf15b",
             "fa fa-eye" => "\uf06e",
+            "fa fa-tag" => "\uf02b",
+            "fa fa-server" => "\uf233",
+            "fa fa-filter" => "\uf0b0",
+            "fa fa-database" => "\uf1c0",
+            "fa fa-lock" => "\uf023",
+            "fa fa-shield" => "\uf132",
+            "fa fa-cog" => "\uf013",
+            "fa fa-cogs" => "\uf085",
+            "fa fa-sitemap" => "\uf0e8",
+            "fa fa-dot-circle-o" => "\uf192",
             _ => "\uf1b2" // cube as default
         };
     }
@@ -458,14 +485,21 @@ public partial class Editor : IDisposable
 
     private DiagramObjectCollection<PointPort> CreatePorts(string nodeType = "")
     {
-        var ports = new DiagramObjectCollection<PointPort>();
-
-        // Determine inputs/outputs based on node type
+        // Use the hardcoded list as fallback for when palette info is not available
         bool hasInput = nodeType != "inject" && nodeType != "complete" && nodeType != "catch" && 
-                        nodeType != "status" && nodeType != "link in" && nodeType != "comment";
+                        nodeType != "status" && nodeType != "link in" && nodeType != "comment" &&
+                        nodeType != "mqtt in" && nodeType != "http in" && nodeType != "tcp in" && 
+                        nodeType != "udp in" && nodeType != "websocket in" && nodeType != "watch";
         bool hasOutput = nodeType != "debug" && nodeType != "link out" && nodeType != "http response" && 
                          nodeType != "mqtt out" && nodeType != "websocket out" && nodeType != "tcp out" && 
                          nodeType != "udp out" && nodeType != "comment";
+        
+        return CreatePortsFromNodeInfo(hasInput, hasOutput);
+    }
+
+    private DiagramObjectCollection<PointPort> CreatePortsFromNodeInfo(bool hasInput, bool hasOutput)
+    {
+        var ports = new DiagramObjectCollection<PointPort>();
 
         if (hasInput)
         {
