@@ -942,7 +942,7 @@ public partial class Editor : IDisposable
             DiagramNodes.Add(node);
         }
         
-        // Restore connectors
+        // Restore connectors - add fallback points to prevent NullReferenceException
         foreach (var connectorData in flow.StoredConnectors)
         {
             var connector = new Connector
@@ -954,7 +954,10 @@ public partial class Editor : IDisposable
                 TargetPortID = connectorData.TargetPortId,
                 Type = ConnectorSegmentType.Bezier,
                 Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
-                TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None }
+                TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
+                // Fallback points to prevent null reference during initialization
+                SourcePoint = new DiagramPoint() { X = 0, Y = 0 },
+                TargetPoint = new DiagramPoint() { X = 100, Y = 0 }
             };
             DiagramConnectors.Add(connector);
         }
