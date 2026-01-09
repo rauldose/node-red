@@ -1846,7 +1846,7 @@ public partial class Editor : IDisposable
         Flows.Add(newFlow);
         
         // Remove selected nodes from current flow (they're now in the subflow)
-        foreach (var node in selectedNodes.ToList())
+        foreach (var node in selectedNodes)
         {
             DiagramNodes?.Remove(node);
         }
@@ -1861,8 +1861,9 @@ public partial class Editor : IDisposable
         }
         
         // Create a subflow instance node in place of the removed nodes
-        var avgX = selectedNodes.Average(n => n.OffsetX);
-        var avgY = selectedNodes.Average(n => n.OffsetY);
+        // Note: selectedNodes.Count > 0 is guaranteed by earlier check
+        var avgX = selectedNodes.Count > 0 ? selectedNodes.Average(n => n.OffsetX) : 300;
+        var avgY = selectedNodes.Count > 0 ? selectedNodes.Average(n => n.OffsetY) : 200;
         
         var subflowInstanceNode = CreateNodeRedStyleNode(subflowName, "subflow:" + subflowId, avgX, avgY, "#DDAA99");
         DiagramNodes?.Add(subflowInstanceNode);
@@ -1996,18 +1997,25 @@ public partial class Editor : IDisposable
             var groupId = $"group_{Guid.NewGuid():N}";
             var groupName = $"Group {Groups.Count + 1}";
             
-            // Calculate bounding box for the group
-            double minX = double.MaxValue, minY = double.MaxValue;
-            double maxX = double.MinValue, maxY = double.MinValue;
-            var nodeIds = new List<string>();
+            // Calculate bounding box for the group - initialize with first node
+            var firstNode = selectedNodes[0];
+            double minX = firstNode.OffsetX - firstNode.Width / 2;
+            double minY = firstNode.OffsetY - firstNode.Height / 2;
+            double maxX = firstNode.OffsetX + firstNode.Width / 2;
+            double maxY = firstNode.OffsetY + firstNode.Height / 2;
+            var nodeIds = new List<string> { firstNode.ID };
             
-            foreach (var node in selectedNodes)
+            foreach (var node in selectedNodes.Skip(1))
             {
                 nodeIds.Add(node.ID);
-                if (node.OffsetX < minX) minX = node.OffsetX;
-                if (node.OffsetY < minY) minY = node.OffsetY;
-                if (node.OffsetX + node.Width > maxX) maxX = node.OffsetX + node.Width;
-                if (node.OffsetY + node.Height > maxY) maxY = node.OffsetY + node.Height;
+                var nodeMinX = node.OffsetX - node.Width / 2;
+                var nodeMinY = node.OffsetY - node.Height / 2;
+                var nodeMaxX = node.OffsetX + node.Width / 2;
+                var nodeMaxY = node.OffsetY + node.Height / 2;
+                if (nodeMinX < minX) minX = nodeMinX;
+                if (nodeMinY < minY) minY = nodeMinY;
+                if (nodeMaxX > maxX) maxX = nodeMaxX;
+                if (nodeMaxY > maxY) maxY = nodeMaxY;
             }
             
             // Add padding around the group
@@ -2034,7 +2042,7 @@ public partial class Editor : IDisposable
                     StrokeDashArray = "5,3"
                 },
                 ZIndex = -1, // Behind other nodes
-                Constraints = NodeConstraints.Default & ~NodeConstraints.Select // Can't be selected individually
+                Constraints = NodeConstraints.Default & ~NodeConstraints.Resize // Can be selected but not resized
             };
             
             // Add label annotation for the group name
