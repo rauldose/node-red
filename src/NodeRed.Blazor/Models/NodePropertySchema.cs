@@ -1,6 +1,8 @@
 // Copyright OpenJS Foundation and other contributors
 // Licensed under the Apache License, Version 2.0
 
+using NodeRed.Core.Entities;
+
 namespace NodeRed.Blazor.Models;
 
 /// <summary>
@@ -704,7 +706,7 @@ public static class NodePropertySchemas
     /// <summary>
     /// Converts SDK NodePropertyDefinition to UI NodePropertyField.
     /// </summary>
-    public static NodePropertyField FromDefinition(NodeRed.Core.Entities.NodePropertyDefinition def)
+    public static NodePropertyField FromDefinition(NodePropertyDefinition def)
     {
         return new NodePropertyField
         {
@@ -731,18 +733,18 @@ public static class NodePropertySchemas
     /// <summary>
     /// Converts SDK PropertyType to UI PropertyFieldType.
     /// </summary>
-    private static PropertyFieldType ConvertPropertyType(NodeRed.Core.Entities.PropertyType type)
+    private static PropertyFieldType ConvertPropertyType(PropertyType type)
     {
         return type switch
         {
-            NodeRed.Core.Entities.PropertyType.Text => PropertyFieldType.Text,
-            NodeRed.Core.Entities.PropertyType.Number => PropertyFieldType.Number,
-            NodeRed.Core.Entities.PropertyType.Select => PropertyFieldType.Select,
-            NodeRed.Core.Entities.PropertyType.Checkbox => PropertyFieldType.Checkbox,
-            NodeRed.Core.Entities.PropertyType.TextArea => PropertyFieldType.TextArea,
-            NodeRed.Core.Entities.PropertyType.Code => PropertyFieldType.Code,
-            NodeRed.Core.Entities.PropertyType.Info => PropertyFieldType.Info,
-            NodeRed.Core.Entities.PropertyType.Button => PropertyFieldType.Button,
+            PropertyType.Text => PropertyFieldType.Text,
+            PropertyType.Number => PropertyFieldType.Number,
+            PropertyType.Select => PropertyFieldType.Select,
+            PropertyType.Checkbox => PropertyFieldType.Checkbox,
+            PropertyType.TextArea => PropertyFieldType.TextArea,
+            PropertyType.Code => PropertyFieldType.Code,
+            PropertyType.Info => PropertyFieldType.Info,
+            PropertyType.Button => PropertyFieldType.Button,
             _ => PropertyFieldType.Text
         };
     }

@@ -38,8 +38,9 @@ public abstract class NodeBase : INode
 
     /// <summary>
     /// The node's type definition.
+    /// Can be accessed before initialization for registration purposes.
     /// </summary>
-    public NodeDefinition Definition => _definition ?? throw new InvalidOperationException("Node not initialized");
+    public NodeDefinition Definition => _definition ??= BuildDefinition();
 
     /// <summary>
     /// The node's unique ID.
