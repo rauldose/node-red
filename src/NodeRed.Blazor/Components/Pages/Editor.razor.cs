@@ -72,45 +72,8 @@ public partial class Editor : IDisposable
     private string PaletteFilter = "";
     private PaletteNodeInfo? DraggedNode = null;
 
-    // Node property panel bindings - Inject node
-    private string InjectPayloadType = "date";
-    private string InjectPayloadValue = "";
-    private string InjectTopic = "";
-    private string InjectRepeatType = "none";
-    private double InjectRepeatInterval = 1;
-#pragma warning disable CS0414 // Field assigned but never used - used in data binding
-    private bool InjectOnce = false;
-    private double InjectOnceDelay = 0.1;
-#pragma warning restore CS0414
-
-    // Node property panel bindings - Debug node
-    private string DebugOutput = "payload";
-    private bool DebugToSidebar = true;
-    private bool DebugToConsole = false;
-    private bool DebugToStatus = false;
-
-    // Node property panel bindings - Function node
-    private int FunctionOutputs = 1;
-    private string FunctionCode = "return msg;";
-
-    // Node property panel bindings - Change node
-    private string ChangeAction = "set";
-    private string ChangeProperty = "payload";
-    private string ChangeValue = "";
-
-    // Node property panel bindings - Switch node
-    private string SwitchProperty = "payload";
-
-    // Node property panel bindings - Delay node
-    private string DelayAction = "delay";
-    private double DelayTime = 1;
-    private string DelayUnits = "s";
-
-    // Node property panel bindings - Template node
-    private string TemplateProperty = "payload";
-    private string TemplateContent = "This is the payload: {{payload}}";
-    private string TemplateFormat = "mustache";
-    private string TemplateOutputAs = "str";
+    // All node properties are now stored dynamically in _nodePropertyValues
+    // No more hardcoded property bindings - properties come from SDK node DefineProperties()
 
     // Default node constraints
     private static readonly NodeConstraints DefaultNodeConstraints =
@@ -650,58 +613,8 @@ public partial class Editor : IDisposable
 
     private void LoadNodeProperties(Node node)
     {
-        var nodeType = GetSelectedNodeType();
-
-        switch (nodeType)
-        {
-            case "inject":
-                InjectPayloadType = GetNodeProperty<string>(node, "payloadType", "date");
-                InjectPayloadValue = GetNodeProperty<string>(node, "payload", "");
-                InjectTopic = GetNodeProperty<string>(node, "topic", "");
-                InjectRepeatType = string.IsNullOrEmpty(GetNodeProperty<string>(node, "repeat", "")) ? "none" : "interval";
-                InjectRepeatInterval = GetNodeProperty<double>(node, "repeat", 1);
-                break;
-
-            case "debug":
-                DebugOutput = GetNodeProperty<string>(node, "complete", "payload");
-                DebugToSidebar = GetNodeProperty<bool>(node, "tosidebar", true);
-                DebugToConsole = GetNodeProperty<bool>(node, "console", false);
-                DebugToStatus = GetNodeProperty<bool>(node, "tostatus", false);
-                break;
-
-            case "function":
-                FunctionOutputs = GetNodeProperty<int>(node, "outputs", 1);
-                FunctionCode = GetNodeProperty<string>(node, "func", "return msg;");
-                break;
-
-            case "change":
-                ChangeAction = GetNodeProperty<string>(node, "action", "set");
-                ChangeProperty = GetNodeProperty<string>(node, "property", "payload");
-                ChangeValue = GetNodeProperty<string>(node, "value", "");
-                break;
-
-            case "switch":
-                SwitchProperty = GetNodeProperty<string>(node, "property", "payload");
-                break;
-
-            case "delay":
-                DelayAction = GetNodeProperty<string>(node, "pauseType", "delay");
-                DelayTime = GetNodeProperty<double>(node, "timeout", 1);
-                DelayUnits = GetNodeProperty<string>(node, "timeoutUnits", "s");
-                break;
-
-            case "template":
-                TemplateProperty = GetNodeProperty<string>(node, "field", "payload");
-                TemplateContent = GetNodeProperty<string>(node, "template", "This is the payload: {{payload}}");
-                TemplateFormat = GetNodeProperty<string>(node, "syntax", "mustache");
-                TemplateOutputAs = GetNodeProperty<string>(node, "output", "str");
-                break;
-
-            default:
-                // For SDK nodes, load all properties from AdditionalInfo into _nodePropertyValues
-                LoadDynamicNodeProperties(node);
-                break;
-        }
+        // All nodes use dynamic property loading from SDK definitions
+        LoadDynamicNodeProperties(node);
     }
 
     /// <summary>
@@ -908,57 +821,8 @@ public partial class Editor : IDisposable
                 labelAnnotation.Content = SelectedNodeName;
             }
 
-            // Save properties to AdditionalInfo
-            var nodeType = GetSelectedNodeType();
-            switch (nodeType)
-            {
-                case "inject":
-                    SaveNodeProperty("payloadType", InjectPayloadType);
-                    SaveNodeProperty("payload", InjectPayloadValue);
-                    SaveNodeProperty("topic", InjectTopic);
-                    SaveNodeProperty("repeat", InjectRepeatType == "interval" ? InjectRepeatInterval.ToString() : "");
-                    break;
-
-                case "debug":
-                    SaveNodeProperty("complete", DebugOutput);
-                    SaveNodeProperty("tosidebar", DebugToSidebar);
-                    SaveNodeProperty("console", DebugToConsole);
-                    SaveNodeProperty("tostatus", DebugToStatus);
-                    break;
-
-                case "function":
-                    SaveNodeProperty("outputs", FunctionOutputs);
-                    SaveNodeProperty("func", FunctionCode);
-                    break;
-
-                case "change":
-                    SaveNodeProperty("action", ChangeAction);
-                    SaveNodeProperty("property", ChangeProperty);
-                    SaveNodeProperty("value", ChangeValue);
-                    break;
-
-                case "switch":
-                    SaveNodeProperty("property", SwitchProperty);
-                    break;
-
-                case "delay":
-                    SaveNodeProperty("pauseType", DelayAction);
-                    SaveNodeProperty("timeout", DelayTime);
-                    SaveNodeProperty("timeoutUnits", DelayUnits);
-                    break;
-
-                case "template":
-                    SaveNodeProperty("field", TemplateProperty);
-                    SaveNodeProperty("template", TemplateContent);
-                    SaveNodeProperty("syntax", TemplateFormat);
-                    SaveNodeProperty("output", TemplateOutputAs);
-                    break;
-
-                default:
-                    // For SDK nodes, save all properties from _nodePropertyValues
-                    SaveDynamicNodeProperties();
-                    break;
-            }
+            // All nodes use dynamic property saving from SDK definitions
+            SaveDynamicNodeProperties();
         }
     }
 
@@ -1973,6 +1837,16 @@ public partial class Editor : IDisposable
     private NodeStatus? GetNodeStatus(string nodeId)
     {
         return _nodeStatuses.TryGetValue(nodeId, out var status) ? status : null;
+    }
+
+    /// <summary>
+    /// Gets the help text for a node type from SDK definitions.
+    /// </summary>
+    private NodeHelpText? GetNodeHelp(string nodeType)
+    {
+        var definitions = NodeLoader.GetNodeDefinitions();
+        var def = definitions.FirstOrDefault(d => d.Type == nodeType);
+        return def?.Help;
     }
 
     /// <summary>

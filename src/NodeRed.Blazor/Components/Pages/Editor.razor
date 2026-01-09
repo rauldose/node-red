@@ -704,6 +704,72 @@
                                     }
                                 }
                             </table>
+                            
+                            @* Node Help/Documentation Section *@
+                            <text>
+                            @{
+                                var nodeHelp = GetNodeHelp(GetSelectedNodeType());
+                                if (nodeHelp != null)
+                                {
+                                    if (!string.IsNullOrEmpty(nodeHelp.Summary))
+                                    {
+                                        <div class="red-ui-info-section">
+                                            <p>@nodeHelp.Summary</p>
+                                        </div>
+                                    }
+                                    
+                                    if (nodeHelp.Inputs?.Count > 0)
+                                    {
+                                        <div class="red-ui-info-section">
+                                            <h4>Inputs</h4>
+                                            <dl>
+                                                @foreach (var input in nodeHelp.Inputs)
+                                                {
+                                                    <dt><code>@input.Name</code> <span class="red-ui-info-type-tag">@input.Type</span></dt>
+                                                    <dd>@input.Description</dd>
+                                                }
+                                            </dl>
+                                        </div>
+                                    }
+                                    
+                                    if (nodeHelp.Outputs?.Count > 0)
+                                    {
+                                        <div class="red-ui-info-section">
+                                            <h4>Outputs</h4>
+                                            <dl>
+                                                @foreach (var output in nodeHelp.Outputs)
+                                                {
+                                                    <dt><code>@output.Name</code> <span class="red-ui-info-type-tag">@output.Type</span></dt>
+                                                    <dd>@output.Description</dd>
+                                                }
+                                            </dl>
+                                        </div>
+                                    }
+                                    
+                                    if (!string.IsNullOrEmpty(nodeHelp.Details))
+                                    {
+                                        <div class="red-ui-info-section red-ui-info-details">
+                                            <h4>Details</h4>
+                                            <p style="white-space: pre-wrap;">@nodeHelp.Details</p>
+                                        </div>
+                                    }
+                                    
+                                    if (nodeHelp.References?.Count > 0)
+                                    {
+                                        <div class="red-ui-info-section">
+                                            <h4>References</h4>
+                                            <ul>
+                                                @foreach (var reference in nodeHelp.References)
+                                                {
+                                                    <li><a href="@reference.Url" target="_blank">@reference.Title</a></li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    }
+                                }
+                            }
+                            </text>
+                            
                             <div class="red-ui-info-tips">
                                 <p><strong>Tip:</strong> Double-click the node to edit its properties.</p>
                             </div>
@@ -1503,6 +1569,80 @@
         border-radius: 3px;
         font-size: 11px;
         color: #666;
+    }
+
+    .red-ui-info-section {
+        margin: 10px 0;
+        padding: 0 5px;
+    }
+
+    .red-ui-info-section h4 {
+        font-size: 12px;
+        font-weight: 600;
+        color: #666;
+        margin: 10px 0 5px;
+        text-transform: uppercase;
+    }
+
+    .red-ui-info-section p {
+        font-size: 12px;
+        color: #444;
+        margin: 5px 0;
+        line-height: 1.5;
+    }
+
+    .red-ui-info-section dl {
+        margin: 0;
+        padding: 0;
+    }
+
+    .red-ui-info-section dt {
+        font-weight: 500;
+        margin-top: 8px;
+    }
+
+    .red-ui-info-section dt code {
+        font-family: monospace;
+        background: #f0f0f0;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+
+    .red-ui-info-type-tag {
+        font-size: 10px;
+        color: #888;
+        font-style: italic;
+        margin-left: 5px;
+    }
+
+    .red-ui-info-section dd {
+        font-size: 11px;
+        color: #666;
+        margin: 3px 0 0 15px;
+    }
+
+    .red-ui-info-section ul {
+        margin: 5px 0;
+        padding-left: 20px;
+    }
+
+    .red-ui-info-section ul li {
+        font-size: 11px;
+        margin: 3px 0;
+    }
+
+    .red-ui-info-section ul li a {
+        color: #0066cc;
+        text-decoration: none;
+    }
+
+    .red-ui-info-section ul li a:hover {
+        text-decoration: underline;
+    }
+
+    .red-ui-info-details {
+        border-top: 1px solid #eee;
+        padding-top: 10px;
     }
 
     .red-ui-info-none {
