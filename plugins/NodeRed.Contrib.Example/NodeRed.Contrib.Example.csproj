@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    
+    <!-- Output to plugins folder for easy testing -->
+    <OutputPath>..\..\src\NodeRed.Blazor\plugins\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    
+    <!-- Package metadata (for publishing as NuGet) -->
+    <PackageId>NodeRed.Contrib.Example</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Example Author</Authors>
+    <Description>Example external plugin module demonstrating how to create custom nodes</Description>
+  </PropertyGroup>
+
+  <!-- Reference SDK and Core only - these are shared with the host -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NodeRed.SDK\NodeRed.SDK.csproj" />
+    <ProjectReference Include="..\..\src\NodeRed.Core\NodeRed.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Example: Add a plugin-specific dependency that might conflict with host -->
+  <ItemGroup>
+    <PackageReference Include="Humanizer.Core" Version="2.14.1" />
+  </ItemGroup>
+
+</Project>

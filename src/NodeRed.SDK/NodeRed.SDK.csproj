@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>NodeRed.SDK</RootNamespace>
+    <PackageId>NodeRed.SDK</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Node-RED .NET Contributors</Authors>
+    <Description>SDK for developing custom Node-RED nodes in .NET</Description>
+    <PackageTags>node-red;flow;automation;iot;sdk</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NodeRed.Core\NodeRed.Core.csproj" />
+  </ItemGroup>
+
+</Project>

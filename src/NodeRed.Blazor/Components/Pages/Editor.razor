@@ -1,0 +1,1540 @@
+@page "/editor"
+@page "/"
+@rendermode InteractiveServer
+@using Syncfusion.Blazor.Diagram
+@using Syncfusion.Blazor.Diagram.SymbolPalette
+@using Syncfusion.Blazor.Navigations
+@using Syncfusion.Blazor.SplitButtons
+@using Syncfusion.Blazor.Inputs
+@using Syncfusion.Blazor.Popups
+@using System.Collections.ObjectModel
+@using NodeRed.Blazor.Models
+@using NodeRed.SDK
+@inject INodeRegistry NodeRegistry
+@inject IFlowRuntime FlowRuntime
+@inject IFlowStorage FlowStorage
+@inject IJSRuntime JSRuntime
+@inject NodeLoader NodeLoader
+
+<PageTitle>Node-RED</PageTitle>
+
+<div class="red-ui-editor">
+    <!-- Header -->
+    <div id="red-ui-header">
+        <span class="red-ui-header-logo">
+            <a href="#">
+                <img src="https://nodered.org/about/resources/media/node-red-icon.svg" alt="" />
+                <span>Node-RED</span>
+            </a>
+        </span>
+        
+        <ul class="red-ui-header-toolbar">
+            <li class="red-ui-deploy-button-group">
+                <a id="red-ui-header-button-deploy" class="red-ui-deploy-button @(HasUnsavedChanges ? "" : "disabled")" @onclick="OnDeployClick">
+                    <span class="red-ui-deploy-button-content">
+                        <i class="fa fa-download"></i>
+                        <span>Deploy</span>
+                    </span>
+                </a>
+                <a class="red-ui-deploy-button red-ui-deploy-button-options" @onclick="ToggleDeployMenu">
+                    <i class="fa fa-caret-down"></i>
+                </a>
+                @if (IsDeployMenuOpen)
+                {
+                    <div class="red-ui-menu red-ui-deploy-menu">
+                        <a class="red-ui-menu-item @(DeployMode == "full" ? "active" : "")" @onclick="@(() => SetDeployMode("full"))">
+                            <i class="fa fa-check"></i> Full
+                            <span class="red-ui-menu-item-desc">deploy everything in the workspace</span>
+                        </a>
+                        <a class="red-ui-menu-item @(DeployMode == "flows" ? "active" : "")" @onclick="@(() => SetDeployMode("flows"))">
+                            <i class="fa fa-check"></i> Modified Flows
+                            <span class="red-ui-menu-item-desc">only deploy flows that contain changed nodes</span>
+                        </a>
+                        <a class="red-ui-menu-item @(DeployMode == "nodes" ? "active" : "")" @onclick="@(() => SetDeployMode("nodes"))">
+                            <i class="fa fa-check"></i> Modified Nodes
+                            <span class="red-ui-menu-item-desc">only deploy nodes that have changed</span>
+                        </a>
+                    </div>
+                }
+            </li>
+            <li>
+                <a class="red-ui-header-button" @onclick="ToggleMainMenu" title="Menu">
+                    <i class="fa fa-bars"></i>
+                </a>
+                @if (IsMainMenuOpen)
+                {
+                    <div class="red-ui-menu red-ui-main-menu">
+                        <a class="red-ui-menu-item" @onclick="OnImportClick">
+                            <i class="fa fa-clipboard"></i> Import
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnExportClick">
+                            <i class="fa fa-share-square-o"></i> Export
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
+                        <a class="red-ui-menu-item" @onclick="OnSearchClick">
+                            <i class="fa fa-search"></i> Search flows <span class="red-ui-menu-shortcut">Ctrl+.</span>
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
+                        <a class="red-ui-menu-item" @onclick="OnConfigNodesClick">
+                            <i class="fa fa-cube"></i> Configuration nodes
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnFlowsClick">
+                            <i class="fa fa-sitemap"></i> Flows
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnSubflowsClick">
+                            <i class="fa fa-th-large"></i> Subflows
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnGroupsClick">
+                            <i class="fa fa-object-group"></i> Groups
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
+                        <a class="red-ui-menu-item" @onclick="OnManagePaletteClick">
+                            <i class="fa fa-cubes"></i> Manage palette
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnSettingsClick">
+                            <i class="fa fa-cog"></i> Settings
+                        </a>
+                        <a class="red-ui-menu-item" @onclick="OnKeyboardShortcutsClick">
+                            <i class="fa fa-keyboard-o"></i> Keyboard shortcuts
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
+                        @if (FlowRuntime.State == FlowState.Running)
+                        {
+                            <a class="red-ui-menu-item" @onclick="OnStopClick">
+                                <i class="fa fa-stop"></i> Stop flows
+                            </a>
+                            <a class="red-ui-menu-item" @onclick="OnRestartClick">
+                                <i class="fa fa-refresh"></i> Restart flows
+                            </a>
+                        }
+                        else
+                        {
+                            <a class="red-ui-menu-item" @onclick="OnStartClick">
+                                <i class="fa fa-play"></i> Start flows
+                            </a>
+                        }
+                    </div>
+                }
+            </li>
+        </ul>
+    </div>
+
+    <!-- Import Dialog -->
+    @if (IsImportDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseImportDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Import nodes</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseImportDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <p>Paste your flow JSON below:</p>
+                    <textarea @bind="ImportJson" rows="15" class="red-ui-dialog-textarea"></textarea>
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseImportDialog">Cancel</button>
+                    <button class="red-ui-button red-ui-button-primary" @onclick="ConfirmImport">Import</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Export Dialog -->
+    @if (IsExportDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseExportDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Export nodes to clipboard</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseExportDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <div class="red-ui-dialog-tabs">
+                        <a class="@(ExportFormat == "pretty" ? "active" : "")" @onclick="@(() => SetExportFormat("pretty"))">formatted</a>
+                        <a class="@(ExportFormat == "minified" ? "active" : "")" @onclick="@(() => SetExportFormat("minified"))">minified</a>
+                    </div>
+                    <textarea readonly value="@ExportJson" rows="15" class="red-ui-dialog-textarea"></textarea>
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseExportDialog">Close</button>
+                    <button class="red-ui-button red-ui-button-primary" @onclick="CopyExportToClipboard">
+                        <i class="fa fa-clipboard"></i> Copy to clipboard
+                    </button>
+                    <button class="red-ui-button" @onclick="DownloadExport">
+                        <i class="fa fa-download"></i> Download
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Main Container -->
+    <div id="red-ui-main-container">
+        <!-- Custom Palette (Node-RED style) -->
+        <div id="red-ui-palette">
+            <div class="red-ui-palette-search">
+                <input type="text" placeholder="filter nodes" @bind="PaletteFilter" @bind:event="oninput" />
+                <i class="fa fa-search"></i>
+            </div>
+            <div class="red-ui-palette-scroll">
+                @foreach (var category in PaletteCategories.Where(c => FilterCategory(c)))
+                {
+                    <div class="red-ui-palette-category">
+                        <div class="red-ui-palette-header" @onclick="() => ToggleCategory(category.Name)">
+                            <i class="fa fa-angle-down @(category.IsExpanded ? "expanded" : "")"></i>
+                            <span>@category.Name</span>
+                        </div>
+                        @if (category.IsExpanded)
+                        {
+                            <div class="red-ui-palette-content">
+                                @foreach (var node in category.Nodes.Where(n => FilterNode(n)))
+                                {
+                                    <div class="red-ui-palette-node" 
+                                         style="background-color: @node.Color;"
+                                         draggable="true"
+                                         @ondragstart="() => OnPaletteDragStart(node)"
+                                         @ondragend="OnPaletteDragEnd">
+                                        @if (node.Inputs > 0)
+                                        {
+                                            <div class="red-ui-palette-port red-ui-palette-port-input"></div>
+                                        }
+                                        <div class="red-ui-palette-icon-container" style="background-color: @node.IconBackground;">
+                                            <i class="@node.IconClass red-ui-palette-icon-fa"></i>
+                                        </div>
+                                        <div class="red-ui-palette-label">@node.Label</div>
+                                        @if (node.Outputs > 0)
+                                        {
+                                            <div class="red-ui-palette-port red-ui-palette-port-output"></div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Workspace -->
+        <div id="red-ui-workspace">
+            <ul id="red-ui-workspace-tabs">
+                @foreach (var flow in Flows)
+                {
+                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "")"
+                        @onclick="() => SwitchFlow(flow.Id)"
+                        @ondblclick="() => EditFlowProperties(flow.Id)">
+                        <a href="javascript:void(0)">
+                            <span>@flow.Label</span>
+                            @if (Flows.Count > 1)
+                            {
+                                <span class="red-ui-tab-close" @onclick:stopPropagation="true" @onclick="() => DeleteFlow(flow.Id)">
+                                    <i class="fa fa-times"></i>
+                                </span>
+                            }
+                        </a>
+                    </li>
+                }
+                <li class="red-ui-tab-button" @onclick="AddNewFlow">
+                    <a href="javascript:void(0)"><i class="fa fa-plus"></i></a>
+                </li>
+            </ul>
+
+            <div id="red-ui-workspace-chart" 
+                 @ondrop="OnWorkspaceDrop" 
+                 @ondragover="OnWorkspaceDragOver"
+                 @ondragover:preventDefault="true">
+                <SfDiagramComponent @ref="@DiagramInstance"
+                                    Connectors="@DiagramConnectors"
+                                    Created="OnCreated"
+                                    SelectionChanged="@OnSelectionChanged"
+                                    ConnectionChanging="@OnConnectionChanging"
+                                    Click="@OnDiagramClick"
+                                    FixedUserHandleClick="@OnFixedUserHandleClick"
+                                    Height="100%"
+                                    Width="100%"
+                                    Nodes="@DiagramNodes"
+                                    NodeCreating="OnNodeCreating"
+                                    ConnectorCreating="OnConnectorCreating"
+                                    SelectionSettings="@SelectionSettings">
+                    <SnapSettings Constraints="SnapConstraints.ShowLines">
+                        <HorizontalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></HorizontalGridLines>
+                        <VerticalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></VerticalGridLines>
+                    </SnapSettings>
+                    <PageSettings>
+                        <BackgroundStyle Background="#fff" />
+                    </PageSettings>
+                </SfDiagramComponent>
+            </div>
+
+            <div id="red-ui-workspace-footer">
+                <span class="red-ui-footer-left">
+                    <i class="fa @(FlowRuntime.State == FlowState.Running ? "fa-circle status-running" : "fa-circle-o status-stopped")"></i>
+                </span>
+                <span class="red-ui-footer-right">
+                    <a href="javascript:void(0)" @onclick="ZoomIn"><i class="fa fa-plus"></i></a>
+                    <a href="javascript:void(0)" @onclick="ZoomOut"><i class="fa fa-minus"></i></a>
+                    <a href="javascript:void(0)" @onclick="ZoomReset"><i class="fa fa-circle-o-notch"></i></a>
+                </span>
+            </div>
+        </div>
+
+        <!-- Property Editor Tray (slides out when double-clicking a node) -->
+        @if (IsPropertyTrayOpen && SelectedDiagramNode != null)
+        {
+            <div class="red-ui-tray">
+                <div class="red-ui-tray-header">
+                    <div class="red-ui-tray-titlebar">
+                        <ul class="red-ui-tray-breadcrumbs">
+                            <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
+                        </ul>
+                    </div>
+                    <div class="red-ui-tray-toolbar">
+                        <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
+                        <button class="red-ui-button red-ui-button-primary" @onclick="SaveAndClosePropertyTray">Done</button>
+                    </div>
+                </div>
+                <div class="red-ui-tray-body">
+                    <div class="red-ui-tray-content">
+                        @RenderNodePropertyPanel()
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Sidebar -->
+        <div id="red-ui-sidebar">
+            <ul id="red-ui-sidebar-tabs">
+                <li class="@(SelectedSidebarTab == 0 ? "active" : "")" @onclick="() => SelectedSidebarTab = 0">
+                    <a href="javascript:void(0)" title="Info"><i class="fa fa-info"></i></a>
+                </li>
+                <li class="@(SelectedSidebarTab == 1 ? "active" : "")" @onclick="() => SelectedSidebarTab = 1">
+                    <a href="javascript:void(0)" title="Debug"><i class="fa fa-bug"></i></a>
+                </li>
+            </ul>
+            
+            <div id="red-ui-sidebar-content">
+                @if (SelectedSidebarTab == 0)
+                {
+                    <div class="red-ui-sidebar-info">
+                        @if (SelectedDiagramNode != null)
+                        {
+                            <!-- Node Info (documentation/help style) -->
+                            <div class="red-ui-info-header">
+                                <span class="red-ui-info-icon" style="background-color: @GetSelectedNodeColor()"></span>
+                                <span class="red-ui-info-type">@GetSelectedNodeType()</span>
+                            </div>
+                            <table class="red-ui-info-table">
+                                <tr>
+                                    <td>node</td>
+                                    <td class="red-ui-info-value">@SelectedDiagramNode.ID</td>
+                                </tr>
+                                <tr>
+                                    <td>name</td>
+                                    <td class="red-ui-info-value">@(SelectedNodeName ?? "(none)")</td>
+                                </tr>
+                            </table>
+                            <div class="red-ui-info-tips">
+                                <p><strong>Tip:</strong> Double-click the node to edit its properties.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="red-ui-info-none">
+                                <p>Select a node to see information about it, or double-click to edit</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="red-ui-sidebar-debug">
+                        <div class="red-ui-debug-toolbar">
+                            <a href="javascript:void(0)" class="red-ui-debug-button" @onclick="ClearDebugMessages">
+                                <i class="fa fa-trash"></i>
+                            </a>
+                            <a href="javascript:void(0)" class="red-ui-debug-button">
+                                <i class="fa fa-filter"></i>
+                            </a>
+                            <span class="red-ui-debug-count">@DebugMessages.Count</span>
+                        </div>
+                        <div class="red-ui-debug-content">
+                            @if (DebugMessages.Count == 0)
+                            {
+                                <div class="red-ui-debug-none">No messages</div>
+                            }
+                            @foreach (var msg in DebugMessages.TakeLast(100).Reverse())
+                            {
+                                <div class="red-ui-debug-msg" @onclick="() => HighlightDebugNode(msg.NodeId)">
+                                    <span class="red-ui-debug-msg-date">@msg.Timestamp.ToString("M/d/yyyy, h:mm:ss tt")</span>
+                                    <span class="red-ui-debug-msg-topic">node: @msg.NodeName</span>
+                                    <pre class="red-ui-debug-msg-payload">@FormatDebugData(msg.Data)</pre>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Render node property panel based on node type - using dynamic schema *@
+@code {
+    // Dynamic property values storage
+    private Dictionary<string, object?> _nodePropertyValues = new();
+    
+    private RenderFragment RenderNodePropertyPanel() => __builder =>
+    {
+        var nodeType = GetSelectedNodeType();
+        var schema = NodePropertySchemas.GetSchema(nodeType);
+        
+        <div class="red-ui-editor-form">
+            @* Common name field *@
+            <div class="form-row">
+                <label><i class="fa fa-tag"></i> Name</label>
+                <input type="text" @bind="SelectedNodeName" placeholder="Name" />
+            </div>
+
+            @if (schema.Count > 0)
+            {
+                @foreach (var field in schema)
+                {
+                    @if (ShouldShowField(field))
+                    {
+                        @RenderPropertyField(field)
+                    }
+                }
+            }
+            else
+            {
+                <div class="form-row">
+                    <p class="form-info">This node type doesn't have configurable properties.</p>
+                </div>
+            }
+        </div>
+    };
+    
+    private bool ShouldShowField(NodePropertyField field)
+    {
+        // Check ShowWhen condition
+        if (!string.IsNullOrEmpty(field.ShowWhen))
+        {
+            var parts = field.ShowWhen.Split('=');
+            if (parts.Length == 2)
+            {
+                var currentValue = GetPropertyValue(parts[0])?.ToString() ?? "";
+                if (currentValue != parts[1]) return false;
+            }
+        }
+        
+        // Check HideWhen condition
+        if (!string.IsNullOrEmpty(field.HideWhen))
+        {
+            var parts = field.HideWhen.Split('=');
+            if (parts.Length == 2)
+            {
+                var currentValue = GetPropertyValue(parts[0])?.ToString() ?? "";
+                if (currentValue == parts[1]) return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    private object? GetPropertyValue(string name)
+    {
+        if (_nodePropertyValues.TryGetValue(name, out var value))
+            return value;
+        return null;
+    }
+    
+    private void SetPropertyValue(string name, object? value)
+    {
+        _nodePropertyValues[name] = value;
+        StateHasChanged();
+    }
+    
+    private RenderFragment RenderPropertyField(NodePropertyField field) => __builder =>
+    {
+        var cssClass = field.IsFullWidth ? "form-row form-row-full" : "form-row";
+        
+        <div class="@cssClass">
+            @if (!string.IsNullOrEmpty(field.Label))
+            {
+                <label>
+                    @if (!string.IsNullOrEmpty(field.Icon))
+                    {
+                        <i class="@field.Icon"></i>
+                    }
+                    @field.Label
+                </label>
+            }
+            else
+            {
+                <label></label>
+            }
+            
+            @if (!string.IsNullOrEmpty(field.Prefix))
+            {
+                <span>@field.Prefix</span>
+            }
+            
+            @switch (field.Type)
+            {
+                case PropertyFieldType.Text:
+                    var textValue = GetPropertyValue(field.Name)?.ToString() ?? field.DefaultValue;
+                    <input type="text" 
+                           value="@textValue"
+                           placeholder="@field.Placeholder"
+                           class="@(field.IsSmall ? "input-small" : "")"
+                           @onchange="@(e => SetPropertyValue(field.Name, e.Value))" />
+                    break;
+                    
+                case PropertyFieldType.Number:
+                    var numValue = GetPropertyValue(field.Name)?.ToString() ?? field.DefaultValue;
+                    <input type="number" 
+                           value="@numValue"
+                           min="@field.Min"
+                           max="@field.Max"
+                           step="@(field.Step ?? 1)"
+                           class="@(field.IsSmall ? "input-small" : "")"
+                           @onchange="@(e => SetPropertyValue(field.Name, e.Value))" />
+                    break;
+                    
+                case PropertyFieldType.Select:
+                    var selectValue = GetPropertyValue(field.Name)?.ToString() ?? field.DefaultValue;
+                    <select value="@selectValue"
+                            @onchange="@(e => SetPropertyValue(field.Name, e.Value))">
+                        @if (field.Options != null)
+                        {
+                            @foreach (var opt in field.Options)
+                            {
+                                <option value="@opt.Value">@opt.Label</option>
+                            }
+                        }
+                    </select>
+                    break;
+                    
+                case PropertyFieldType.Checkbox:
+                    var checkValue = GetPropertyValue(field.Name)?.ToString() == "true" || 
+                                    (GetPropertyValue(field.Name) == null && field.DefaultValue == "true");
+                    <label class="checkbox-label">
+                        <input type="checkbox" 
+                               checked="@checkValue"
+                               @onchange="@(e => SetPropertyValue(field.Name, e.Value))" />
+                        @if (!string.IsNullOrEmpty(field.Suffix))
+                        {
+                            @field.Suffix
+                        }
+                    </label>
+                    break;
+                    
+                case PropertyFieldType.TextArea:
+                    var textAreaValue = GetPropertyValue(field.Name)?.ToString() ?? field.DefaultValue;
+                    <textarea rows="@(field.Rows ?? 5)"
+                              placeholder="@field.Placeholder"
+                              @onchange="@(e => SetPropertyValue(field.Name, e.Value))">@textAreaValue</textarea>
+                    break;
+                    
+                case PropertyFieldType.Code:
+                    var codeValue = GetPropertyValue(field.Name)?.ToString() ?? field.DefaultValue;
+                    <textarea rows="@(field.Rows ?? 10)"
+                              class="code-editor"
+                              @onchange="@(e => SetPropertyValue(field.Name, e.Value))">@codeValue</textarea>
+                    break;
+                    
+                case PropertyFieldType.Info:
+                    <p class="form-info">@field.DefaultValue</p>
+                    break;
+            }
+            
+            @if (!string.IsNullOrEmpty(field.Suffix) && field.Type != PropertyFieldType.Checkbox)
+            {
+                <span>@field.Suffix</span>
+            }
+        </div>
+    };
+}
+<style>
+    /* ========================================
+       Node-RED Editor - Exact Replica CSS
+       ======================================== */
+
+    * {
+        box-sizing: border-box;
+    }
+
+    .red-ui-editor {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        color: #555;
+        overflow: hidden;
+    }
+
+    /* ========== HEADER ========== */
+    #red-ui-header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 40px;
+        background: #000;
+        border-bottom: 2px solid #C02020;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px;
+        z-index: 100;
+    }
+
+    .red-ui-header-logo a {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+        color: #C7C7C7;
+    }
+
+    .red-ui-header-logo img {
+        height: 32px;
+        margin-right: 8px;
+    }
+
+    .red-ui-header-logo span {
+        font-size: 16px;
+    }
+
+    .red-ui-header-toolbar {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        align-items: center;
+    }
+
+    .red-ui-header-toolbar > li {
+        height: 100%;
+        display: flex;
+        align-items: center;
+    }
+
+    .red-ui-deploy-button-group {
+        display: flex;
+        height: 100%;
+        margin-right: 10px;
+    }
+
+    .red-ui-deploy-button {
+        display: flex;
+        align-items: center;
+        background: #8C101C;
+        color: #eee;
+        padding: 0 12px;
+        text-decoration: none;
+        cursor: pointer;
+        height: 100%;
+    }
+
+    .red-ui-deploy-button:hover {
+        background: #6E0A1E;
+    }
+
+    .red-ui-deploy-button i {
+        margin-right: 6px;
+    }
+
+    .red-ui-deploy-button-options {
+        border-left: 1px solid #6E0A1E;
+        padding: 0 8px;
+    }
+
+    .red-ui-header-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #eee;
+        padding: 0 15px;
+        height: 100%;
+        text-decoration: none;
+        font-size: 18px;
+    }
+
+    .red-ui-header-button:hover {
+        background: #121212;
+    }
+
+    /* ========== MAIN CONTAINER ========== */
+    #red-ui-main-container {
+        position: absolute;
+        top: 42px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+    }
+
+    /* ========== PALETTE ========== */
+    #red-ui-palette {
+        width: 180px;
+        min-width: 180px;
+        background: #f3f3f3;
+        border-right: 1px solid #bbb;
+        display: flex;
+        flex-direction: column;
+        user-select: none;
+    }
+
+    .red-ui-palette-search {
+        position: relative;
+        background: #fff;
+        height: 35px;
+        padding: 3px;
+        border-bottom: 1px solid #bbb;
+    }
+
+    .red-ui-palette-search input {
+        width: 100%;
+        height: 100%;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        padding: 5px 25px 5px 8px;
+        font-size: 12px;
+    }
+
+    .red-ui-palette-search i {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #888;
+    }
+
+    .red-ui-palette-scroll {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .red-ui-palette-category {
+        border-bottom: 1px solid #ddd;
+    }
+
+    .red-ui-palette-header {
+        position: relative;
+        background: #f3f3f3;
+        color: #444;
+        cursor: pointer;
+        text-align: left;
+        padding: 9px 9px 9px 30px;
+        font-weight: bold;
+        font-size: 12px;
+    }
+
+    .red-ui-palette-header:hover {
+        background: #eee;
+    }
+
+    .red-ui-palette-header > i {
+        position: absolute;
+        left: 11px;
+        top: 12px;
+        transition: transform 0.2s ease-in-out;
+        transform: rotate(-90deg);
+        font-size: 12px;
+    }
+
+    .red-ui-palette-header > i.expanded {
+        transform: rotate(0deg);
+    }
+
+    .red-ui-palette-content {
+        background: #fff;
+        padding: 3px;
+    }
+
+    .red-ui-palette-node {
+        cursor: move;
+        margin: 10px auto;
+        height: 25px;
+        border-radius: 5px;
+        border: 1px solid #999;
+        width: 122px;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .red-ui-palette-node:first-child {
+        margin-top: 15px;
+    }
+
+    .red-ui-palette-node:last-child {
+        margin-bottom: 15px;
+    }
+
+    .red-ui-palette-node:hover {
+        border-color: transparent;
+        box-shadow: 0 0 0 2px #ff7f0e;
+    }
+
+    .red-ui-palette-port {
+        position: absolute;
+        top: 7px;
+        box-sizing: border-box;
+        background: #d9d9d9;
+        border-radius: 3px;
+        width: 10px;
+        height: 10px;
+        border: 1px solid #999;
+    }
+
+    .red-ui-palette-port-input {
+        left: -5px;
+    }
+
+    .red-ui-palette-port-output {
+        right: -6px;
+    }
+
+    .red-ui-palette-node:hover .red-ui-palette-port {
+        background-color: #eee;
+    }
+
+    .red-ui-palette-icon-container {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 30px;
+        border-right: 1px solid rgba(0,0,0,0.1);
+        border-radius: 4px 0 0 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .red-ui-palette-icon-fa {
+        color: #fff;
+        font-size: 14px;
+    }
+
+    .red-ui-palette-label {
+        color: #333;
+        font-size: 13px;
+        margin-left: 35px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding-right: 5px;
+    }
+
+    /* ========== WORKSPACE ========== */
+    #red-ui-workspace {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #f3f3f3;
+        min-width: 0;
+    }
+
+    #red-ui-workspace-tabs {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        background: #f3f3f3;
+        height: 35px;
+        align-items: flex-end;
+        border-bottom: 1px solid #bbb;
+    }
+
+    .red-ui-tab {
+        background: #f0f0f0;
+        border: 1px solid #bbb;
+        border-bottom: none;
+        border-radius: 4px 4px 0 0;
+        margin-left: 5px;
+        position: relative;
+        top: 1px;
+    }
+
+    .red-ui-tab a {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        text-decoration: none;
+        color: #666;
+        font-size: 12px;
+    }
+
+    .red-ui-tab.active {
+        background: #fff;
+        border-bottom: 1px solid #fff;
+    }
+
+    .red-ui-tab.active a {
+        color: #444;
+    }
+
+    .red-ui-tab:hover:not(.active) {
+        background: #e6e6e6;
+    }
+
+    .red-ui-tab-close {
+        margin-left: 8px;
+        opacity: 0.5;
+        font-size: 10px;
+    }
+
+    .red-ui-tab-close:hover {
+        opacity: 1;
+    }
+
+    .red-ui-tab-button a {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        color: #888;
+        text-decoration: none;
+    }
+
+    .red-ui-tab-button a:hover {
+        color: #444;
+    }
+
+    #red-ui-workspace-chart {
+        flex: 1;
+        background: #fff;
+        position: relative;
+    }
+
+    #red-ui-workspace-footer {
+        height: 25px;
+        background: #f7f7f7;
+        border-top: 1px solid #ddd;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px;
+        font-size: 12px;
+    }
+
+    .status-running {
+        color: #5a8;
+    }
+
+    .status-stopped {
+        color: #999;
+    }
+
+    .red-ui-footer-right a {
+        color: #888;
+        padding: 2px 6px;
+        text-decoration: none;
+    }
+
+    .red-ui-footer-right a:hover {
+        color: #444;
+    }
+
+    /* ========== SIDEBAR ========== */
+    #red-ui-sidebar {
+        width: 315px;
+        min-width: 315px;
+        background: #fff;
+        border-left: 1px solid #bbb;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #red-ui-sidebar-tabs {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        background: #f7f7f7;
+        border-bottom: 1px solid #ddd;
+    }
+
+    #red-ui-sidebar-tabs li {
+        flex: 1;
+        text-align: center;
+    }
+
+    #red-ui-sidebar-tabs li a {
+        display: block;
+        padding: 10px;
+        color: #888;
+        text-decoration: none;
+    }
+
+    #red-ui-sidebar-tabs li.active a {
+        color: #444;
+        background: #fff;
+        border-bottom: 2px solid #8f0000;
+    }
+
+    #red-ui-sidebar-tabs li:hover:not(.active) a {
+        color: #444;
+        background: #f0f0f0;
+    }
+
+    #red-ui-sidebar-content {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    /* Info Panel */
+    .red-ui-sidebar-info {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .red-ui-tray-header {
+        background: #f7f7f7;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .red-ui-tray-titlebar {
+        padding: 8px 10px;
+    }
+
+    .red-ui-tray-breadcrumbs {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 12px;
+        color: #666;
+    }
+
+    .red-ui-tray-breadcrumbs i {
+        margin-right: 5px;
+        color: #888;
+    }
+
+    .red-ui-tray-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0;
+    }
+
+    .red-ui-tray-content {
+        padding: 10px;
+    }
+
+    .red-ui-tray-footer {
+        padding: 8px 10px;
+        background: #f7f7f7;
+        border-top: 1px solid #ddd;
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px;
+    }
+
+    .red-ui-button-primary {
+        background: #AD1625 !important;
+        color: #fff !important;
+        border-color: #8C101C !important;
+    }
+
+    .red-ui-button-primary:hover {
+        background: #8C101C !important;
+    }
+
+    .red-ui-info-header {
+        display: flex;
+        align-items: center;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+        margin-bottom: 10px;
+    }
+
+    .red-ui-info-icon {
+        width: 20px;
+        height: 17px;
+        border-radius: 3px;
+        border: 1px solid #999;
+        margin-right: 8px;
+    }
+
+    .red-ui-info-type {
+        font-weight: 500;
+        color: #444;
+    }
+
+    .red-ui-info-table {
+        width: 100%;
+        font-size: 12px;
+        border-collapse: collapse;
+    }
+
+    .red-ui-info-table td {
+        padding: 4px 0;
+    }
+
+    .red-ui-info-table td:first-child {
+        color: #888;
+        width: 50px;
+    }
+
+    .red-ui-info-value {
+        color: #555;
+    }
+
+    .red-ui-info-tips {
+        margin-top: 15px;
+        padding: 10px;
+        background: #ffe;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        font-size: 11px;
+        color: #666;
+    }
+
+    .red-ui-info-none {
+        color: #888;
+        text-align: center;
+        padding: 20px;
+    }
+
+    /* Debug Panel */
+    .red-ui-sidebar-debug {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .red-ui-debug-toolbar {
+        padding: 5px 10px;
+        background: #f7f7f7;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .red-ui-debug-button {
+        color: #888;
+        text-decoration: none;
+        padding: 3px 6px;
+    }
+
+    .red-ui-debug-button:hover {
+        color: #444;
+    }
+
+    .red-ui-debug-count {
+        margin-left: auto;
+        background: #888;
+        color: #fff;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 10px;
+    }
+
+    .red-ui-debug-content {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .red-ui-debug-none {
+        color: #888;
+        text-align: center;
+        padding: 20px;
+    }
+
+    .red-ui-debug-msg {
+        padding: 8px 10px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        font-size: 12px;
+    }
+
+    .red-ui-debug-msg:hover {
+        background: #efefef;
+    }
+
+    .red-ui-debug-msg-date {
+        display: block;
+        color: #a66;
+        font-size: 10px;
+    }
+
+    .red-ui-debug-msg-topic {
+        display: block;
+        color: #888;
+        font-size: 10px;
+    }
+
+    .red-ui-debug-msg-payload {
+        display: block;
+        background: #f8f8f8;
+        padding: 4px 8px;
+        border-radius: 3px;
+        margin-top: 4px;
+        font-family: Menlo, Consolas, monospace;
+        font-size: 11px;
+        white-space: pre-wrap;
+        word-break: break-all;
+        color: #2033d6;
+    }
+
+    /* ========== DIALOG ========== */
+    .red-ui-editor-form .form-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+        gap: 8px;
+    }
+
+    .red-ui-editor-form .form-row > label {
+        width: 100px;
+        min-width: 100px;
+        color: #888;
+        font-size: 12px;
+    }
+
+    .red-ui-editor-form .form-row > label i {
+        margin-right: 5px;
+    }
+
+    .red-ui-editor-form .form-row input[type="text"],
+    .red-ui-editor-form .form-row input[type="number"],
+    .red-ui-editor-form .form-row select {
+        flex: 1;
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        font-size: 13px;
+    }
+
+    .red-ui-editor-form .form-row .input-small {
+        width: 70px;
+        flex: 0 0 70px;
+    }
+
+    .red-ui-editor-form .form-row-full {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .red-ui-editor-form .form-row-full > label {
+        margin-bottom: 5px;
+        width: auto;
+    }
+
+    .red-ui-editor-form .form-row-full textarea,
+    .red-ui-editor-form .form-row-full input {
+        width: 100%;
+    }
+
+    .red-ui-editor-form .checkbox-label {
+        display: flex;
+        align-items: center;
+        width: auto !important;
+        color: #555;
+        font-size: 12px;
+        gap: 5px;
+    }
+
+    .red-ui-editor-form .code-editor {
+        font-family: Menlo, Consolas, monospace;
+        font-size: 12px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+
+    .red-ui-editor-form .form-row-inject {
+        margin-top: 20px;
+        border-top: 1px solid #ddd;
+        padding-top: 15px;
+    }
+
+    .red-ui-button {
+        padding: 6px 12px;
+        border: 1px solid #ccc;
+        background: #fff;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 12px;
+        color: #555;
+    }
+
+    .red-ui-button:hover {
+        background: #e6e6e6;
+    }
+
+    .red-ui-button-inject {
+        background: #a6bbcf;
+        color: #333;
+        border-color: #8aa3bc;
+    }
+
+    .red-ui-button-inject:hover {
+        background: #8aa3bc;
+    }
+
+    /* ========== TRAY (Node Property Editor) ========== */
+    .red-ui-tray {
+        position: absolute;
+        top: 0;
+        right: 315px; /* Next to sidebar */
+        bottom: 0;
+        width: 350px;
+        background: #fff;
+        border-left: 1px solid #bbb;
+        display: flex;
+        flex-direction: column;
+        z-index: 100;
+        box-shadow: -3px 0 10px rgba(0,0,0,0.1);
+    }
+
+    .red-ui-tray .red-ui-tray-header {
+        background: #f7f7f7;
+        border-bottom: 1px solid #ddd;
+        padding: 0;
+    }
+
+    .red-ui-tray .red-ui-tray-titlebar {
+        padding: 8px 10px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .red-ui-tray .red-ui-tray-toolbar {
+        padding: 8px 10px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 5px;
+    }
+
+    .red-ui-tray .red-ui-tray-body {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .red-ui-tray .red-ui-tray-content {
+        padding: 10px;
+    }
+
+    /* Dialog overrides */
+    .e-dialog .e-footer-content {
+        padding: 10px 15px;
+        border-top: 1px solid #ddd;
+    }
+
+    .e-dialog .e-footer-content button {
+        padding: 6px 15px;
+    }
+
+    .e-dialog .e-footer-content .e-primary {
+        background: #AD1625;
+        border-color: #8C101C;
+    }
+
+    .e-dialog .e-footer-content .e-primary:hover {
+        background: #8C101C;
+    }
+
+    /* ========== DROPDOWN MENUS ========== */
+    .red-ui-menu {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        min-width: 200px;
+        z-index: 1000;
+        padding: 5px 0;
+    }
+
+    .red-ui-deploy-menu {
+        right: 0;
+        min-width: 300px;
+    }
+
+    .red-ui-main-menu {
+        right: 0;
+        min-width: 250px;
+    }
+
+    .red-ui-menu-item {
+        display: block;
+        padding: 8px 15px 8px 30px;
+        color: #444;
+        text-decoration: none;
+        position: relative;
+        cursor: pointer;
+    }
+
+    .red-ui-menu-item:hover {
+        background: #f0f0f0;
+    }
+
+    .red-ui-menu-item i {
+        position: absolute;
+        left: 10px;
+        width: 16px;
+        text-align: center;
+    }
+
+    .red-ui-menu-item.active i.fa-check {
+        visibility: visible;
+    }
+
+    .red-ui-menu-item:not(.active) i.fa-check {
+        visibility: hidden;
+    }
+
+    .red-ui-menu-item-desc {
+        display: block;
+        font-size: 11px;
+        color: #888;
+        margin-top: 2px;
+        padding-left: 0;
+    }
+
+    .red-ui-menu-shortcut {
+        float: right;
+        color: #888;
+        font-size: 11px;
+    }
+
+    .red-ui-menu-divider {
+        height: 1px;
+        background: #ddd;
+        margin: 5px 0;
+    }
+
+    .red-ui-deploy-button.disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+
+    /* ========== DIALOGS ========== */
+    .red-ui-dialog-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+    }
+
+    .red-ui-dialog {
+        background: #fff;
+        border-radius: 4px;
+        box-shadow: 0 5px 25px rgba(0,0,0,0.3);
+        min-width: 500px;
+        max-width: 80%;
+        max-height: 80%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .red-ui-dialog-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        background: #8C101C;
+        color: #fff;
+        border-radius: 4px 4px 0 0;
+        font-weight: 500;
+    }
+
+    .red-ui-dialog-close {
+        color: #fff;
+        opacity: 0.7;
+        cursor: pointer;
+    }
+
+    .red-ui-dialog-close:hover {
+        opacity: 1;
+    }
+
+    .red-ui-dialog-body {
+        padding: 15px;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .red-ui-dialog-body p {
+        margin: 0 0 10px;
+        color: #666;
+    }
+
+    .red-ui-dialog-textarea {
+        width: 100%;
+        font-family: Menlo, Consolas, monospace;
+        font-size: 12px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        resize: vertical;
+    }
+
+    .red-ui-dialog-tabs {
+        display: flex;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .red-ui-dialog-tabs a {
+        padding: 8px 15px;
+        color: #666;
+        text-decoration: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+    }
+
+    .red-ui-dialog-tabs a.active {
+        color: #444;
+        border-bottom-color: #8C101C;
+    }
+
+    .red-ui-dialog-tabs a:hover:not(.active) {
+        color: #444;
+    }
+
+    .red-ui-dialog-footer {
+        padding: 10px 15px;
+        background: #f7f7f7;
+        border-top: 1px solid #ddd;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        border-radius: 0 0 4px 4px;
+    }
+
+    /* ========== STATUS INDICATOR ========== */
+    .red-ui-status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 0 15px;
+        color: #888;
+        font-size: 12px;
+    }
+
+    .red-ui-status-indicator.running {
+        color: #5a8;
+    }
+
+    .red-ui-status-indicator.stopped {
+        color: #a55;
+    }
+</style>
