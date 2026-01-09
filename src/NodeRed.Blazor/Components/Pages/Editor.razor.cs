@@ -18,6 +18,12 @@ public partial class Editor : IDisposable
     private const string DefaultGroupFillColor = "rgba(255, 204, 204, 0.3)";
     private const string DefaultGroupStrokeColor = "#FF9999";
     
+    // Fallback connector point coordinates (used when source/target nodes haven't been initialized)
+    private const double FallbackSourcePointX = 0;
+    private const double FallbackSourcePointY = 0;
+    private const double FallbackTargetPointX = 100;
+    private const double FallbackTargetPointY = 0;
+    
     // Diagram reference
     public SfDiagramComponent? DiagramInstance { get; set; }
 
@@ -547,8 +553,8 @@ public partial class Editor : IDisposable
             Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
             TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
             // Fallback points to prevent null reference during initialization
-            SourcePoint = new DiagramPoint() { X = 0, Y = 0 },
-            TargetPoint = new DiagramPoint() { X = 100, Y = 0 }
+            SourcePoint = new DiagramPoint() { X = FallbackSourcePointX, Y = FallbackSourcePointY },
+            TargetPoint = new DiagramPoint() { X = FallbackTargetPointX, Y = FallbackTargetPointY }
         };
         DiagramConnectors!.Add(connector);
     }
@@ -749,12 +755,13 @@ public partial class Editor : IDisposable
             connector.Style.StrokeColor = "#999";
             connector.Style.StrokeWidth = 2;
             connector.TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None };
-            // Use Orthogonal connectors for now - Bezier requires additional segment configuration
+            // TODO: Implement Bezier connectors - requires additional segment configuration
+            // For now, using Orthogonal connectors which work correctly with Syncfusion
             connector.Type = ConnectorSegmentType.Orthogonal;
             
             // Initialize source and target points to prevent null reference during connection
-            connector.SourcePoint ??= new DiagramPoint() { X = 0, Y = 0 };
-            connector.TargetPoint ??= new DiagramPoint() { X = 100, Y = 0 };
+            connector.SourcePoint ??= new DiagramPoint() { X = FallbackSourcePointX, Y = FallbackSourcePointY };
+            connector.TargetPoint ??= new DiagramPoint() { X = FallbackTargetPointX, Y = FallbackTargetPointY };
         }
     }
 
@@ -962,8 +969,8 @@ public partial class Editor : IDisposable
                 Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
                 TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
                 // Fallback points to prevent null reference during initialization
-                SourcePoint = new DiagramPoint() { X = 0, Y = 0 },
-                TargetPoint = new DiagramPoint() { X = 100, Y = 0 }
+                SourcePoint = new DiagramPoint() { X = FallbackSourcePointX, Y = FallbackSourcePointY },
+                TargetPoint = new DiagramPoint() { X = FallbackTargetPointX, Y = FallbackTargetPointY }
             };
             DiagramConnectors.Add(connector);
         }
