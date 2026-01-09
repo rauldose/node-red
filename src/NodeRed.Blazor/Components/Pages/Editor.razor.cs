@@ -1340,14 +1340,8 @@ public partial class Editor : IDisposable
         ConfigNodes.Clear();
         
         // In a full implementation, this would query configuration nodes
-        // For now, we'll show a placeholder
-        DebugMessages.Add(new DebugMessage
-        {
-            NodeId = "system",
-            NodeName = "System",
-            Data = "Configuration nodes panel opened. Configuration nodes management is a work in progress.",
-            Timestamp = DateTimeOffset.Now
-        });
+        // Configuration nodes would be discovered from the NodeLoader
+        // For now, this is a placeholder for future implementation
     }
 
     // Flows management panel state
@@ -1398,11 +1392,13 @@ public partial class Editor : IDisposable
 
     private void CreateSubflow()
     {
+        // Subflow creation is not yet fully implemented
+        // This feature would allow creating reusable subflows from selected nodes
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = "Subflow creation is not yet fully implemented. This feature allows creating reusable subflows.",
+            Data = "Subflow creation is not yet fully implemented.",
             Timestamp = DateTimeOffset.Now
         });
     }
@@ -1423,18 +1419,20 @@ public partial class Editor : IDisposable
 
     private void GroupSelectedNodes()
     {
-        // Simplified version - in a full implementation, this would check the selected nodes
+        // Groups feature allows visually organizing nodes together
+        // This is a placeholder for future full implementation
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = "Group selected nodes feature is partially implemented. Select nodes and use this feature to group them together.",
+            Data = "Group selected nodes feature is not yet fully implemented.",
             Timestamp = DateTimeOffset.Now
         });
     }
 
     private void UngroupSelectedNodes()
     {
+        // Ungroup feature is not yet implemented
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
@@ -1470,14 +1468,17 @@ public partial class Editor : IDisposable
         var modules = nodeDefinitions
             .Select(n => new
             {
-                Module = n.Type.Contains('-') ? n.Type.Split('-')[0] : "core",
+                // Extract module name - handle both single and compound names
+                Module = n.Type.Contains('-') ? 
+                    string.Join("-", n.Type.Split('-').Take(n.Type.Split('-').Length - 1)) : 
+                    "core",
                 NodeType = n.Type
             })
             .GroupBy(x => x.Module)
             .Select(g => new PaletteModuleInfo
             {
                 Name = g.Key,
-                Version = "1.0.0",
+                Version = "Unknown", // Version info would come from package metadata
                 NodeCount = g.Count(),
                 IsInstalled = true
             })
@@ -1488,22 +1489,26 @@ public partial class Editor : IDisposable
 
     private void InstallPaletteModule(string moduleName)
     {
+        // Module installation would integrate with npm/package manager
+        // This is a placeholder for future implementation
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = $"Installing module '{moduleName}' is not yet implemented. This would install nodes from npm registry.",
+            Data = $"Module installation for '{moduleName}' is not yet implemented.",
             Timestamp = DateTimeOffset.Now
         });
     }
 
     private void UninstallPaletteModule(string moduleName)
     {
+        // Module uninstallation would integrate with npm/package manager
+        // This is a placeholder for future implementation
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = $"Uninstalling module '{moduleName}' is not yet implemented.",
+            Data = $"Module uninstallation for '{moduleName}' is not yet implemented.",
             Timestamp = DateTimeOffset.Now
         });
     }
@@ -1752,6 +1757,10 @@ public partial class Editor : IDisposable
         return messages.TakeLast(100).Reverse();
     }
 
+    // Node highlighting constants
+    private const string HighlightColor = "#ffff00";
+    private const int HighlightFlashDuration = 200;
+
     private async Task HighlightDebugNode(string nodeId)
     {
         // Find and select the node in the diagram
@@ -1766,15 +1775,15 @@ public partial class Editor : IDisposable
             if (node.Style != null)
             {
                 var originalColor = node.Style.Fill;
-                node.Style.Fill = "#ffff00"; // Yellow highlight
+                node.Style.Fill = HighlightColor;
                 StateHasChanged();
-                await Task.Delay(200);
+                await Task.Delay(HighlightFlashDuration);
                 node.Style.Fill = originalColor;
                 StateHasChanged();
-                await Task.Delay(200);
-                node.Style.Fill = "#ffff00";
+                await Task.Delay(HighlightFlashDuration);
+                node.Style.Fill = HighlightColor;
                 StateHasChanged();
-                await Task.Delay(200);
+                await Task.Delay(HighlightFlashDuration);
                 node.Style.Fill = originalColor;
                 StateHasChanged();
             }
