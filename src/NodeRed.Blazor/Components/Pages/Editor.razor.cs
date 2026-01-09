@@ -14,6 +14,10 @@ namespace NodeRed.Blazor.Components.Pages;
 
 public partial class Editor : IDisposable
 {
+    // Default group styling constants
+    private const string DefaultGroupFillColor = "rgba(255, 204, 204, 0.3)";
+    private const string DefaultGroupStrokeColor = "#FF9999";
+    
     // Diagram reference
     public SfDiagramComponent? DiagramInstance { get; set; }
 
@@ -894,37 +898,33 @@ public partial class Editor : IDisposable
         // Restore nodes
         foreach (var nodeData in flow.StoredNodes)
         {
-            Node node;
-            
             if (nodeData.IsGroup)
             {
                 // Skip group nodes on first pass - we'll add them after all regular nodes
                 continue;
             }
-            else
+            
+            // Find palette node info
+            PaletteNodeInfo? paletteNode = null;
+            foreach (var category in PaletteCategories)
             {
-                // Find palette node info
-                PaletteNodeInfo? paletteNode = null;
-                foreach (var category in PaletteCategories)
-                {
-                    paletteNode = category.Nodes.FirstOrDefault(n => n.Type == nodeData.Type);
-                    if (paletteNode != null) break;
-                }
-                
-                // Create regular node
-                node = CreateNodeRedStyleNode(
-                    nodeData.Id,
-                    nodeData.OffsetX,
-                    nodeData.OffsetY,
-                    nodeData.Type,
-                    nodeData.LabelContent,
-                    !string.IsNullOrEmpty(nodeData.Color) && nodeData.Color.StartsWith("#") ? nodeData.Color : paletteNode?.Color ?? "#ddd",
-                    paletteNode
-                );
-                
-                // Restore additional info
-                node.AdditionalInfo = new Dictionary<string, object?>(nodeData.AdditionalInfo);
+                paletteNode = category.Nodes.FirstOrDefault(n => n.Type == nodeData.Type);
+                if (paletteNode != null) break;
             }
+            
+            // Create regular node
+            var node = CreateNodeRedStyleNode(
+                nodeData.Id,
+                nodeData.OffsetX,
+                nodeData.OffsetY,
+                nodeData.Type,
+                nodeData.LabelContent,
+                !string.IsNullOrEmpty(nodeData.Color) && nodeData.Color.StartsWith("#") ? nodeData.Color : paletteNode?.Color ?? "#ddd",
+                paletteNode
+            );
+            
+            // Restore additional info
+            node.AdditionalInfo = new Dictionary<string, object?>(nodeData.AdditionalInfo);
             
             DiagramNodes.Add(node);
         }
@@ -949,15 +949,15 @@ public partial class Editor : IDisposable
         // Now add NodeGroup elements with Children referencing the regular nodes
         foreach (var group in Groups)
         {
-            var parts = group.Color?.Split('|') ?? new[] { "rgba(255, 204, 204, 0.3)", "#FF9999" };
+            var parts = group.Color?.Split('|') ?? new[] { DefaultGroupFillColor, DefaultGroupStrokeColor };
             var groupNode = new NodeGroup
             {
                 ID = group.DiagramNodeId,
                 Children = group.NodeIds.ToArray(),
                 Style = new ShapeStyle
                 {
-                    Fill = parts.Length > 0 ? parts[0] : "rgba(255, 204, 204, 0.3)",
-                    StrokeColor = parts.Length > 1 ? parts[1] : "#FF9999",
+                    Fill = parts.Length > 0 ? parts[0] : DefaultGroupFillColor,
+                    StrokeColor = parts.Length > 1 ? parts[1] : DefaultGroupStrokeColor,
                     StrokeWidth = 2,
                     StrokeDashArray = "5,3"
                 },
@@ -2271,8 +2271,8 @@ public partial class Editor : IDisposable
                 Children = nodeIds.ToArray(),
                 Style = new ShapeStyle
                 {
-                    Fill = "rgba(255, 204, 204, 0.3)",
-                    StrokeColor = "#FF9999",
+                    Fill = DefaultGroupFillColor,
+                    StrokeColor = DefaultGroupStrokeColor,
                     StrokeWidth = 2,
                     StrokeDashArray = "5,3"
                 },
