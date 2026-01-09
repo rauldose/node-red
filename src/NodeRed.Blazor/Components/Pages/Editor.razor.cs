@@ -2037,13 +2037,37 @@ public partial class Editor : IDisposable
     
     private void AddSubflowToPalette(SubflowInfo subflow)
     {
-        // The subflow will appear in the palette via the dynamic palette loading
-        // For now, add a debug message
+        // Add subflow to the "subflows" category in the palette
+        var subflowCategory = PaletteCategories.FirstOrDefault(c => c.Name == "subflows");
+        if (subflowCategory == null)
+        {
+            // Create the subflows category if it doesn't exist
+            subflowCategory = new PaletteCategory
+            {
+                Name = "subflows",
+                IsExpanded = true,
+                Nodes = new List<PaletteNodeInfo>()
+            };
+            PaletteCategories.Add(subflowCategory);
+        }
+        
+        // Add the subflow as a palette node
+        var paletteNode = new PaletteNodeInfo
+        {
+            Type = $"subflow:{subflow.Id}",
+            Label = subflow.Name,
+            Color = subflow.Color,
+            Icon = "fa fa-th-large",
+            Inputs = subflow.Inputs,
+            Outputs = subflow.Outputs
+        };
+        subflowCategory.Nodes.Add(paletteNode);
+        
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = $"Subflow '{subflow.Name}' is now available in the palette. Drag it onto any flow to use it.",
+            Data = $"Subflow '{subflow.Name}' added to palette. Drag it from the 'subflows' category onto any flow to use it.",
             Timestamp = DateTimeOffset.Now
         });
     }
