@@ -169,6 +169,362 @@
         </div>
     }
 
+    <!-- Search Dialog -->
+    @if (IsSearchDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseSearchDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Search flows</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseSearchDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <div class="form-row">
+                        <input type="text" @bind="SearchQuery" @bind:event="oninput" @onkeyup="@(e => { if (e.Key == "Enter") PerformSearch(); })" placeholder="Search nodes, flows..." style="width: 100%; padding: 8px;" />
+                        <button class="red-ui-button red-ui-button-primary" @onclick="PerformSearch" style="margin-top: 10px;">
+                            <i class="fa fa-search"></i> Search
+                        </button>
+                    </div>
+                    <div style="margin-top: 15px; max-height: 400px; overflow-y: auto;">
+                        @if (SearchResults.Count == 0 && !string.IsNullOrWhiteSpace(SearchQuery))
+                        {
+                            <p style="color: #999;">No results found</p>
+                        }
+                        else if (SearchResults.Count > 0)
+                        {
+                            @foreach (var result in SearchResults)
+                            {
+                                <div class="red-ui-search-result" @onclick="() => SelectSearchResult(result)" style="padding: 10px; border-bottom: 1px solid #ddd; cursor: pointer;">
+                                    <div style="font-weight: bold;">@result.Label</div>
+                                    <div style="font-size: 0.9em; color: #666;">@result.Type: @result.Description</div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseSearchDialog">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Flow Properties Dialog -->
+    @if (IsFlowPropertiesDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseFlowPropertiesDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Edit flow properties</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseFlowPropertiesDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <div class="form-row">
+                        <label>Name</label>
+                        <input type="text" @bind="FlowPropertiesLabel" placeholder="Flow name" style="width: 100%; padding: 8px;" />
+                    </div>
+                    <div class="form-row" style="margin-top: 15px;">
+                        <label>Info</label>
+                        <textarea @bind="FlowPropertiesInfo" placeholder="Description" rows="5" style="width: 100%; padding: 8px;"></textarea>
+                    </div>
+                    <div class="form-row" style="margin-top: 15px;">
+                        <label>
+                            <input type="checkbox" @bind="FlowPropertiesEnabled" />
+                            Enabled
+                        </label>
+                    </div>
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseFlowPropertiesDialog">Cancel</button>
+                    <button class="red-ui-button red-ui-button-primary" @onclick="SaveFlowProperties">Done</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Configuration Nodes Dialog -->
+    @if (IsConfigNodesDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseConfigNodesDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Configuration nodes</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseConfigNodesDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <p style="color: #666; margin-bottom: 15px;">Configuration nodes allow you to share configuration between nodes.</p>
+                    @if (ConfigNodes.Count == 0)
+                    {
+                        <p style="color: #999;">No configuration nodes defined</p>
+                    }
+                    else
+                    {
+                        @foreach (var config in ConfigNodes)
+                        {
+                            <div style="padding: 10px; border-bottom: 1px solid #ddd;">
+                                <div style="font-weight: bold;">@config.Label</div>
+                                <div style="font-size: 0.9em; color: #666;">@config.Type</div>
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseConfigNodesDialog">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Flows Management Dialog -->
+    @if (IsFlowsDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseFlowsDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Manage flows</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseFlowsDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <div style="margin-bottom: 15px;">
+                        <button class="red-ui-button red-ui-button-primary" @onclick="AddFlowFromDialog">
+                            <i class="fa fa-plus"></i> Add Flow
+                        </button>
+                    </div>
+                    @foreach (var flow in Flows)
+                    {
+                        <div style="padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: bold;">@flow.Label</div>
+                                <div style="font-size: 0.9em; color: #666;">ID: @flow.Id</div>
+                            </div>
+                            <div>
+                                <button class="red-ui-button" @onclick="() => EditFlowFromDialog(flow.Id)" style="margin-right: 5px;">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button class="red-ui-button" @onclick="() => DeleteFlowFromDialog(flow.Id)" disabled="@(Flows.Count <= 1)">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseFlowsDialog">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Subflows Dialog -->
+    @if (IsSubflowsDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseSubflowsDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Subflows</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseSubflowsDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <p style="color: #666; margin-bottom: 15px;">Subflows allow you to create reusable groups of nodes.</p>
+                    <button class="red-ui-button red-ui-button-primary" @onclick="CreateSubflow" style="margin-bottom: 15px;">
+                        <i class="fa fa-plus"></i> Create Subflow
+                    </button>
+                    @if (Subflows.Count == 0)
+                    {
+                        <p style="color: #999;">No subflows defined</p>
+                    }
+                    else
+                    {
+                        @foreach (var subflow in Subflows)
+                        {
+                            <div style="padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: bold;">@subflow.Name</div>
+                                    <div style="font-size: 0.9em; color: #666;">Inputs: @subflow.Inputs, Outputs: @subflow.Outputs</div>
+                                </div>
+                                <div>
+                                    <button class="red-ui-button" @onclick="() => EditSubflow(subflow.Id)" style="margin-right: 5px;">
+                                        <i class="fa fa-edit"></i>
+                                    </button>
+                                    <button class="red-ui-button" @onclick="() => DeleteSubflow(subflow.Id)">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseSubflowsDialog">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Groups Dialog -->
+    @if (IsGroupsDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseGroupsDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Groups</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseGroupsDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <p style="color: #666; margin-bottom: 15px;">Groups allow you to visually organize nodes together.</p>
+                    <div style="margin-bottom: 15px;">
+                        <button class="red-ui-button red-ui-button-primary" @onclick="GroupSelectedNodes" style="margin-right: 10px;">
+                            <i class="fa fa-object-group"></i> Group Selected
+                        </button>
+                        <button class="red-ui-button" @onclick="UngroupSelectedNodes">
+                            <i class="fa fa-object-ungroup"></i> Ungroup Last
+                        </button>
+                    </div>
+                    @if (Groups.Count == 0)
+                    {
+                        <p style="color: #999;">No groups defined. Select nodes in the workspace and click "Group Selected" to create a group.</p>
+                    }
+                    else
+                    {
+                        <h4 style="margin-top: 20px;">Existing Groups</h4>
+                        @foreach (var group in Groups)
+                        {
+                            <div style="padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: bold;">@group.Name</div>
+                                    <div style="font-size: 0.9em; color: #666;">Nodes: @group.NodeCount</div>
+                                </div>
+                                <div>
+                                    <button class="red-ui-button" @onclick="() => EditGroup(group.Id)" style="margin-right: 5px;">
+                                        <i class="fa fa-edit"></i>
+                                    </button>
+                                    <button class="red-ui-button" @onclick="() => DeleteGroup(group.Id)">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseGroupsDialog">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Palette Management Dialog -->
+    @if (IsPaletteDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="ClosePaletteDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Manage palette</span>
+                    <a class="red-ui-dialog-close" @onclick="ClosePaletteDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <div class="form-row" style="margin-bottom: 15px;">
+                        <input type="text" @bind="PaletteSearchQuery" @bind:event="oninput" placeholder="Search modules..." style="width: 100%; padding: 8px;" />
+                    </div>
+                    <h4>Installed Modules</h4>
+                    @if (AvailableModules.Count == 0)
+                    {
+                        <p style="color: #999;">No modules installed</p>
+                    }
+                    else
+                    {
+                        @foreach (var module in AvailableModules.Where(m => m.IsInstalled))
+                        {
+                            <div style="padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: bold;">@module.Name</div>
+                                    <div style="font-size: 0.9em; color: #666;">Version: @module.Version (@module.NodeCount nodes)</div>
+                                </div>
+                                <button class="red-ui-button" @onclick="() => UninstallPaletteModule(module.Name)">
+                                    <i class="fa fa-trash"></i> Remove
+                                </button>
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="ClosePaletteDialog">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Settings Dialog -->
+    @if (IsSettingsDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseSettingsDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>User Settings</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseSettingsDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <h4>View</h4>
+                    <div class="form-row">
+                        <label>
+                            <input type="checkbox" @bind="SettingsShowGrid" />
+                            Show grid
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label>
+                            <input type="checkbox" @bind="SettingsSnapToGrid" />
+                            Snap to grid
+                        </label>
+                    </div>
+                    <div class="form-row">
+                        <label>Grid size</label>
+                        <input type="number" @bind="SettingsGridSize" min="5" max="50" style="width: 100px; padding: 8px;" />
+                    </div>
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseSettingsDialog">Cancel</button>
+                    <button class="red-ui-button red-ui-button-primary" @onclick="SaveSettings">Save</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Keyboard Shortcuts Dialog -->
+    @if (IsKeyboardShortcutsDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseKeyboardShortcutsDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Keyboard Shortcuts</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseKeyboardShortcutsDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <table style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left; padding: 8px; border-bottom: 2px solid #ddd;">Shortcut</th>
+                                <th style="text-align: left; padding: 8px; border-bottom: 2px solid #ddd;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var shortcut in KeyboardShortcuts)
+                            {
+                                <tr>
+                                    <td style="padding: 8px; border-bottom: 1px solid #eee;"><kbd>@shortcut.Key</kbd></td>
+                                    <td style="padding: 8px; border-bottom: 1px solid #eee;">@shortcut.Description</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseKeyboardShortcutsDialog">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+
     <!-- Main Container -->
     <div id="red-ui-main-container">
         <!-- Custom Palette (Node-RED style) -->
@@ -353,17 +709,23 @@
                             <a href="javascript:void(0)" class="red-ui-debug-button" @onclick="ClearDebugMessages">
                                 <i class="fa fa-trash"></i>
                             </a>
-                            <a href="javascript:void(0)" class="red-ui-debug-button">
+                            <a href="javascript:void(0)" class="red-ui-debug-button" @onclick="FilterDebugMessages">
                                 <i class="fa fa-filter"></i>
                             </a>
                             <span class="red-ui-debug-count">@DebugMessages.Count</span>
                         </div>
+                        @if (DebugFilterByNode)
+                        {
+                            <div style="padding: 5px; background: #f4f4f4;">
+                                <input type="text" @bind="DebugMessageFilter" @bind:event="oninput" placeholder="Filter messages..." style="width: 100%; padding: 5px;" />
+                            </div>
+                        }
                         <div class="red-ui-debug-content">
                             @if (DebugMessages.Count == 0)
                             {
                                 <div class="red-ui-debug-none">No messages</div>
                             }
-                            @foreach (var msg in DebugMessages.TakeLast(100).Reverse())
+                            @foreach (var msg in GetFilteredDebugMessages())
                             {
                                 <div class="red-ui-debug-msg" @onclick="() => HighlightDebugNode(msg.NodeId)">
                                     <span class="red-ui-debug-msg-date">@msg.Timestamp.ToString("M/d/yyyy, h:mm:ss tt")</span>
