@@ -142,13 +142,22 @@ Avoid passing untrusted data directly to shell commands.")
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            var timeoutMs = timeout > 0 ? (int)(timeout * 1000) : int.MaxValue;
-            var completed = await Task.Run(() => process.WaitForExit(timeoutMs));
-
-            if (!completed)
+            if (timeout > 0)
             {
-                process.Kill(true);
-                throw new TimeoutException($"Command timed out after {timeout} seconds");
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
+                try
+                {
+                    await process.WaitForExitAsync(cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    process.Kill(true);
+                    throw new TimeoutException($"Command timed out after {timeout} seconds");
+                }
+            }
+            else
+            {
+                await process.WaitForExitAsync();
             }
 
             ClearStatus();
