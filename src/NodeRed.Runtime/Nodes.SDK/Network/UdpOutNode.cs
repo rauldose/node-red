@@ -100,11 +100,24 @@ public class UdpOutNode : SdkNodeBase
 
             if (_client != null)
             {
-                var endpoint = new IPEndPoint(
-                    IPAddress.TryParse(addr, out var ip) ? ip : (await Dns.GetHostAddressesAsync(addr!))[0],
-                    port
-                );
+                IPAddress targetIp;
+                if (IPAddress.TryParse(addr, out var ip))
+                {
+                    targetIp = ip;
+                }
+                else
+                {
+                    var addresses = await Dns.GetHostAddressesAsync(addr!);
+                    if (addresses.Length == 0)
+                    {
+                        Error($"Could not resolve host: {addr}", msg);
+                        done();
+                        return;
+                    }
+                    targetIp = addresses[0];
+                }
                 
+                var endpoint = new IPEndPoint(targetIp, port);
                 await _client.SendAsync(data, endpoint);
                 Status("Sent", StatusFill.Green, SdkStatusShape.Dot);
             }

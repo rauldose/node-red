@@ -113,18 +113,29 @@ public class NodeCredentialAttribute : Attribute
 
 /// <summary>
 /// Attribute to define a node module (package of nodes).
-/// Apply this to your module class.
+/// Apply this at the ASSEMBLY level to define a module containing multiple nodes.
+/// 
+/// This follows Node-RED's pattern where:
+/// - Core nodes are in @node-red/nodes package (one package, many nodes)
+/// - Contrib modules like node-red-dashboard contain multiple related nodes
+/// - Each module/assembly shares its dependencies
+/// 
+/// Example in AssemblyInfo.cs:
+/// [assembly: NodeModule("@myorg/node-red-contrib-mymodule", 
+///     Version = "1.0.0", 
+///     Description = "My custom dashboard nodes")]
 /// </summary>
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false)]
 public class NodeModuleAttribute : Attribute
 {
     /// <summary>
     /// Module name (e.g., "@myorg/node-red-contrib-mymodule").
+    /// Following Node-RED naming conventions.
     /// </summary>
     public string Name { get; }
 
     /// <summary>
-    /// Module version.
+    /// Module version (semver format).
     /// </summary>
     public string Version { get; set; } = "1.0.0";
 
@@ -139,7 +150,8 @@ public class NodeModuleAttribute : Attribute
     public string Author { get; set; } = "";
 
     /// <summary>
-    /// Minimum Node-RED .NET version required.
+    /// Minimum Node-RED .NET runtime version required.
+    /// Similar to Node-RED's "node-red": { "version": ">=1.0.0" } in package.json.
     /// </summary>
     public string MinVersion { get; set; } = "1.0.0";
 

@@ -153,7 +153,9 @@ The **Topic** field can use MQTT wildcards:
         try
         {
             var str = Encoding.UTF8.GetString(data);
-            return JsonSerializer.Deserialize<object>(str);
+            using var doc = JsonDocument.Parse(str);
+            // Return the root element cloned to outlive the document
+            return doc.RootElement.Clone();
         }
         catch
         {
@@ -168,7 +170,8 @@ The **Topic** field can use MQTT wildcards:
             var str = Encoding.UTF8.GetString(data);
             if (str.TrimStart().StartsWith("{") || str.TrimStart().StartsWith("["))
             {
-                return JsonSerializer.Deserialize<object>(str) ?? str;
+                using var doc = JsonDocument.Parse(str);
+                return doc.RootElement.Clone();
             }
             return str;
         }

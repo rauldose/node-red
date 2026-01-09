@@ -107,7 +107,9 @@ public class NodeLoader : INodeLoader
     private readonly List<NodeModuleInfo> _modules = new();
     
     // Allow/deny lists similar to Node-RED's externalModules.palette configuration
-    private List<Regex> _allowList = new() { new Regex(".*") }; // Default: allow all
+    // Using a flag for "allow all" is more efficient than regex matching
+    private bool _allowAll = true;
+    private List<Regex> _allowList = new();
     private List<Regex> _denyList = new();
     
     /// <summary>
@@ -119,10 +121,13 @@ public class NodeLoader : INodeLoader
     /// Configures the allow list for module loading.
     /// Similar to Node-RED's externalModules.palette.allowList.
     /// Patterns support wildcards: * matches any characters.
+    /// Use ["*"] to allow all modules.
     /// </summary>
     public void SetAllowList(IEnumerable<string> patterns)
     {
-        _allowList = patterns.Select(ParsePattern).ToList();
+        var patternList = patterns.ToList();
+        _allowAll = patternList.Count == 1 && patternList[0] == "*";
+        _allowList = _allowAll ? new() : patternList.Select(ParsePattern).ToList();
     }
     
     /// <summary>
@@ -148,6 +153,12 @@ public class NodeLoader : INodeLoader
         if (_denyList.Any(r => r.IsMatch(moduleName)))
         {
             return false;
+        }
+        
+        // If allow all is set, skip regex matching
+        if (_allowAll)
+        {
+            return true;
         }
         
         // Then check allow list
