@@ -748,9 +748,22 @@ public partial class Editor : IDisposable
     {
         var handles = new DiagramObjectCollection<NodeFixedUserHandle>();
 
-        // Only add inject button for inject nodes - positioned to the left like Node-RED JS
-        // Node-RED JS shows a small square button with play icon
-        if (nodeType == "inject")
+        // Add trigger button for inject nodes and subflow instances with inputs
+        // Node-RED JS shows a small square button with play icon on the left
+        bool shouldHaveButton = nodeType == "inject";
+        
+        // Subflow instances (type starts with "subflow:") also have buttons if they have inputs
+        if (nodeType.StartsWith("subflow:"))
+        {
+            var subflowId = nodeType.Substring(8); // Remove "subflow:" prefix
+            var subflow = Subflows.FirstOrDefault(s => s.Id == subflowId);
+            if (subflow != null && subflow.Inputs > 0)
+            {
+                shouldHaveButton = true;
+            }
+        }
+        
+        if (shouldHaveButton)
         {
             handles.Add(new NodeFixedUserHandle()
             {
