@@ -901,7 +901,7 @@ public partial class Editor : IDisposable
         Groups.Clear();
         
         NodeCount = flow.NodeCounter;
-        ConnectorCounter = flow.ConnectorCounter;
+        ConnectorCount = flow.ConnectorCounter;
         Groups = new List<GroupInfo>(flow.Groups);
         
         // Restore nodes
@@ -962,7 +962,7 @@ public partial class Editor : IDisposable
                     nodeData.OffsetY,
                     nodeData.Type,
                     nodeData.LabelContent,
-                    nodeData.Color.StartsWith("#") ? nodeData.Color : paletteNode?.Color ?? "#ddd",
+                    !string.IsNullOrEmpty(nodeData.Color) && nodeData.Color.StartsWith("#") ? nodeData.Color : paletteNode?.Color ?? "#ddd",
                     paletteNode
                 );
                 
