@@ -194,19 +194,22 @@
     </div>
     
     @* Tips box at bottom *@
-    <div class="red-ui-help-tips">
-        <div class="red-ui-help-tip">
-            <i class="fa fa-lightbulb-o"></i> @CurrentTip
+    @if (_showTips)
+    {
+        <div class="red-ui-help-tips">
+            <div class="red-ui-help-tip">
+                <i class="fa fa-lightbulb-o"></i> @_displayTip
+            </div>
+            <div class="red-ui-help-tips-buttons">
+                <a href="javascript:void(0)" class="red-ui-footer-button" @onclick="NextTip" title="Next tip">
+                    <i class="fa fa-refresh"></i>
+                </a>
+                <a href="javascript:void(0)" class="red-ui-footer-button" @onclick="HideTips" title="Hide tips">
+                    <i class="fa fa-times"></i>
+                </a>
+            </div>
         </div>
-        <div class="red-ui-help-tips-buttons">
-            <a href="javascript:void(0)" class="red-ui-footer-button" @onclick="NextTip" title="Next tip">
-                <i class="fa fa-refresh"></i>
-            </a>
-            <a href="javascript:void(0)" class="red-ui-footer-button" @onclick="HideTips" title="Hide tips">
-                <i class="fa fa-times"></i>
-            </a>
-        </div>
-    </div>
+    }
 </div>
 
 @code {
@@ -294,12 +297,24 @@
     private void NextTip()
     {
         _currentTipIndex = (_currentTipIndex + 1) % _tips.Length;
-        CurrentTip = _tips[_currentTipIndex];
+        _displayTip = _tips[_currentTipIndex];
     }
 
     private void HideTips()
     {
-        // TODO: Hide tips section
+        _showTips = false;
+    }
+
+    // Local state for tips
+    private string _displayTip = "";
+    private bool _showTips = true;
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrEmpty(_displayTip))
+        {
+            _displayTip = CurrentTip;
+        }
     }
 
     public class FlowInfo

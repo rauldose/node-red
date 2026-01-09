@@ -138,7 +138,7 @@
 
 .red-ui-info-table td:last-child {
     color: var(--red-ui-primary-text-color, #444);
-    word-break: break-all;
+    overflow-wrap: break-word;
 }
 
 .red-ui-info-section {
