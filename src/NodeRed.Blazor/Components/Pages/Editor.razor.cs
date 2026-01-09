@@ -903,7 +903,7 @@ public partial class Editor : IDisposable
                 
                 // Check if this is a group node
                 var group = Groups.FirstOrDefault(g => g.DiagramNodeId == movedNode.ID);
-                if (group != null && DiagramNodes != null)
+                if (group != null && DiagramNodes != null && group.NodeIds.Count > 0)
                 {
                     // Calculate the delta movement
                     var oldNode = args.OldValue?.Nodes?.FirstOrDefault(n => n.ID == movedNode.ID);
@@ -912,22 +912,29 @@ public partial class Editor : IDisposable
                         double deltaX = movedNode.OffsetX - oldNode.OffsetX;
                         double deltaY = movedNode.OffsetY - oldNode.OffsetY;
                         
-                        // Move all nodes that belong to this group
-                        foreach (var nodeId in group.NodeIds)
+                        // Only move if there's actual movement
+                        if (Math.Abs(deltaX) > 0.001 || Math.Abs(deltaY) > 0.001)
                         {
-                            var node = DiagramNodes.FirstOrDefault(n => n.ID == nodeId);
-                            if (node != null)
+                            // Move all nodes that belong to this group
+                            foreach (var nodeId in group.NodeIds)
                             {
-                                node.OffsetX += deltaX;
-                                node.OffsetY += deltaY;
-                                // Also update in registry
-                                UpdateNodePosition(nodeId, node.OffsetX, node.OffsetY);
+                                var node = DiagramNodes.FirstOrDefault(n => n.ID == nodeId);
+                                if (node != null)
+                                {
+                                    node.OffsetX += deltaX;
+                                    node.OffsetY += deltaY;
+                                    // Also update in registry
+                                    UpdateNodePosition(nodeId, node.OffsetX, node.OffsetY);
+                                }
                             }
+                            
+                            // Update group position info
+                            group.X += deltaX;
+                            group.Y += deltaY;
+                            
+                            // Force diagram to refresh and show updated positions
+                            InvokeAsync(StateHasChanged);
                         }
-                        
-                        // Update group position info
-                        group.X += deltaX;
-                        group.Y += deltaY;
                     }
                 }
             }
