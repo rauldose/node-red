@@ -956,14 +956,33 @@ public partial class Editor : IDisposable
     private void RecordAction(EditorAction action)
     {
         _undoStack.Push(action);
+        // Remove oldest item if stack exceeds max size
         if (_undoStack.Count > MaxUndoStackSize)
         {
-            // Remove oldest items if stack exceeds max size
-            var tempStack = new Stack<EditorAction>(_undoStack.Take(MaxUndoStackSize).Reverse());
-            _undoStack = tempStack;
+            // Convert to array, remove oldest (last), convert back to stack
+            var items = _undoStack.ToArray();
+            _undoStack = new Stack<EditorAction>(items.Take(MaxUndoStackSize).Reverse());
         }
         // Clear redo stack when a new action is recorded
         _redoStack.Clear();
+    }
+
+    /// <summary>
+    /// Gets the currently selected nodes in the diagram.
+    /// </summary>
+    private List<Node> GetSelectedNodes()
+    {
+        var result = new List<Node>();
+        var selectedNodes = DiagramInstance?.SelectionSettings?.Nodes;
+        if (selectedNodes != null && selectedNodes.Count > 0)
+        {
+            result.AddRange(selectedNodes);
+        }
+        else if (SelectedDiagramNode != null)
+        {
+            result.Add(SelectedDiagramNode);
+        }
+        return result;
     }
 
     /// <summary>
@@ -1103,16 +1122,10 @@ public partial class Editor : IDisposable
     /// </summary>
     private void CopySelection()
     {
-        if (SelectedDiagramNode == null) return;
+        var selectedNodes = GetSelectedNodes();
+        if (selectedNodes.Count == 0) return;
 
         var nodesToCopy = new List<object>();
-        
-        // Get all selected nodes
-        var selectedNodes = DiagramInstance?.SelectionSettings?.Nodes ?? new DiagramObjectCollection<Node>();
-        if (selectedNodes.Count == 0 && SelectedDiagramNode != null)
-        {
-            selectedNodes = new DiagramObjectCollection<Node> { SelectedDiagramNode };
-        }
 
         foreach (var node in selectedNodes)
         {
@@ -1242,14 +1255,10 @@ public partial class Editor : IDisposable
     /// </summary>
     private void DeleteSelection()
     {
-        if (SelectedDiagramNode == null) return;
+        var selectedNodes = GetSelectedNodes();
+        if (selectedNodes.Count == 0) return;
 
-        var selectedNodes = DiagramInstance?.SelectionSettings?.Nodes ?? new DiagramObjectCollection<Node>();
-        if (selectedNodes.Count == 0 && SelectedDiagramNode != null)
-        {
-            selectedNodes = new DiagramObjectCollection<Node> { SelectedDiagramNode };
-        }
-
+        // Create a copy since we're modifying the collection
         foreach (var node in selectedNodes.ToList())
         {
             // Record for undo
