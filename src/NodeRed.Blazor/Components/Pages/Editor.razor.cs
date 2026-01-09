@@ -63,6 +63,9 @@ public partial class Editor : IDisposable
     // Node statuses (node ID -> status)
     private Dictionary<string, NodeStatus> _nodeStatuses = new();
 
+    // Cached node definitions for performance
+    private List<NodeDefinition>? _cachedNodeDefinitions;
+
     // Node counter for unique IDs
     private int NodeCount = 0;
     private int ConnectorCount = 0;
@@ -72,8 +75,10 @@ public partial class Editor : IDisposable
     private string PaletteFilter = "";
     private PaletteNodeInfo? DraggedNode = null;
 
-    // All node properties are now stored dynamically in _nodePropertyValues
-    // No more hardcoded property bindings - properties come from SDK node DefineProperties()
+    /// <summary>
+    /// All node properties are stored dynamically in _nodePropertyValues.
+    /// Properties come from SDK node DefineProperties() - no hardcoded bindings.
+    /// </summary>
 
     // Default node constraints
     private static readonly NodeConstraints DefaultNodeConstraints =
@@ -1844,8 +1849,8 @@ public partial class Editor : IDisposable
     /// </summary>
     private NodeHelpText? GetNodeHelp(string nodeType)
     {
-        var definitions = NodeLoader.GetNodeDefinitions();
-        var def = definitions.FirstOrDefault(d => d.Type == nodeType);
+        _cachedNodeDefinitions ??= NodeLoader.GetNodeDefinitions().ToList();
+        var def = _cachedNodeDefinitions.FirstOrDefault(d => d.Type == nodeType);
         return def?.Help;
     }
 
