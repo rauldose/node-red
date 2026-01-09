@@ -337,9 +337,19 @@
                     {
                         @foreach (var subflow in Subflows)
                         {
-                            <div style="padding: 10px; border-bottom: 1px solid #ddd;">
-                                <div style="font-weight: bold;">@subflow.Name</div>
-                                <div style="font-size: 0.9em; color: #666;">Inputs: @subflow.Inputs, Outputs: @subflow.Outputs</div>
+                            <div style="padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: bold;">@subflow.Name</div>
+                                    <div style="font-size: 0.9em; color: #666;">Inputs: @subflow.Inputs, Outputs: @subflow.Outputs</div>
+                                </div>
+                                <div>
+                                    <button class="red-ui-button" @onclick="() => EditSubflow(subflow.Id)" style="margin-right: 5px;">
+                                        <i class="fa fa-edit"></i>
+                                    </button>
+                                    <button class="red-ui-button" @onclick="() => DeleteSubflow(subflow.Id)">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </div>
                             </div>
                         }
                     }
@@ -367,10 +377,34 @@
                             <i class="fa fa-object-group"></i> Group Selected
                         </button>
                         <button class="red-ui-button" @onclick="UngroupSelectedNodes">
-                            <i class="fa fa-object-ungroup"></i> Ungroup Selected
+                            <i class="fa fa-object-ungroup"></i> Ungroup Last
                         </button>
                     </div>
-                    <p style="color: #999;">Select multiple nodes in the workspace to create a group.</p>
+                    @if (Groups.Count == 0)
+                    {
+                        <p style="color: #999;">No groups defined. Select nodes in the workspace and click "Group Selected" to create a group.</p>
+                    }
+                    else
+                    {
+                        <h4 style="margin-top: 20px;">Existing Groups</h4>
+                        @foreach (var group in Groups)
+                        {
+                            <div style="padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: bold;">@group.Name</div>
+                                    <div style="font-size: 0.9em; color: #666;">Nodes: @group.NodeCount</div>
+                                </div>
+                                <div>
+                                    <button class="red-ui-button" @onclick="() => EditGroup(group.Id)" style="margin-right: 5px;">
+                                        <i class="fa fa-edit"></i>
+                                    </button>
+                                    <button class="red-ui-button" @onclick="() => DeleteGroup(group.Id)">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
                 </div>
                 <div class="red-ui-dialog-footer">
                     <button class="red-ui-button" @onclick="CloseGroupsDialog">Close</button>
