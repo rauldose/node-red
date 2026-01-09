@@ -30,7 +30,7 @@ public class MqttInNode : SdkNodeBase
     protected override List<NodePropertyDefinition> DefineProperties() =>
         PropertyBuilder.Create()
             .AddText("name", "Name", icon: "fa fa-tag")
-            .AddText("broker", "Server", icon: "fa fa-server", placeholder: "mqtt://localhost:1883")
+            .AddText("broker", "Broker", icon: "fa fa-server", placeholder: "mqtt://localhost:1883")
             .AddText("topic", "Topic", icon: "fa fa-filter", defaultValue: "#")
             .AddSelect("qos", "QoS", new[]
             {

@@ -778,23 +778,23 @@
     };
 
     /// <summary>
-    /// Gets the property schema for a node type, checking both hard-coded schemas
-    /// and SDK-defined properties from the NodeLoader.
+    /// Gets the property schema for a node type.
+    /// SDK-defined properties from NodeLoader take precedence over hard-coded schemas.
     /// </summary>
     private List<NodePropertyField> GetNodeSchema(string nodeType)
     {
-        // First try the hard-coded schemas
-        var schema = NodePropertySchemas.GetSchema(nodeType);
-        if (schema.Count > 0)
-        {
-            return schema;
-        }
-
-        // Try to get properties from the NodeLoader (for SDK nodes)
+        // First try to get properties from the NodeLoader (SDK nodes define properties via DefineProperties())
         var nodeDef = NodeLoader.GetNodeDefinitions().FirstOrDefault(d => d.Type == nodeType);
         if (nodeDef?.Properties != null && nodeDef.Properties.Count > 0)
         {
             return nodeDef.Properties.Select(NodePropertySchemas.FromDefinition).ToList();
+        }
+
+        // Fall back to hard-coded schemas for backwards compatibility
+        var schema = NodePropertySchemas.GetSchema(nodeType);
+        if (schema.Count > 0)
+        {
+            return schema;
         }
 
         return new List<NodePropertyField>();
