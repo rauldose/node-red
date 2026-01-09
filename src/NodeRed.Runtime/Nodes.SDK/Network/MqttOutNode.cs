@@ -110,9 +110,26 @@ The topic can be set in the node configuration or provided dynamically via **msg
 
         try
         {
+            // Topic: use msg.topic if available, otherwise node config
             var topic = msg.Topic ?? GetConfig<string>("topic", "");
-            var qosStr = GetConfig<string>("qos", "0");
+            
+            // QoS: node config takes precedence, then msg.qos, then default 0
+            var nodeQos = GetConfig<string>("qos", "");
+            var qosStr = !string.IsNullOrEmpty(nodeQos) ? nodeQos : "0";
+            
+            // Check if msg has qos override
+            if (string.IsNullOrEmpty(nodeQos) && msg.Properties.TryGetValue("qos", out var msgQos))
+            {
+                qosStr = msgQos?.ToString() ?? "0";
+            }
+            
+            // Retain: node config OR msg.retain
             var retain = GetConfig<bool>("retain", false);
+            if (msg.Properties.TryGetValue("retain", out var msgRetain))
+            {
+                if (msgRetain is bool r) retain = r;
+                else if (msgRetain is string rs) retain = rs.Equals("true", StringComparison.OrdinalIgnoreCase);
+            }
 
             if (string.IsNullOrEmpty(topic))
             {

@@ -362,6 +362,15 @@ public partial class Editor : IDisposable
                     Offset = new DiagramPoint() { X = 0.58, Y = 0.5 },
                     Style = new TextStyle() { Color = "#333", FontSize = 12 },
                     Constraints = AnnotationConstraints.ReadOnly
+                },
+                // Status annotation (below the node, hidden by default)
+                new ShapeAnnotation
+                {
+                    ID = "statusAnnotation",
+                    Content = "",
+                    Offset = new DiagramPoint() { X = 0.5, Y = 1.5 },
+                    Style = new TextStyle() { Color = "#888", FontSize = 10 },
+                    Constraints = AnnotationConstraints.ReadOnly
                 }
             },
             AdditionalInfo = new Dictionary<string, object> 
@@ -1892,6 +1901,31 @@ public partial class Editor : IDisposable
     private void OnNodeStatusChanged(string nodeId, NodeStatus status)
     {
         _nodeStatuses[nodeId] = status;
+        
+        // Update the status annotation on the diagram node
+        var node = DiagramNodes?.FirstOrDefault(n => n.ID == nodeId);
+        if (node?.Annotations != null && node.Annotations.Count >= 3)
+        {
+            var statusAnnotation = node.Annotations.FirstOrDefault(a => a.ID == "statusAnnotation");
+            if (statusAnnotation != null)
+            {
+                // Build status text with indicator
+                var statusText = "";
+                if (!string.IsNullOrEmpty(status.Text))
+                {
+                    var indicator = status.Shape == StatusShape.Ring ? "○" : "●";
+                    statusText = $"{indicator} {status.Text}";
+                }
+                statusAnnotation.Content = statusText;
+                
+                // Set color based on status
+                if (statusAnnotation.Style != null)
+                {
+                    statusAnnotation.Style.Color = GetStatusColor(status.Color);
+                }
+            }
+        }
+        
         InvokeAsync(StateHasChanged);
     }
 
