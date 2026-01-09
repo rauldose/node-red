@@ -4,6 +4,9 @@
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.SDK;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using SdkNodeBase = NodeRed.SDK.NodeBase;
 
 namespace NodeRed.Runtime.Nodes.SDK.Network;
@@ -19,6 +22,10 @@ namespace NodeRed.Runtime.Nodes.SDK.Network;
     Outputs = 1)]
 public class UdpInNode : SdkNodeBase
 {
+    private UdpClient? _client;
+    private CancellationTokenSource? _cts;
+    private SendDelegate? _send;
+
     protected override List<NodePropertyDefinition> DefineProperties() =>
         PropertyBuilder.Create()
             .AddText("name", "Name", icon: "fa fa-tag")
@@ -61,9 +68,91 @@ public class UdpInNode : SdkNodeBase
         .Details("Listens for incoming UDP packets on the configured port.")
         .Build();
 
+    protected override async Task OnInitializeAsync()
+    {
+        var port = GetConfig<int>("port", 9000);
+        var iface = GetConfig<string>("iface", "");
+        var addr = GetConfig<string>("addr", "");
+        var multicast = GetConfig<string>("multicast", "false");
+        var group = GetConfig<string>("group", "");
+
+        _cts = new CancellationTokenSource();
+
+        try
+        {
+            if (iface == "specific" && !string.IsNullOrEmpty(addr))
+            {
+                var localEp = new IPEndPoint(IPAddress.Parse(addr), port);
+                _client = new UdpClient(localEp);
+            }
+            else
+            {
+                _client = new UdpClient(port);
+            }
+
+            if (multicast == "multi" && !string.IsNullOrEmpty(group))
+            {
+                _client.JoinMulticastGroup(IPAddress.Parse(group));
+            }
+
+            Status($"Listening on port {port}", StatusFill.Green, SdkStatusShape.Dot);
+            _ = Task.Run(async () => await ReceiveLoopAsync(_cts.Token));
+        }
+        catch (Exception ex)
+        {
+            Status(ex.Message, StatusFill.Red, SdkStatusShape.Ring);
+            Error($"UDP error: {ex.Message}");
+        }
+    }
+
+    private async Task ReceiveLoopAsync(CancellationToken ct)
+    {
+        var datatype = GetConfig<string>("datatype", "buffer");
+
+        while (!ct.IsCancellationRequested && _client != null)
+        {
+            try
+            {
+                var result = await _client.ReceiveAsync(ct);
+                var data = result.Buffer;
+
+                object payload = datatype switch
+                {
+                    "utf8" => Encoding.UTF8.GetString(data),
+                    "base64" => Convert.ToBase64String(data),
+                    _ => data
+                };
+
+                var msg = new NodeMessage
+                {
+                    Payload = payload,
+                    Topic = $"udp:{result.RemoteEndPoint}"
+                };
+
+                _send?.Invoke(0, msg);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                Log($"UDP receive error: {ex.Message}");
+            }
+        }
+    }
+
     protected override Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
     {
+        _send = send;
         done();
+        return Task.CompletedTask;
+    }
+
+    protected override Task OnCloseAsync()
+    {
+        _cts?.Cancel();
+        _client?.Dispose();
         return Task.CompletedTask;
     }
 }

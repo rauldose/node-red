@@ -171,6 +171,7 @@ public class NodeLoader : INodeLoader
 
     /// <summary>
     /// Loads nodes from a plugins directory.
+    /// Each plugin can optionally include a plugin.json manifest.
     /// </summary>
     public IEnumerable<NodeTypeInfo> LoadFromDirectory(string path)
     {
@@ -188,22 +189,65 @@ public class NodeLoader : INodeLoader
         {
             try
             {
+                // Check for plugin manifest
+                var manifestPath = Path.Combine(Path.GetDirectoryName(dllPath) ?? "", "plugin.json");
+                PluginManifest? manifest = null;
+                if (File.Exists(manifestPath))
+                {
+                    try
+                    {
+                        var json = File.ReadAllText(manifestPath);
+                        manifest = System.Text.Json.JsonSerializer.Deserialize<PluginManifest>(json);
+                    }
+                    catch
+                    {
+                        // Invalid manifest - continue without it
+                    }
+                }
+
                 var assembly = LoadAssembly(dllPath);
                 if (assembly != null)
                 {
-                    discovered.AddRange(DiscoverNodes(assembly));
+                    var nodes = DiscoverNodes(assembly);
+                    
+                    // Update module info with manifest data if available
+                    if (manifest != null)
+                    {
+                        foreach (var node in nodes)
+                        {
+                            if (node.Module != null)
+                            {
+                                // Module info is immutable, but we track the manifest separately
+                                _manifests[node.Module.Name] = manifest;
+                            }
+                        }
+                    }
+                    
+                    discovered.AddRange(nodes);
                 }
             }
             catch (Exception ex)
             {
-                // Errors are silently ignored - host app should use its own logging
-                // when calling LoadFromDirectory. The plugin simply won't be loaded.
-                _ = ex; // Suppress unused variable warning
+                // Track loading errors for diagnostic purposes
+                _loadErrors[dllPath] = ex.Message;
             }
         }
 
         return discovered;
     }
+
+    /// <summary>
+    /// Gets any errors that occurred during plugin loading.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> GetLoadErrors() => _loadErrors;
+
+    /// <summary>
+    /// Gets loaded plugin manifests.
+    /// </summary>
+    public IReadOnlyDictionary<string, PluginManifest> GetManifests() => _manifests;
+
+    private readonly Dictionary<string, string> _loadErrors = new();
+    private readonly Dictionary<string, PluginManifest> _manifests = new();
 
     /// <summary>
     /// Creates an instance of a node by type name.
@@ -248,10 +292,30 @@ public class NodeLoader : INodeLoader
 
 /// <summary>
 /// Custom assembly load context for plugin isolation.
+/// Handles dependency version conflicts by:
+/// 1. Sharing SDK and Core assemblies with the host application
+/// 2. Loading plugin-specific dependencies in isolation
+/// 3. Falling back to host assemblies for shared dependencies
 /// </summary>
 internal class PluginLoadContext : System.Runtime.Loader.AssemblyLoadContext
 {
     private readonly System.Runtime.Loader.AssemblyDependencyResolver _resolver;
+    
+    /// <summary>
+    /// Assemblies that should be shared with the host (not loaded per-plugin).
+    /// This prevents version conflicts for core framework types.
+    /// </summary>
+    private static readonly HashSet<string> SharedAssemblies = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "NodeRed.Core",
+        "NodeRed.SDK",
+        "System.Runtime",
+        "System.Private.CoreLib",
+        "System.Collections",
+        "System.Linq",
+        "System.Text.Json",
+        "Microsoft.Extensions.DependencyInjection.Abstractions"
+    };
 
     public PluginLoadContext(string pluginPath) : base(isCollectible: true)
     {
@@ -260,12 +324,21 @@ internal class PluginLoadContext : System.Runtime.Loader.AssemblyLoadContext
 
     protected override Assembly? Load(AssemblyName assemblyName)
     {
+        // For shared assemblies, use the host's version to ensure type compatibility
+        if (IsSharedAssembly(assemblyName.Name))
+        {
+            // Return null to fall back to the default context (host application)
+            return null;
+        }
+
+        // For plugin-specific dependencies, try to load from plugin's directory
         var assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
         if (assemblyPath != null)
         {
             return LoadFromAssemblyPath(assemblyPath);
         }
 
+        // Fall back to host for any unresolved assemblies
         return null;
     }
 
@@ -279,4 +352,47 @@ internal class PluginLoadContext : System.Runtime.Loader.AssemblyLoadContext
 
         return IntPtr.Zero;
     }
+
+    private static bool IsSharedAssembly(string? assemblyName)
+    {
+        if (string.IsNullOrEmpty(assemblyName))
+            return false;
+
+        // Check if it's in the explicit shared list
+        if (SharedAssemblies.Contains(assemblyName))
+            return true;
+
+        // System and Microsoft assemblies should generally be shared
+        if (assemblyName.StartsWith("System.", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (assemblyName.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) &&
+            !assemblyName.StartsWith("Microsoft.Data.", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+}
+
+/// <summary>
+/// Plugin manifest for declaring dependencies and compatibility.
+/// </summary>
+public class PluginManifest
+{
+    public string Name { get; set; } = "";
+    public string Version { get; set; } = "1.0.0";
+    public string Description { get; set; } = "";
+    public string Author { get; set; } = "";
+    public string MinRuntimeVersion { get; set; } = "1.0.0";
+    public List<PluginDependency> Dependencies { get; set; } = new();
+}
+
+/// <summary>
+/// Dependency declaration for a plugin.
+/// </summary>
+public class PluginDependency
+{
+    public string Name { get; set; } = "";
+    public string Version { get; set; } = "";
+    public bool Optional { get; set; } = false;
 }

@@ -4,6 +4,9 @@
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.SDK;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using SdkNodeBase = NodeRed.SDK.NodeBase;
 
 namespace NodeRed.Runtime.Nodes.SDK.Network;
@@ -19,6 +22,8 @@ namespace NodeRed.Runtime.Nodes.SDK.Network;
     Outputs = 0)]
 public class UdpOutNode : SdkNodeBase
 {
+    private UdpClient? _client;
+
     protected override List<NodePropertyDefinition> DefineProperties() =>
         PropertyBuilder.Create()
             .AddText("name", "Name", icon: "fa fa-tag")
@@ -57,11 +62,65 @@ public class UdpOutNode : SdkNodeBase
         .Details("Sends **msg.payload** to the configured address and port.")
         .Build();
 
-    protected override Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
+    protected override Task OnInitializeAsync()
     {
-        Log($"UDP send to {GetConfig("addr", "localhost")}:{GetConfig("port", 9000)}");
-        Status("Sent", StatusFill.Green, SdkStatusShape.Dot);
+        var multicast = GetConfig<string>("multicast", "false");
+        
+        _client = new UdpClient();
+        
+        if (multicast == "broad")
+        {
+            _client.EnableBroadcast = true;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
+    {
+        var addr = GetConfig<string>("addr", "localhost");
+        var port = GetConfig<int>("port", 9000);
+        var decodeBase64 = GetConfig<bool>("base64", false);
+
+        try
+        {
+            byte[] data;
+            if (msg.Payload is byte[] bytes)
+            {
+                data = bytes;
+            }
+            else if (msg.Payload is string str)
+            {
+                data = decodeBase64 ? Convert.FromBase64String(str) : Encoding.UTF8.GetBytes(str);
+            }
+            else
+            {
+                data = Encoding.UTF8.GetBytes(msg.Payload?.ToString() ?? "");
+            }
+
+            if (_client != null)
+            {
+                var endpoint = new IPEndPoint(
+                    IPAddress.TryParse(addr, out var ip) ? ip : (await Dns.GetHostAddressesAsync(addr!))[0],
+                    port
+                );
+                
+                await _client.SendAsync(data, endpoint);
+                Status("Sent", StatusFill.Green, SdkStatusShape.Dot);
+            }
+        }
+        catch (Exception ex)
+        {
+            Error($"UDP send error: {ex.Message}", msg);
+            Status(ex.Message, StatusFill.Red, SdkStatusShape.Ring);
+        }
+
         done();
+    }
+
+    protected override Task OnCloseAsync()
+    {
+        _client?.Dispose();
         return Task.CompletedTask;
     }
 }
