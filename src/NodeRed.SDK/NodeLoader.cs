@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 
 using System.Reflection;
+using System.Text.RegularExpressions;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Interfaces;
 
@@ -13,6 +14,11 @@ namespace NodeRed.SDK;
 /// - The main application assembly
 /// - Referenced assemblies
 /// - External plugin DLLs in a nodes directory
+/// 
+/// Similar to Node-RED's registry/loader.js, this handles:
+/// - Module discovery and loading
+/// - Version compatibility checking
+/// - Allow/deny list filtering
 /// </summary>
 public interface INodeLoader
 {
@@ -35,6 +41,18 @@ public interface INodeLoader
     /// Gets all registered node definitions.
     /// </summary>
     IEnumerable<NodeDefinition> GetNodeDefinitions();
+    
+    /// <summary>
+    /// Configures the allow list for module loading.
+    /// Similar to Node-RED's externalModules.palette.allowList.
+    /// </summary>
+    void SetAllowList(IEnumerable<string> patterns);
+    
+    /// <summary>
+    /// Configures the deny list for module loading.
+    /// Similar to Node-RED's externalModules.palette.denyList.
+    /// </summary>
+    void SetDenyList(IEnumerable<string> patterns);
 }
 
 /// <summary>
@@ -77,14 +95,68 @@ public class NodeModuleInfo
 
 /// <summary>
 /// Default implementation of node loader.
+/// Similar to Node-RED's registry system, handles:
+/// - Node discovery from assemblies
+/// - Plugin loading with dependency isolation
+/// - Allow/deny list filtering (like Node-RED's externalModules.palette)
+/// - Version compatibility checking
 /// </summary>
 public class NodeLoader : INodeLoader
 {
     private readonly Dictionary<string, NodeTypeInfo> _nodeTypes = new();
     private readonly List<NodeModuleInfo> _modules = new();
+    
+    // Allow/deny lists similar to Node-RED's externalModules.palette configuration
+    private List<Regex> _allowList = new() { new Regex(".*") }; // Default: allow all
+    private List<Regex> _denyList = new();
+    
+    /// <summary>
+    /// The current runtime version for compatibility checking.
+    /// </summary>
+    public Version RuntimeVersion { get; set; } = new Version(1, 0, 0);
+    
+    /// <summary>
+    /// Configures the allow list for module loading.
+    /// Similar to Node-RED's externalModules.palette.allowList.
+    /// Patterns support wildcards: * matches any characters.
+    /// </summary>
+    public void SetAllowList(IEnumerable<string> patterns)
+    {
+        _allowList = patterns.Select(ParsePattern).ToList();
+    }
+    
+    /// <summary>
+    /// Configures the deny list for module loading.
+    /// Similar to Node-RED's externalModules.palette.denyList.
+    /// Patterns support wildcards: * matches any characters.
+    /// </summary>
+    public void SetDenyList(IEnumerable<string> patterns)
+    {
+        _denyList = patterns.Select(ParsePattern).ToList();
+    }
+    
+    private static Regex ParsePattern(string pattern)
+    {
+        // Convert glob-style pattern to regex (similar to Node-RED's registryUtil.parseModuleList)
+        var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
+        return new Regex(regexPattern, RegexOptions.IgnoreCase);
+    }
+    
+    private bool IsModuleAllowed(string moduleName)
+    {
+        // Check deny list first (similar to Node-RED's checkModuleAllowed)
+        if (_denyList.Any(r => r.IsMatch(moduleName)))
+        {
+            return false;
+        }
+        
+        // Then check allow list
+        return _allowList.Any(r => r.IsMatch(moduleName));
+    }
 
     /// <summary>
     /// Discovers all node types from the specified assemblies.
+    /// Similar to Node-RED's loadModuleFiles function.
     /// </summary>
     public IEnumerable<NodeTypeInfo> DiscoverNodes(params Assembly[] assemblies)
     {
@@ -106,6 +178,25 @@ public class NodeLoader : INodeLoader
                     Author = moduleAttr.Author,
                     AssemblyPath = assembly.Location
                 };
+                
+                // Check allow/deny list (similar to Node-RED's checkModuleAllowed)
+                if (!IsModuleAllowed(moduleInfo.Name))
+                {
+                    _loadErrors[assembly.Location] = $"Module '{moduleInfo.Name}' blocked by deny list";
+                    continue;
+                }
+                
+                // Check version compatibility (similar to Node-RED's semver.satisfies check)
+                if (!string.IsNullOrEmpty(moduleAttr.MinVersion))
+                {
+                    if (Version.TryParse(moduleAttr.MinVersion, out var minVersion) && 
+                        RuntimeVersion < minVersion)
+                    {
+                        _loadErrors[assembly.Location] = $"Module '{moduleInfo.Name}' requires runtime version {moduleAttr.MinVersion} (current: {RuntimeVersion})";
+                        continue;
+                    }
+                }
+                
                 _modules.Add(moduleInfo);
             }
 
