@@ -3482,6 +3482,21 @@ public partial class Editor : IDisposable
         var flow = Flows.FirstOrDefault(f => f.Id == flowId);
         if (flow == null) return new();
         
+        // If this is the current flow, get nodes from DiagramNodes
+        if (flowId == CurrentFlowId && DiagramNodes != null)
+        {
+            return DiagramNodes
+                .Where(n => n.ID != null)
+                .Select(n => new RedUiSidebarInfo.NodeInfo
+                {
+                    Id = n.ID!,
+                    Type = GetNodeType(n),
+                    Name = n.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content,
+                    Color = GetNodeColor(n)
+                }).ToList();
+        }
+        
+        // Otherwise, get from stored nodes
         return flow.StoredNodes.Select(n => new RedUiSidebarInfo.NodeInfo
         {
             Id = n.Id,
@@ -3489,6 +3504,30 @@ public partial class Editor : IDisposable
             Name = n.LabelContent,
             Color = n.Color
         }).ToList();
+    }
+
+    /// <summary>
+    /// Gets the node type from a diagram node
+    /// </summary>
+    private string GetNodeType(Node node)
+    {
+        if (node.AdditionalInfo != null && node.AdditionalInfo.TryGetValue("nodeType", out var typeObj))
+        {
+            return typeObj?.ToString() ?? "unknown";
+        }
+        return "unknown";
+    }
+
+    /// <summary>
+    /// Gets the node color from a diagram node
+    /// </summary>
+    private string GetNodeColor(Node node)
+    {
+        if (node.Style != null && !string.IsNullOrEmpty(node.Style.Fill))
+        {
+            return node.Style.Fill;
+        }
+        return "#ddd";
     }
 
     /// <summary>

@@ -70,28 +70,42 @@
 }
 
 /* Collapsible tabs - only show icons for pinned tabs when not active */
-.red-ui-tabs-collapsible #red-ui-sidebar-tabs li:not(.active) {
+.red-ui-tabs-collapsible #red-ui-sidebar-tabs li:not(.active):not(.red-ui-tab-pinned) {
     display: none;
 }
 
 .red-ui-tabs-collapsible #red-ui-sidebar-tabs li.red-ui-tab-pinned:not(.active) {
     display: inline-block;
     width: 32px;
-    text-align: center;
 }
 
 .red-ui-tabs-collapsible #red-ui-sidebar-tabs li.red-ui-tab-pinned:not(.active) a.red-ui-tab-label {
-    padding-left: 0;
-    text-align: center;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .red-ui-tabs-collapsible #red-ui-sidebar-tabs li.red-ui-tab-pinned:not(.active) .red-ui-tab-label-text {
     display: none;
 }
 
+/* Pinned tabs - icon only, always visible */
 #red-ui-sidebar-tabs li.red-ui-tab-pinned {
     width: 32px;
+    display: inline-block !important;
+}
+
+#red-ui-sidebar-tabs li.red-ui-tab-pinned a.red-ui-tab-label {
+    padding: 0;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#red-ui-sidebar-tabs li.red-ui-tab-pinned a.red-ui-tab-label i {
+    margin: 0;
 }
 
 #red-ui-sidebar-tabs li:not(.red-ui-tab-pinned) {
@@ -101,13 +115,18 @@
 }
 
 #red-ui-sidebar-tabs li a.red-ui-tab-label {
-    display: block;
+    display: flex;
+    align-items: center;
     font-size: 14px;
     padding-left: 12px;
     width: 100%;
     height: 100%;
     color: var(--red-ui-tab-text-color-inactive, #888888);
     text-decoration: none;
+}
+
+#red-ui-sidebar-tabs li a.red-ui-tab-label i {
+    font-size: 14px;
 }
 
 #red-ui-sidebar-tabs li.red-ui-tab-pinned a.red-ui-tab-label {

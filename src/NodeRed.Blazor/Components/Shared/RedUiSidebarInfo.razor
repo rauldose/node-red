@@ -281,6 +281,11 @@
 
     private async Task SelectFlow(string flowId)
     {
+        // Expand the flow when selecting it
+        if (!_expandedFlows.Contains(flowId))
+        {
+            _expandedFlows.Add(flowId);
+        }
         await OnFlowSelected.InvokeAsync(flowId);
     }
 
