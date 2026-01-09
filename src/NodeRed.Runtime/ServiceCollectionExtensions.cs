@@ -63,6 +63,10 @@ public static class ServiceCollectionExtensions
 
                 if (attr != null)
                 {
+                    // Create a factory for this node type
+                    var implType = nodeType.ImplementationType;
+                    registry.Register(attr.Type, () => (INode)Activator.CreateInstance(implType)!);
+                    
                     Console.WriteLine($"[Plugin] Loaded node type: {attr.Type} ({attr.DisplayName}) from {nodeType.ImplementationType.Assembly.GetName().Name}");
                 }
             }
