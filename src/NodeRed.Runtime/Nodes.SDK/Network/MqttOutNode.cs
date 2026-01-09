@@ -30,7 +30,7 @@ public class MqttOutNode : SdkNodeBase
     protected override List<NodePropertyDefinition> DefineProperties() =>
         PropertyBuilder.Create()
             .AddText("name", "Name", icon: "fa fa-tag")
-            .AddText("broker", "Server", icon: "fa fa-server", placeholder: "mqtt://localhost:1883")
+            .AddText("broker", "Broker", icon: "fa fa-server", placeholder: "mqtt://localhost:1883")
             .AddText("topic", "Topic", icon: "fa fa-filter")
             .AddSelect("qos", "QoS", new[]
             {
@@ -110,9 +110,27 @@ The topic can be set in the node configuration or provided dynamically via **msg
 
         try
         {
-            var topic = msg.Topic ?? GetConfig<string>("topic", "");
-            var qosStr = GetConfig<string>("qos", "0");
+            // Topic: node config takes precedence, then msg.topic (like JS Node-RED)
+            var nodeTopic = GetConfig<string>("topic", "");
+            var topic = !string.IsNullOrEmpty(nodeTopic) ? nodeTopic : msg.Topic;
+            
+            // QoS: node config takes precedence, then msg.qos, then default 0
+            var nodeQos = GetConfig<string>("qos", "");
+            var qosStr = !string.IsNullOrEmpty(nodeQos) ? nodeQos : "0";
+            
+            // Check if msg has qos override
+            if (string.IsNullOrEmpty(nodeQos) && msg.Properties.TryGetValue("qos", out var msgQos))
+            {
+                qosStr = msgQos?.ToString() ?? "0";
+            }
+            
+            // Retain: node config OR msg.retain
             var retain = GetConfig<bool>("retain", false);
+            if (msg.Properties.TryGetValue("retain", out var msgRetain))
+            {
+                if (msgRetain is bool r) retain = r;
+                else if (msgRetain is string rs) retain = rs.Equals("true", StringComparison.OrdinalIgnoreCase);
+            }
 
             if (string.IsNullOrEmpty(topic))
             {

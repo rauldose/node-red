@@ -30,7 +30,7 @@
         
         <ul class="red-ui-header-toolbar">
             <li class="red-ui-deploy-button-group">
-                <a id="red-ui-header-button-deploy" class="red-ui-deploy-button @(HasUnsavedChanges ? "" : "disabled")" @onclick="OnDeployClick">
+                <a id="red-ui-header-button-deploy" class="red-ui-deploy-button @(HasUnsavedChanges ? "" : "disabled") @(HasBeenDeployed && !HasUnsavedChanges ? "deployed" : "")" @onclick="OnDeployClick">
                     <span class="red-ui-deploy-button-content">
                         <i class="fa fa-download"></i>
                         <span>Deploy</span>
@@ -54,6 +54,25 @@
                             <i class="fa fa-check"></i> Modified Nodes
                             <span class="red-ui-menu-item-desc">only deploy nodes that have changed</span>
                         </a>
+                        <div class="red-ui-menu-divider"></div>
+                        @if (FlowRuntime.State == FlowState.Running)
+                        {
+                            <a class="red-ui-menu-item" @onclick="OnStopClick">
+                                <i class="fa fa-stop"></i> Stop flows
+                                <span class="red-ui-menu-item-desc">stop all running flows</span>
+                            </a>
+                        }
+                        else if (HasBeenDeployed)
+                        {
+                            <a class="red-ui-menu-item" @onclick="OnStartClick">
+                                <i class="fa fa-play"></i> Start flows
+                                <span class="red-ui-menu-item-desc">start all flows</span>
+                            </a>
+                        }
+                        <a class="red-ui-menu-item" @onclick="OnRestartClick">
+                            <i class="fa fa-refresh"></i> Restart flows
+                            <span class="red-ui-menu-item-desc">reload and restart all flows</span>
+                        </a>
                     </div>
                 }
             </li>
@@ -71,6 +90,26 @@
                             <i class="fa fa-share-square-o"></i> Export
                         </a>
                         <div class="red-ui-menu-divider"></div>
+                        <a class="red-ui-menu-item @(_undoStack.Count == 0 ? "disabled" : "")" @onclick="Undo">
+                            <i class="fa fa-undo"></i> Undo <span class="red-ui-menu-shortcut">Ctrl+Z</span>
+                        </a>
+                        <a class="red-ui-menu-item @(_redoStack.Count == 0 ? "disabled" : "")" @onclick="Redo">
+                            <i class="fa fa-repeat"></i> Redo <span class="red-ui-menu-shortcut">Ctrl+Y</span>
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
+                        <a class="red-ui-menu-item @(SelectedDiagramNode == null ? "disabled" : "")" @onclick="CutSelection">
+                            <i class="fa fa-cut"></i> Cut <span class="red-ui-menu-shortcut">Ctrl+X</span>
+                        </a>
+                        <a class="red-ui-menu-item @(SelectedDiagramNode == null ? "disabled" : "")" @onclick="CopySelection">
+                            <i class="fa fa-copy"></i> Copy <span class="red-ui-menu-shortcut">Ctrl+C</span>
+                        </a>
+                        <a class="red-ui-menu-item @(string.IsNullOrEmpty(_nodeClipboard) ? "disabled" : "")" @onclick="PasteFromClipboard">
+                            <i class="fa fa-paste"></i> Paste <span class="red-ui-menu-shortcut">Ctrl+V</span>
+                        </a>
+                        <a class="red-ui-menu-item @(SelectedDiagramNode == null ? "disabled" : "")" @onclick="DeleteSelection">
+                            <i class="fa fa-trash"></i> Delete <span class="red-ui-menu-shortcut">Delete</span>
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
                         <a class="red-ui-menu-item" @onclick="OnSearchClick">
                             <i class="fa fa-search"></i> Search flows <span class="red-ui-menu-shortcut">Ctrl+.</span>
                         </a>
@@ -81,6 +120,24 @@
                         <a class="red-ui-menu-item" @onclick="OnFlowsClick">
                             <i class="fa fa-sitemap"></i> Flows
                         </a>
+                        @{
+                            var currentFlow = Flows.FirstOrDefault(f => f.Id == CurrentFlowId);
+                        }
+                        @if (currentFlow != null)
+                        {
+                            @if (currentFlow.Disabled)
+                            {
+                                <a class="red-ui-menu-item" @onclick="EnableCurrentFlow">
+                                    <i class="fa fa-check"></i> Enable flow
+                                </a>
+                            }
+                            else
+                            {
+                                <a class="red-ui-menu-item" @onclick="DisableCurrentFlow">
+                                    <i class="fa fa-ban"></i> Disable flow
+                                </a>
+                            }
+                        }
                         <a class="red-ui-menu-item" @onclick="OnSubflowsClick">
                             <i class="fa fa-th-large"></i> Subflows
                         </a>
@@ -103,16 +160,16 @@
                             <a class="red-ui-menu-item" @onclick="OnStopClick">
                                 <i class="fa fa-stop"></i> Stop flows
                             </a>
-                            <a class="red-ui-menu-item" @onclick="OnRestartClick">
-                                <i class="fa fa-refresh"></i> Restart flows
-                            </a>
                         }
-                        else
+                        else if (HasBeenDeployed)
                         {
                             <a class="red-ui-menu-item" @onclick="OnStartClick">
                                 <i class="fa fa-play"></i> Start flows
                             </a>
                         }
+                        <a class="red-ui-menu-item" @onclick="OnRestartClick">
+                            <i class="fa fa-refresh"></i> Restart flows
+                        </a>
                     </div>
                 }
             </li>
@@ -325,28 +382,41 @@
                     <a class="red-ui-dialog-close" @onclick="CloseSubflowsDialog"><i class="fa fa-times"></i></a>
                 </div>
                 <div class="red-ui-dialog-body">
-                    <p style="color: #666; margin-bottom: 15px;">Subflows allow you to create reusable groups of nodes.</p>
-                    <button class="red-ui-button red-ui-button-primary" @onclick="CreateSubflow" style="margin-bottom: 15px;">
-                        <i class="fa fa-plus"></i> Create Subflow
-                    </button>
+                    <p style="color: #666; margin-bottom: 15px;">Subflows are reusable flows that can be used as nodes in other flows.</p>
+                    <div style="margin-bottom: 15px;">
+                        <button class="red-ui-button red-ui-button-primary" @onclick="CreateSubflow" style="margin-right: 10px;">
+                            <i class="fa fa-plus"></i> Create Subflow
+                        </button>
+                        <button class="red-ui-button" @onclick="CreateSubflowFromSelection">
+                            <i class="fa fa-cut"></i> Selection to Subflow
+                        </button>
+                    </div>
                     @if (Subflows.Count == 0)
                     {
-                        <p style="color: #999;">No subflows defined</p>
+                        <p style="color: #999;">No subflows defined. Create a subflow to build reusable node configurations.</p>
                     }
                     else
                     {
+                        <h4 style="margin-top: 20px; margin-bottom: 10px;">Available Subflows</h4>
                         @foreach (var subflow in Subflows)
                         {
                             <div style="padding: 10px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <div style="font-weight: bold;">@subflow.Name</div>
+                                    <div style="font-weight: bold;">
+                                        <span style="display: inline-block; width: 12px; height: 12px; background: @subflow.Color; margin-right: 8px; border-radius: 2px;"></span>
+                                        @subflow.Name
+                                    </div>
                                     <div style="font-size: 0.9em; color: #666;">Inputs: @subflow.Inputs, Outputs: @subflow.Outputs</div>
+                                    @if (!string.IsNullOrEmpty(subflow.Description))
+                                    {
+                                        <div style="font-size: 0.85em; color: #888;">@subflow.Description</div>
+                                    }
                                 </div>
                                 <div>
-                                    <button class="red-ui-button" @onclick="() => EditSubflow(subflow.Id)" style="margin-right: 5px;">
+                                    <button class="red-ui-button" @onclick="() => EditSubflow(subflow.Id)" style="margin-right: 5px;" title="Edit subflow">
                                         <i class="fa fa-edit"></i>
                                     </button>
-                                    <button class="red-ui-button" @onclick="() => DeleteSubflow(subflow.Id)">
+                                    <button class="red-ui-button" @onclick="() => DeleteSubflow(subflow.Id)" title="Delete subflow">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 </div>
@@ -577,10 +647,14 @@
             <ul id="red-ui-workspace-tabs">
                 @foreach (var flow in Flows)
                 {
-                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "")"
+                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "") @(flow.Disabled ? "red-ui-workspace-disabled" : "")"
                         @onclick="() => SwitchFlow(flow.Id)"
                         @ondblclick="() => EditFlowProperties(flow.Id)">
                         <a href="javascript:void(0)">
+                            @if (flow.Disabled)
+                            {
+                                <i class="fa fa-ban red-ui-workspace-disabled-icon"></i>
+                            }
                             <span>@flow.Label</span>
                             @if (Flows.Count > 1)
                             {
@@ -607,6 +681,7 @@
                                     ConnectionChanging="@OnConnectionChanging"
                                     Click="@OnDiagramClick"
                                     FixedUserHandleClick="@OnFixedUserHandleClick"
+                                    PositionChanged="@OnPositionChanged"
                                     Height="100%"
                                     Width="100%"
                                     Nodes="@DiagramNodes"
@@ -626,6 +701,7 @@
             <div id="red-ui-workspace-footer">
                 <span class="red-ui-footer-left">
                     <i class="fa @(FlowRuntime.State == FlowState.Running ? "fa-circle status-running" : "fa-circle-o status-stopped")"></i>
+                    <span class="flow-state-text">@(FlowRuntime.State == FlowState.Running ? "Running" : (HasBeenDeployed ? "Stopped" : "Not deployed"))</span>
                 </span>
                 <span class="red-ui-footer-right">
                     <a href="javascript:void(0)" @onclick="ZoomIn"><i class="fa fa-plus"></i></a>
@@ -689,7 +765,86 @@
                                     <td>name</td>
                                     <td class="red-ui-info-value">@(SelectedNodeName ?? "(none)")</td>
                                 </tr>
+                                @{
+                                    var nodeStatus = GetNodeStatus(SelectedDiagramNode.ID);
+                                    if (nodeStatus != null && !string.IsNullOrEmpty(nodeStatus.Text))
+                                    {
+                                        <tr>
+                                            <td>status</td>
+                                            <td class="red-ui-info-value">
+                                                <span class="red-ui-node-status-indicator" style="background-color: @GetStatusColor(nodeStatus.Color); border-radius: @(nodeStatus.Shape == StatusShape.Ring ? "0" : "50%"); border: @(nodeStatus.Shape == StatusShape.Ring ? "2px solid " + GetStatusColor(nodeStatus.Color) : "none"); width: 10px; height: 10px; display: inline-block;"></span>
+                                                <span style="margin-left: 5px;">@nodeStatus.Text</span>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
                             </table>
+                            
+                            @* Node Help/Documentation Section *@
+                            <text>
+                            @{
+                                var nodeHelp = GetNodeHelp(GetSelectedNodeType());
+                                if (nodeHelp != null)
+                                {
+                                    if (!string.IsNullOrEmpty(nodeHelp.Summary))
+                                    {
+                                        <div class="red-ui-info-section">
+                                            <p>@nodeHelp.Summary</p>
+                                        </div>
+                                    }
+                                    
+                                    if (nodeHelp.Inputs?.Count > 0)
+                                    {
+                                        <div class="red-ui-info-section">
+                                            <h4>Inputs</h4>
+                                            <dl>
+                                                @foreach (var input in nodeHelp.Inputs)
+                                                {
+                                                    <dt><code>@input.Name</code> <span class="red-ui-info-type-tag">@input.Type</span></dt>
+                                                    <dd>@input.Description</dd>
+                                                }
+                                            </dl>
+                                        </div>
+                                    }
+                                    
+                                    if (nodeHelp.Outputs?.Count > 0)
+                                    {
+                                        <div class="red-ui-info-section">
+                                            <h4>Outputs</h4>
+                                            <dl>
+                                                @foreach (var output in nodeHelp.Outputs)
+                                                {
+                                                    <dt><code>@output.Name</code> <span class="red-ui-info-type-tag">@output.Type</span></dt>
+                                                    <dd>@output.Description</dd>
+                                                }
+                                            </dl>
+                                        </div>
+                                    }
+                                    
+                                    if (!string.IsNullOrEmpty(nodeHelp.Details))
+                                    {
+                                        <div class="red-ui-info-section red-ui-info-details">
+                                            <h4>Details</h4>
+                                            <p style="white-space: pre-wrap;">@nodeHelp.Details</p>
+                                        </div>
+                                    }
+                                    
+                                    if (nodeHelp.References?.Count > 0)
+                                    {
+                                        <div class="red-ui-info-section">
+                                            <h4>References</h4>
+                                            <ul>
+                                                @foreach (var reference in nodeHelp.References)
+                                                {
+                                                    <li><a href="@reference.Url" target="_blank">@reference.Title</a></li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    }
+                                }
+                            }
+                            </text>
+                            
                             <div class="red-ui-info-tips">
                                 <p><strong>Tip:</strong> Double-click the node to edit its properties.</p>
                             </div>
@@ -749,7 +904,7 @@
     private RenderFragment RenderNodePropertyPanel() => __builder =>
     {
         var nodeType = GetSelectedNodeType();
-        var schema = NodePropertySchemas.GetSchema(nodeType);
+        var schema = GetNodeSchema(nodeType);
         
         <div class="red-ui-editor-form">
             @* Common name field *@
@@ -776,9 +931,29 @@
             }
         </div>
     };
+
+    /// <summary>
+    /// Gets the property schema for a node type.
+    /// SDK-defined properties from NodeLoader take precedence over hard-coded schemas.
+    /// </summary>
+    private List<NodePropertyField> GetNodeSchema(string nodeType)
+    {
+        // Get properties from the NodeLoader (SDK nodes define properties via DefineProperties())
+        var nodeDef = NodeLoader.GetNodeDefinitions().FirstOrDefault(d => d.Type == nodeType);
+        if (nodeDef?.Properties != null && nodeDef.Properties.Count > 0)
+        {
+            return nodeDef.Properties.Select(NodePropertyField.FromDefinition).ToList();
+        }
+
+        return new List<NodePropertyField>();
+    }
     
     private bool ShouldShowField(NodePropertyField field)
     {
+        // Skip "name" field as it's shown separately
+        if (field.Name == "name")
+            return false;
+
         // Check ShowWhen condition
         if (!string.IsNullOrEmpty(field.ShowWhen))
         {
@@ -918,6 +1093,55 @@
         </div>
     };
 }
+
+@* Context Menus *@
+@if (IsNodeContextMenuOpen)
+{
+    <div class="red-ui-context-menu-overlay" @onclick="CloseContextMenus"></div>
+    <div class="red-ui-context-menu" style="left: @(ContextMenuX)px; top: @(ContextMenuY)px;">
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuEditNode">
+            <i class="fa fa-edit"></i> Edit
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuCopyNode">
+            <i class="fa fa-copy"></i> Copy
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuCutNode">
+            <i class="fa fa-cut"></i> Cut
+        </div>
+        <div class="red-ui-context-menu-divider"></div>
+        <div class="red-ui-context-menu-item red-ui-context-menu-item-danger" @onclick="ContextMenuDeleteNode">
+            <i class="fa fa-trash"></i> Delete
+        </div>
+    </div>
+}
+
+@if (IsCanvasContextMenuOpen)
+{
+    <div class="red-ui-context-menu-overlay" @onclick="CloseContextMenus"></div>
+    <div class="red-ui-context-menu" style="left: @(ContextMenuX)px; top: @(ContextMenuY)px;">
+        @if (!string.IsNullOrEmpty(_nodeClipboard))
+        {
+            <div class="red-ui-context-menu-item" @onclick="ContextMenuPaste">
+                <i class="fa fa-paste"></i> Paste
+            </div>
+            <div class="red-ui-context-menu-divider"></div>
+        }
+        <div class="red-ui-context-menu-label">Add node</div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddInject">
+            <i class="fa fa-play"></i> inject
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddDebug">
+            <i class="fa fa-bug"></i> debug
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddFunction">
+            <i class="fa fa-code"></i> function
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddChange">
+            <i class="fa fa-random"></i> change
+        </div>
+    </div>
+}
+
 <style>
     /* ========================================
        Node-RED Editor - Exact Replica CSS
@@ -1270,6 +1494,29 @@
         color: #444;
     }
 
+    /* Disabled flow tabs - dashed borders, italic text, disabled icon */
+    .red-ui-workspace-disabled {
+        border-top-style: dashed;
+        border-left-style: dashed;
+        border-right-style: dashed;
+    }
+
+    .red-ui-workspace-disabled a {
+        font-style: italic;
+        color: #aaa !important;
+    }
+
+    .red-ui-workspace-disabled.active a {
+        font-weight: normal;
+        color: #999 !important;
+    }
+
+    .red-ui-workspace-disabled-icon {
+        display: inline;
+        margin-right: 5px;
+        color: #aaa;
+    }
+
     #red-ui-workspace-chart {
         flex: 1;
         background: #fff;
@@ -1293,6 +1540,17 @@
 
     .status-stopped {
         color: #999;
+    }
+
+    .flow-state-text {
+        margin-left: 6px;
+        font-size: 11px;
+        color: #666;
+    }
+
+    .red-ui-footer-left {
+        display: flex;
+        align-items: center;
     }
 
     .red-ui-footer-right a {
@@ -1458,6 +1716,80 @@
         border-radius: 3px;
         font-size: 11px;
         color: #666;
+    }
+
+    .red-ui-info-section {
+        margin: 10px 0;
+        padding: 0 5px;
+    }
+
+    .red-ui-info-section h4 {
+        font-size: 12px;
+        font-weight: 600;
+        color: #666;
+        margin: 10px 0 5px;
+        text-transform: uppercase;
+    }
+
+    .red-ui-info-section p {
+        font-size: 12px;
+        color: #444;
+        margin: 5px 0;
+        line-height: 1.5;
+    }
+
+    .red-ui-info-section dl {
+        margin: 0;
+        padding: 0;
+    }
+
+    .red-ui-info-section dt {
+        font-weight: 500;
+        margin-top: 8px;
+    }
+
+    .red-ui-info-section dt code {
+        font-family: monospace;
+        background: #f0f0f0;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+
+    .red-ui-info-type-tag {
+        font-size: 10px;
+        color: #888;
+        font-style: italic;
+        margin-left: 5px;
+    }
+
+    .red-ui-info-section dd {
+        font-size: 11px;
+        color: #666;
+        margin: 3px 0 0 15px;
+    }
+
+    .red-ui-info-section ul {
+        margin: 5px 0;
+        padding-left: 20px;
+    }
+
+    .red-ui-info-section ul li {
+        font-size: 11px;
+        margin: 3px 0;
+    }
+
+    .red-ui-info-section ul li a {
+        color: #0066cc;
+        text-decoration: none;
+    }
+
+    .red-ui-info-section ul li a:hover {
+        text-decoration: underline;
+    }
+
+    .red-ui-info-details {
+        border-top: 1px solid #eee;
+        padding-top: 10px;
     }
 
     .red-ui-info-none {
@@ -1765,6 +2097,12 @@
         padding-left: 0;
     }
 
+    .red-ui-menu-item.disabled {
+        opacity: 0.4;
+        pointer-events: none;
+        cursor: default;
+    }
+
     .red-ui-menu-shortcut {
         float: right;
         color: #888;
@@ -1780,6 +2118,14 @@
     .red-ui-deploy-button.disabled {
         opacity: 0.5;
         cursor: default;
+    }
+
+    .red-ui-deploy-button.deployed {
+        background: #5a0a10;
+    }
+
+    .red-ui-deploy-button.deployed:hover {
+        background: #5a0a10;
     }
 
     /* ========== DIALOGS ========== */
@@ -1898,5 +2244,60 @@
 
     .red-ui-status-indicator.stopped {
         color: #a55;
+    }
+
+    /* ========== CONTEXT MENU ========== */
+    .red-ui-context-menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 9999;
+    }
+
+    .red-ui-context-menu {
+        position: fixed;
+        z-index: 10000;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+        min-width: 160px;
+        padding: 5px 0;
+    }
+
+    .red-ui-context-menu-item {
+        padding: 8px 15px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+    }
+
+    .red-ui-context-menu-item:hover {
+        background: #f0f0f0;
+    }
+
+    .red-ui-context-menu-item-danger {
+        color: #c00;
+    }
+
+    .red-ui-context-menu-item-danger:hover {
+        background: #fee;
+    }
+
+    .red-ui-context-menu-divider {
+        height: 1px;
+        background: #ddd;
+        margin: 5px 0;
+    }
+
+    .red-ui-context-menu-label {
+        padding: 5px 15px;
+        font-size: 11px;
+        color: #999;
+        text-transform: uppercase;
     }
 </style>

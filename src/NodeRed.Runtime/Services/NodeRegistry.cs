@@ -3,9 +3,13 @@
 
 using NodeRed.Core.Entities;
 using NodeRed.Core.Interfaces;
-using NodeRed.Runtime.Nodes;
-using NodeRed.Runtime.Nodes.Common;
-using NodeRed.Runtime.Nodes.Function;
+using NodeRed.Runtime.Nodes.SDK.Common;
+using NodeRed.Runtime.Nodes.SDK.Function;
+using NodeRed.Runtime.Nodes.SDK.Network;
+using NodeRed.Runtime.Nodes.SDK.Parser;
+using NodeRed.Runtime.Nodes.SDK.Sequence;
+using NodeRed.Runtime.Nodes.SDK.Storage;
+using NodeRed.Runtime.Nodes.SDK.Database;
 
 namespace NodeRed.Runtime.Services;
 
@@ -29,6 +33,14 @@ public class NodeRegistry : INodeRegistry
         Register<DebugNode>();
         Register<CommentNode>();
         Register<CatchNode>();
+        Register<CompleteNode>();
+        Register<StatusNode>();
+        Register<LinkInNode>();
+        Register<LinkOutNode>();
+        Register<LinkCallNode>();
+        Register<JunctionNode>();
+        Register<GlobalConfigNode>();
+        Register<UnknownNode>();
 
         // Function nodes
         Register<FunctionNode>();
@@ -36,6 +48,51 @@ public class NodeRegistry : INodeRegistry
         Register<SwitchNode>();
         Register<DelayNode>();
         Register<TemplateNode>();
+        Register<RangeNode>();
+        Register<TriggerNode>();
+        Register<ExecNode>();
+        Register<RbeNode>();
+
+        // Network nodes
+        Register<HttpInNode>();
+        Register<HttpResponseNode>();
+        Register<HttpRequestNode>();
+        Register<HttpProxyNode>();
+        Register<MqttInNode>();
+        Register<MqttOutNode>();
+        Register<WebSocketInNode>();
+        Register<WebSocketOutNode>();
+        Register<TcpInNode>();
+        Register<TcpOutNode>();
+        Register<UdpInNode>();
+        Register<UdpOutNode>();
+        Register<TlsConfigNode>();
+
+        // Parser nodes
+        Register<JsonNode>();
+        Register<XmlNode>();
+        Register<CsvNode>();
+        Register<HtmlNode>();
+        Register<YamlNode>();
+
+        // Sequence nodes
+        Register<SplitNode>();
+        Register<JoinNode>();
+        Register<SortNode>();
+        Register<BatchNode>();
+
+        // Storage nodes
+        Register<FileNode>();
+        Register<FileInNode>();
+        Register<WatchNode>();
+
+        // Database nodes
+        Register<SqlServerNode>();
+        Register<PostgresNode>();
+        Register<MySqlNode>();
+        Register<SqliteNode>();
+        Register<MongoDbNode>();
+        Register<RedisNode>();
     }
 
     /// <inheritdoc />

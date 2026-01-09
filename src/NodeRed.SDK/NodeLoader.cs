@@ -225,19 +225,8 @@ public class NodeLoader : INodeLoader
                 try
                 {
                     var instance = (NodeBase)Activator.CreateInstance(type)!;
-                    // We need to call a method to get the definition
-                    // For now, use the attribute info
-                    definition = new NodeDefinition
-                    {
-                        Type = attr.Type,
-                        DisplayName = attr.DisplayName,
-                        Category = attr.Category,
-                        Color = attr.Color,
-                        Icon = attr.Icon,
-                        Inputs = attr.Inputs,
-                        Outputs = attr.Outputs,
-                        HasButton = attr.HasButton
-                    };
+                    // Use the instance's definition which includes all properties from DefineProperties()
+                    definition = instance.Definition;
                 }
                 catch
                 {

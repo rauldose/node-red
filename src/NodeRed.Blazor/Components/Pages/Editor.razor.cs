@@ -14,6 +14,16 @@ namespace NodeRed.Blazor.Components.Pages;
 
 public partial class Editor : IDisposable
 {
+    // Default group styling constants
+    private const string DefaultGroupFillColor = "rgba(255, 204, 204, 0.3)";
+    private const string DefaultGroupStrokeColor = "#FF9999";
+    
+    // Fallback connector point coordinates (used when source/target nodes haven't been initialized)
+    private const double FallbackSourcePointX = 0;
+    private const double FallbackSourcePointY = 0;
+    private const double FallbackTargetPointX = 100;
+    private const double FallbackTargetPointY = 0;
+    
     // Diagram reference
     public SfDiagramComponent? DiagramInstance { get; set; }
 
@@ -23,9 +33,17 @@ public partial class Editor : IDisposable
         Constraints = SelectorConstraints.All & ~SelectorConstraints.ResizeAll & ~SelectorConstraints.Rotate
     };
 
-    // Diagram collections
+    // Diagram collections (VIEW - populated from central store based on current flow)
     private DiagramObjectCollection<Node>? DiagramNodes { get; set; } = new DiagramObjectCollection<Node>();
     private DiagramObjectCollection<Connector>? DiagramConnectors { get; set; } = new DiagramObjectCollection<Connector>();
+
+    // CENTRAL NODE REGISTRY (like RED.nodes in JS Node-RED)
+    // All nodes across all flows, keyed by node ID
+    private Dictionary<string, NodeData> AllNodes = new();
+    // All connectors across all flows, keyed by connector ID
+    private Dictionary<string, ConnectorData> AllConnectors = new();
+    // Groups across all flows, keyed by group ID
+    private Dictionary<string, GroupInfo> AllGroups = new();
 
     // Grid line intervals
     public double[]? GridLineIntervals { get; set; }
@@ -46,6 +64,7 @@ public partial class Editor : IDisposable
     private bool IsDeployMenuOpen = false;
     private string DeployMode = "full";
     private bool HasUnsavedChanges = true;
+    private bool HasBeenDeployed = false;
 
     // Import/Export dialogs
     private bool IsImportDialogOpen = false;
@@ -59,6 +78,28 @@ public partial class Editor : IDisposable
     private string DebugMessageFilter = "";
     private bool DebugFilterByNode = false;
 
+    // Node statuses (node ID -> status)
+    private Dictionary<string, NodeStatus> _nodeStatuses = new();
+
+    // Cached node definitions for performance
+    private List<NodeDefinition>? _cachedNodeDefinitions;
+
+    // Undo/Redo history stacks
+    private Stack<EditorAction> _undoStack = new();
+    private Stack<EditorAction> _redoStack = new();
+    private const int MaxUndoStackSize = 50;
+
+    // Clipboard for copy/paste
+    private string _nodeClipboard = "";
+    private bool _clipboardIsCut = false;
+
+    // Context menu state
+    private bool IsNodeContextMenuOpen = false;
+    private bool IsCanvasContextMenuOpen = false;
+    private double ContextMenuX = 0;
+    private double ContextMenuY = 0;
+    private Node? ContextMenuNode = null;
+
     // Node counter for unique IDs
     private int NodeCount = 0;
     private int ConnectorCount = 0;
@@ -68,51 +109,21 @@ public partial class Editor : IDisposable
     private string PaletteFilter = "";
     private PaletteNodeInfo? DraggedNode = null;
 
-    // Node property panel bindings - Inject node
-    private string InjectPayloadType = "date";
-    private string InjectPayloadValue = "";
-    private string InjectTopic = "";
-    private string InjectRepeatType = "none";
-    private double InjectRepeatInterval = 1;
-#pragma warning disable CS0414 // Field assigned but never used - used in data binding
-    private bool InjectOnce = false;
-    private double InjectOnceDelay = 0.1;
-#pragma warning restore CS0414
-
-    // Node property panel bindings - Debug node
-    private string DebugOutput = "payload";
-    private bool DebugToSidebar = true;
-    private bool DebugToConsole = false;
-    private bool DebugToStatus = false;
-
-    // Node property panel bindings - Function node
-    private int FunctionOutputs = 1;
-    private string FunctionCode = "return msg;";
-
-    // Node property panel bindings - Change node
-    private string ChangeAction = "set";
-    private string ChangeProperty = "payload";
-    private string ChangeValue = "";
-
-    // Node property panel bindings - Switch node
-    private string SwitchProperty = "payload";
-
-    // Node property panel bindings - Delay node
-    private string DelayAction = "delay";
-    private double DelayTime = 1;
-    private string DelayUnits = "s";
-
-    // Node property panel bindings - Template node
-    private string TemplateProperty = "payload";
-    private string TemplateContent = "This is the payload: {{payload}}";
-    private string TemplateFormat = "mustache";
-    private string TemplateOutputAs = "str";
+    /// <summary>
+    /// All node properties are stored dynamically in _nodePropertyValues.
+    /// Properties come from SDK node DefineProperties() - no hardcoded bindings.
+    /// </summary>
 
     // Default node constraints
     private static readonly NodeConstraints DefaultNodeConstraints =
         NodeConstraints.Select | NodeConstraints.Drag | NodeConstraints.Delete |
         NodeConstraints.InConnect | NodeConstraints.OutConnect |
         NodeConstraints.PointerEvents | NodeConstraints.AllowDrop;
+    
+    // Group node constraints - no connections allowed (groups don't have ports)
+    private static readonly NodeConstraints GroupNodeConstraints =
+        NodeConstraints.Select | NodeConstraints.Drag | NodeConstraints.Delete |
+        NodeConstraints.PointerEvents;
 
     // Application state
     private Workspace CurrentWorkspace = new();
@@ -142,179 +153,43 @@ public partial class Editor : IDisposable
 
     private void InitializePalette()
     {
-        // Common nodes category
-        var commonNodes = new PaletteCategory
-        {
-            Name = "common",
-            IsExpanded = true,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "inject", Label = "inject", Color = "#a6bbcf", IconClass = "fa fa-arrow-right", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "debug", Label = "debug", Color = "#87a980", IconClass = "fa fa-bug", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "complete", Label = "complete", Color = "#e2d96e", IconClass = "fa fa-check-circle-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "catch", Label = "catch", Color = "#e3b881", IconClass = "fa fa-warning", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "status", Label = "status", Color = "#c0c0c0", IconClass = "fa fa-circle-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "link in", Label = "link in", Color = "#ddd", IconClass = "fa fa-arrow-left", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "link out", Label = "link out", Color = "#ddd", IconClass = "fa fa-arrow-right", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "link call", Label = "link call", Color = "#ddd", IconClass = "fa fa-link", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "comment", Label = "comment", Color = "#fff", IconClass = "fa fa-comment-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 0 },
-            }
-        };
-
-        // Function nodes category
-        var functionNodes = new PaletteCategory
-        {
-            Name = "function",
-            IsExpanded = true,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "function", Label = "function", Color = "#fdd0a2", IconClass = "fa fa-code", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "switch", Label = "switch", Color = "#e2d96e", IconClass = "fa fa-random", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "change", Label = "change", Color = "#e2d96e", IconClass = "fa fa-edit", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "range", Label = "range", Color = "#e2d96e", IconClass = "fa fa-arrows-h", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "template", Label = "template", Color = "#bc9e5e", IconClass = "fa fa-file-text-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "delay", Label = "delay", Color = "#e6c4e0", IconClass = "fa fa-clock-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "trigger", Label = "trigger", Color = "#e6c4e0", IconClass = "fa fa-toggle-off", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "exec", Label = "exec", Color = "#ddd", IconClass = "fa fa-terminal", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 3 },
-                new PaletteNodeInfo { Type = "rbe", Label = "rbe", Color = "#e2d96e", IconClass = "fa fa-tasks", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-            }
-        };
-
-        // Network nodes category
-        var networkNodes = new PaletteCategory
-        {
-            Name = "network",
-            IsExpanded = false,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "mqtt in", Label = "mqtt in", Color = "#d8bfd8", IconClass = "fa fa-sign-in", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "mqtt out", Label = "mqtt out", Color = "#d8bfd8", IconClass = "fa fa-sign-out", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "http in", Label = "http in", Color = "#6baed6", IconClass = "fa fa-globe", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "http response", Label = "http response", Color = "#6baed6", IconClass = "fa fa-globe", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "http request", Label = "http request", Color = "#6baed6", IconClass = "fa fa-globe", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "websocket in", Label = "websocket in", Color = "#ddd", IconClass = "fa fa-plug", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "websocket out", Label = "websocket out", Color = "#ddd", IconClass = "fa fa-plug", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "tcp in", Label = "tcp in", Color = "#c0c0c0", IconClass = "fa fa-exchange", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "tcp out", Label = "tcp out", Color = "#c0c0c0", IconClass = "fa fa-exchange", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-                new PaletteNodeInfo { Type = "udp in", Label = "udp in", Color = "#c0c0c0", IconClass = "fa fa-exchange", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-                new PaletteNodeInfo { Type = "udp out", Label = "udp out", Color = "#c0c0c0", IconClass = "fa fa-exchange", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 0 },
-            }
-        };
-
-        // Sequence nodes category
-        var sequenceNodes = new PaletteCategory
-        {
-            Name = "sequence",
-            IsExpanded = false,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "split", Label = "split", Color = "#e2d96e", IconClass = "fa fa-columns", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "join", Label = "join", Color = "#e2d96e", IconClass = "fa fa-compress", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "sort", Label = "sort", Color = "#e2d96e", IconClass = "fa fa-sort", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "batch", Label = "batch", Color = "#e2d96e", IconClass = "fa fa-list", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-            }
-        };
-
-        // Parser nodes category
-        var parserNodes = new PaletteCategory
-        {
-            Name = "parser",
-            IsExpanded = false,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "csv", Label = "csv", Color = "#dbb84d", IconClass = "fa fa-table", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "html", Label = "html", Color = "#dbb84d", IconClass = "fa fa-file-code-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "json", Label = "json", Color = "#dbb84d", IconClass = "fa fa-file-text-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "xml", Label = "xml", Color = "#dbb84d", IconClass = "fa fa-file-code-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "yaml", Label = "yaml", Color = "#dbb84d", IconClass = "fa fa-file-text-o", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-            }
-        };
-
-        // Storage nodes category
-        var storageNodes = new PaletteCategory
-        {
-            Name = "storage",
-            IsExpanded = false,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "file", Label = "file", Color = "#ddd", IconClass = "fa fa-file", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "file in", Label = "file in", Color = "#ddd", IconClass = "fa fa-file", IconBackground = "rgba(0,0,0,0.05)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "watch", Label = "watch", Color = "#ddd", IconClass = "fa fa-eye", IconBackground = "rgba(0,0,0,0.05)", Inputs = 0, Outputs = 1 },
-            }
-        };
-
-        var databaseNodes = new PaletteCategory
-        {
-            Name = "database",
-            IsExpanded = false,
-            Nodes = new List<PaletteNodeInfo>
-            {
-                new PaletteNodeInfo { Type = "sqlserver", Label = "sqlserver", Color = "#CC2936", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "postgres", Label = "postgres", Color = "#336791", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "mysql", Label = "mysql", Color = "#00758F", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "sqlite", Label = "sqlite", Color = "#003B57", IconClass = "fa fa-database", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "mongodb", Label = "mongodb", Color = "#4DB33D", IconClass = "fa fa-leaf", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-                new PaletteNodeInfo { Type = "redis", Label = "redis", Color = "#D82C20", IconClass = "fa fa-bolt", IconBackground = "rgba(0,0,0,0.1)", Inputs = 1, Outputs = 1 },
-            }
-        };
-
-        PaletteCategories = new List<PaletteCategory>
-        {
-            commonNodes,
-            functionNodes,
-            networkNodes,
-            sequenceNodes,
-            parserNodes,
-            storageNodes,
-            databaseNodes
-        };
-
-        // Dynamically add plugin nodes from NodeLoader
-        AddPluginNodesToPalette();
-    }
-
-    /// <summary>
-    /// Dynamically adds plugin nodes to the palette based on discovered node definitions.
-    /// </summary>
-    private void AddPluginNodesToPalette()
-    {
+        // Build palette entirely from SDK node definitions
+        PaletteCategories = new List<PaletteCategory>();
+        
         // Get all node definitions from the loader
         var nodeDefinitions = NodeLoader.GetNodeDefinitions();
         
-        // Group nodes by category (using module name as category for external plugins)
-        var pluginCategories = new Dictionary<string, List<PaletteNodeInfo>>();
+        // Define the preferred category order
+        var categoryOrder = new List<string> { "common", "function", "network", "sequence", "parser", "storage", "database" };
         
-        // Get the set of built-in node types to exclude
-        var builtInTypes = new HashSet<string>(
-            PaletteCategories.SelectMany(c => c.Nodes.Select(n => n.Type)),
-            StringComparer.OrdinalIgnoreCase);
+        // Group nodes by category
+        var nodesByCategory = new Dictionary<string, List<PaletteNodeInfo>>(StringComparer.OrdinalIgnoreCase);
         
         foreach (var nodeDef in nodeDefinitions)
         {
-            // Skip built-in nodes (already in palette)
-            if (builtInTypes.Contains(nodeDef.Type))
-                continue;
-            
-            // Determine category name - use the category from definition or module name
+            // Determine category name from the node definition
             var categoryName = nodeDef.Category.ToString().ToLowerInvariant();
             
-            // For external plugins, use a distinct category name
+            // For external plugins with hyphenated names (e.g., "example-upper"), use the prefix as category
             if (!string.IsNullOrEmpty(nodeDef.Type) && nodeDef.Type.Contains('-'))
             {
-                // Extract prefix (e.g., "example" from "example-upper")
                 var prefix = nodeDef.Type.Split('-')[0];
-                categoryName = prefix;
+                // Use prefix as category for external plugins
+                if (!categoryOrder.Contains(categoryName))
+                {
+                    categoryName = prefix;
+                }
             }
             
-            if (!pluginCategories.ContainsKey(categoryName))
+            if (!nodesByCategory.ContainsKey(categoryName))
             {
-                pluginCategories[categoryName] = new List<PaletteNodeInfo>();
+                nodesByCategory[categoryName] = new List<PaletteNodeInfo>();
             }
             
             // Map icon from definition or use default
             var iconClass = !string.IsNullOrEmpty(nodeDef.Icon) ? nodeDef.Icon : "fa fa-cube";
             
-            pluginCategories[categoryName].Add(new PaletteNodeInfo
+            nodesByCategory[categoryName].Add(new PaletteNodeInfo
             {
                 Type = nodeDef.Type,
                 Label = nodeDef.DisplayName ?? nodeDef.Type,
@@ -326,8 +201,23 @@ public partial class Editor : IDisposable
             });
         }
         
-        // Add plugin categories to palette
-        foreach (var (categoryName, nodes) in pluginCategories)
+        // Add categories in preferred order first
+        foreach (var categoryName in categoryOrder)
+        {
+            if (nodesByCategory.TryGetValue(categoryName, out var nodes) && nodes.Count > 0)
+            {
+                PaletteCategories.Add(new PaletteCategory
+                {
+                    Name = categoryName,
+                    IsExpanded = categoryName == "common" || categoryName == "function",
+                    Nodes = nodes
+                });
+                nodesByCategory.Remove(categoryName);
+            }
+        }
+        
+        // Add remaining categories (plugins, etc.)
+        foreach (var (categoryName, nodes) in nodesByCategory.OrderBy(kv => kv.Key))
         {
             if (nodes.Count > 0)
             {
@@ -402,6 +292,9 @@ public partial class Editor : IDisposable
         var paletteNode = GetPaletteNodeInfo(nodeType);
         var node = CreateNodeRedStyleNode(id, x, y, nodeType, label, color, paletteNode);
         DiagramNodes!.Add(node);
+        
+        // Add to central registry (like RED.nodes.addNode in JS)
+        AddNodeToRegistry(id, CurrentFlowId, nodeType, x, y, label, color, paletteNode?.IconClass ?? "");
     }
 
     private void InitDiagramModel()
@@ -423,6 +316,285 @@ public partial class Editor : IDisposable
         var node = CreateNodeRedStyleNode(id, x, y, nodeType, label, color, paletteNode);
         DiagramNodes!.Add(node);
         NodeCount++;
+        
+        // Add to central registry (like RED.nodes.addNode in JS)
+        AddNodeToRegistry(id, CurrentFlowId, nodeType, x, y, label, color, paletteNode?.IconClass ?? "");
+    }
+    
+    /// <summary>
+    /// Add a node to the central registry (like RED.nodes.addNode in JS Node-RED)
+    /// </summary>
+    private void AddNodeToRegistry(string id, string flowId, string nodeType, double x, double y, string name, string color, string iconClass, Dictionary<string, object?>? props = null)
+    {
+        var nodeData = new NodeData
+        {
+            Id = id,
+            Z = flowId,
+            Type = nodeType,
+            X = x,
+            Y = y,
+            Name = name,
+            Color = color,
+            IconClass = iconClass,
+            Props = props ?? new Dictionary<string, object?>(),
+            Changed = true,
+            Dirty = true
+        };
+        AllNodes[id] = nodeData;
+    }
+    
+    /// <summary>
+    /// Remove a node from the central registry
+    /// </summary>
+    private void RemoveNodeFromRegistry(string id)
+    {
+        AllNodes.Remove(id);
+    }
+    
+    /// <summary>
+    /// Add a connector to the central registry
+    /// </summary>
+    private void AddConnectorToRegistry(string id, string flowId, string sourceId, string sourcePortId, string targetId, string targetPortId)
+    {
+        var connectorData = new ConnectorData
+        {
+            Id = id,
+            Z = flowId,
+            SourceId = sourceId,
+            SourcePortId = sourcePortId,
+            TargetId = targetId,
+            TargetPortId = targetPortId
+        };
+        AllConnectors[id] = connectorData;
+    }
+    
+    /// <summary>
+    /// Remove a connector from the central registry
+    /// </summary>
+    private void RemoveConnectorFromRegistry(string id)
+    {
+        AllConnectors.Remove(id);
+    }
+    
+    /// <summary>
+    /// Update a node's position in the central registry
+    /// </summary>
+    private void UpdateNodePosition(string id, double x, double y)
+    {
+        if (AllNodes.TryGetValue(id, out var nodeData))
+        {
+            nodeData.X = x;
+            nodeData.Y = y;
+            nodeData.Dirty = true;
+        }
+    }
+    
+    /// <summary>
+    /// Update a node's properties in the central registry
+    /// </summary>
+    private void UpdateNodeProps(string id, string name, Dictionary<string, object?>? props)
+    {
+        if (AllNodes.TryGetValue(id, out var nodeData))
+        {
+            nodeData.Name = name;
+            if (props != null)
+            {
+                foreach (var kvp in props)
+                {
+                    nodeData.Props[kvp.Key] = kvp.Value;
+                }
+            }
+            nodeData.Changed = true;
+            nodeData.Dirty = true;
+        }
+    }
+    
+    /// <summary>
+    /// Get all nodes for the current flow from the central registry
+    /// </summary>
+    private IEnumerable<NodeData> GetNodesForFlow(string flowId)
+    {
+        return AllNodes.Values.Where(n => n.Z == flowId);
+    }
+    
+    /// <summary>
+    /// Get all connectors for the current flow from the central registry
+    /// </summary>
+    private IEnumerable<ConnectorData> GetConnectorsForFlow(string flowId)
+    {
+        return AllConnectors.Values.Where(c => c.Z == flowId);
+    }
+    
+    /// <summary>
+    /// Populate the diagram view from the central registry for the given flow
+    /// </summary>
+    private void PopulateDiagramFromRegistry(string flowId)
+    {
+        DiagramNodes?.Clear();
+        DiagramConnectors?.Clear();
+        
+        // Add nodes for this flow
+        foreach (var nodeData in GetNodesForFlow(flowId))
+        {
+            var paletteNode = GetPaletteNodeInfo(nodeData.Type);
+            
+            // Handle special subflow I/O nodes
+            if (nodeData.Type == "subflow-in" || nodeData.Type == "subflow-out")
+            {
+                var isInput = nodeData.Type == "subflow-in";
+                var ioNode = new Node
+                {
+                    ID = nodeData.Id,
+                    OffsetX = nodeData.X,
+                    OffsetY = nodeData.Y,
+                    Width = nodeData.W,
+                    Height = nodeData.H,
+                    Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
+                    Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
+                    AdditionalInfo = new Dictionary<string, object?>(nodeData.Props) { ["nodeType"] = nodeData.Type }
+                };
+                ioNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+                {
+                    new ShapeAnnotation { ID = "iconAnnotation", Content = isInput ? "→" : "←", Style = new TextStyle { Color = "#333", FontSize = 12 } },
+                    new ShapeAnnotation { ID = "labelAnnotation", Content = nodeData.Name, Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
+                };
+                ioNode.Ports = new DiagramObjectCollection<PointPort>
+                {
+                    new PointPort
+                    {
+                        ID = isInput ? "output" : "input",
+                        Offset = new DiagramPoint { X = isInput ? 1 : 0, Y = 0.5 },
+                        Visibility = PortVisibility.Visible,
+                        Height = 8,
+                        Width = 8,
+                        Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+                    }
+                };
+                DiagramNodes?.Add(ioNode);
+            }
+            else
+            {
+                // Regular node
+                var node = CreateNodeRedStyleNode(
+                    nodeData.Id,
+                    nodeData.X,
+                    nodeData.Y,
+                    nodeData.Type,
+                    nodeData.Name,
+                    !string.IsNullOrEmpty(nodeData.Color) ? nodeData.Color : paletteNode?.Color ?? "#ddd",
+                    paletteNode
+                );
+                
+                // Restore additional info/props
+                if (nodeData.Props.Count > 0)
+                {
+                    node.AdditionalInfo = new Dictionary<string, object?>(nodeData.Props);
+                    node.AdditionalInfo["nodeType"] = nodeData.Type;
+                }
+                
+                DiagramNodes?.Add(node);
+            }
+        }
+        
+        // Add connectors for this flow
+        foreach (var connData in GetConnectorsForFlow(flowId))
+        {
+            var connector = new Connector
+            {
+                ID = connData.Id,
+                SourceID = connData.SourceId,
+                SourcePortID = connData.SourcePortId,
+                TargetID = connData.TargetId,
+                TargetPortID = connData.TargetPortId,
+                Type = ConnectorSegmentType.Orthogonal,
+                Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
+                TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
+                SourcePoint = new DiagramPoint() { X = FallbackSourcePointX, Y = FallbackSourcePointY },
+                TargetPoint = new DiagramPoint() { X = FallbackTargetPointX, Y = FallbackTargetPointY }
+            };
+            DiagramConnectors?.Add(connector);
+        }
+        
+        // Restore groups
+        Groups.Clear();
+        foreach (var group in AllGroups.Values.Where(g => g.FlowId == flowId))
+        {
+            Groups.Add(group);
+            // Add group visual node
+            var parts = group.Color?.Split('|') ?? new[] { DefaultGroupFillColor, DefaultGroupStrokeColor };
+            var groupNode = new Node
+            {
+                ID = group.DiagramNodeId,
+                OffsetX = group.X + group.Width / 2,
+                OffsetY = group.Y + group.Height / 2,
+                Width = group.Width,
+                Height = group.Height,
+                Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
+                Style = new ShapeStyle
+                {
+                    Fill = parts.Length > 0 ? parts[0] : DefaultGroupFillColor,
+                    StrokeColor = parts.Length > 1 ? parts[1] : DefaultGroupStrokeColor,
+                    StrokeWidth = 2,
+                    StrokeDashArray = "5,3"
+                },
+                ZIndex = -1,
+                Ports = new DiagramObjectCollection<PointPort>(),
+                Constraints = GroupNodeConstraints,
+                Annotations = new DiagramObjectCollection<ShapeAnnotation>
+                {
+                    new ShapeAnnotation
+                    {
+                        ID = "groupLabel",
+                        Content = group.Name,
+                        Style = new TextStyle { Color = "#666", FontSize = 11, Bold = true },
+                        Offset = new DiagramPoint { X = 0, Y = 0 },
+                        Margin = new DiagramThickness { Left = 5, Top = 5, Right = 0, Bottom = 0 },
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        VerticalAlignment = VerticalAlignment.Top
+                    }
+                }
+            };
+            DiagramNodes?.Add(groupNode);
+        }
+    }
+    
+    /// <summary>
+    /// Sync diagram state back to the central registry (call after any diagram modification)
+    /// </summary>
+    private void SyncDiagramToRegistry()
+    {
+        if (DiagramNodes == null || DiagramConnectors == null) return;
+        
+        // Sync node positions and properties
+        foreach (var node in DiagramNodes)
+        {
+            if (AllNodes.TryGetValue(node.ID, out var nodeData))
+            {
+                nodeData.X = node.OffsetX;
+                nodeData.Y = node.OffsetY;
+                nodeData.W = node.Width ?? 122;
+                nodeData.H = node.Height ?? 25;
+                
+                // Get name from label annotation
+                var labelAnnotation = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation");
+                if (labelAnnotation != null)
+                {
+                    nodeData.Name = labelAnnotation.Content ?? nodeData.Name;
+                }
+                
+                // Sync additional props
+                if (node.AdditionalInfo != null)
+                {
+                    foreach (var kvp in node.AdditionalInfo)
+                    {
+                        if (kvp.Key != "nodeType")
+                        {
+                            nodeData.Props[kvp.Key] = kvp.Value;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private PaletteNodeInfo? GetPaletteNodeInfo(string nodeType)
@@ -438,21 +610,37 @@ public partial class Editor : IDisposable
     private Node CreateNodeRedStyleNode(string id, double x, double y, string nodeType, string label, string color, PaletteNodeInfo? paletteNode)
     {
         var iconClass = paletteNode?.IconClass ?? "fa fa-cube";
-        var hasInput = paletteNode?.Inputs > 0 || (nodeType != "inject" && nodeType != "complete" && nodeType != "catch" && 
-                        nodeType != "status" && nodeType != "link in" && nodeType != "comment");
-        var hasOutput = paletteNode?.Outputs > 0 || (nodeType != "debug" && nodeType != "link out" && nodeType != "http response" && 
-                         nodeType != "mqtt out" && nodeType != "websocket out" && nodeType != "tcp out" && 
-                         nodeType != "udp out" && nodeType != "comment");
+        
+        // Use palette node info if available, otherwise fall back to hardcoded lists
+        bool hasInput;
+        bool hasOutput;
+        if (paletteNode is not null)
+        {
+            hasInput = paletteNode.Inputs > 0;
+            hasOutput = paletteNode.Outputs > 0;
+        }
+        else
+        {
+            // Fallback for nodes not found in palette
+            hasInput = nodeType != "inject" && nodeType != "complete" && nodeType != "catch" && 
+                       nodeType != "status" && nodeType != "link in" && nodeType != "comment" &&
+                       nodeType != "mqtt in" && nodeType != "http in" && nodeType != "tcp in" && 
+                       nodeType != "udp in" && nodeType != "websocket in" && nodeType != "watch";
+            hasOutput = nodeType != "debug" && nodeType != "link out" && nodeType != "http response" && 
+                        nodeType != "mqtt out" && nodeType != "websocket out" && nodeType != "tcp out" && 
+                        nodeType != "udp out" && nodeType != "comment";
+        }
 
         // Create a node with child nodes for the icon area
+        // Match palette node dimensions: 122px wide, 25px tall
         var node = new Node()
         {
             ID = id,
             OffsetX = x,
             OffsetY = y,
-            Width = 130,
-            Height = 30,
-            Ports = CreatePorts(nodeType),
+            Width = 122,
+            Height = 25,
+            Ports = CreatePortsFromNodeInfo(hasInput, hasOutput),
             Style = new ShapeStyle { Fill = color, StrokeColor = "#999", StrokeWidth = 1 },
             Shape = new BasicShape() { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
             Constraints = DefaultNodeConstraints,
@@ -480,6 +668,15 @@ public partial class Editor : IDisposable
                     Offset = new DiagramPoint() { X = 0.58, Y = 0.5 },
                     Style = new TextStyle() { Color = "#333", FontSize = 12 },
                     Constraints = AnnotationConstraints.ReadOnly
+                },
+                // Status annotation (below the node, hidden by default)
+                new ShapeAnnotation
+                {
+                    ID = "statusAnnotation",
+                    Content = "",
+                    Offset = new DiagramPoint() { X = 0.5, Y = 1.5 },
+                    Style = new TextStyle() { Color = "#888", FontSize = 10 },
+                    Constraints = AnnotationConstraints.ReadOnly
                 }
             },
             AdditionalInfo = new Dictionary<string, object> 
@@ -502,6 +699,9 @@ public partial class Editor : IDisposable
         return iconClass switch
         {
             "fa fa-arrow-right" => "\uf061",
+            "fa fa-arrow-left" => "\uf060",
+            "fa fa-arrow-down" => "\uf063",
+            "fa fa-arrow-up" => "\uf062",
             "fa fa-bug" => "\uf188",
             "fa fa-code" => "\uf121",
             "fa fa-edit" => "\uf044",
@@ -512,7 +712,6 @@ public partial class Editor : IDisposable
             "fa fa-warning" => "\uf071",
             "fa fa-check-circle-o" => "\uf05d",
             "fa fa-circle-o" => "\uf10c",
-            "fa fa-arrow-left" => "\uf060",
             "fa fa-link" => "\uf0c1",
             "fa fa-arrows-h" => "\uf07e",
             "fa fa-toggle-off" => "\uf204",
@@ -531,6 +730,16 @@ public partial class Editor : IDisposable
             "fa fa-file-code-o" => "\uf1c9",
             "fa fa-file" => "\uf15b",
             "fa fa-eye" => "\uf06e",
+            "fa fa-tag" => "\uf02b",
+            "fa fa-server" => "\uf233",
+            "fa fa-filter" => "\uf0b0",
+            "fa fa-database" => "\uf1c0",
+            "fa fa-lock" => "\uf023",
+            "fa fa-shield" => "\uf132",
+            "fa fa-cog" => "\uf013",
+            "fa fa-cogs" => "\uf085",
+            "fa fa-sitemap" => "\uf0e8",
+            "fa fa-dot-circle-o" => "\uf192",
             _ => "\uf1b2" // cube as default
         };
     }
@@ -539,24 +748,37 @@ public partial class Editor : IDisposable
     {
         var handles = new DiagramObjectCollection<NodeFixedUserHandle>();
 
-        // Only add inject button for inject nodes - positioned far to the left outside the node
-        // so it doesn't interfere with ports
-        if (nodeType == "inject")
+        // Add trigger button for inject nodes and subflow instances with inputs
+        // Node-RED JS shows a small square button with play icon on the left
+        bool shouldHaveButton = nodeType == "inject";
+        
+        // Subflow instances (type starts with "subflow:") also have buttons if they have inputs
+        if (nodeType.StartsWith("subflow:"))
+        {
+            var subflowId = nodeType.Substring(8); // Remove "subflow:" prefix
+            var subflow = Subflows.FirstOrDefault(s => s.Id == subflowId);
+            if (subflow != null && subflow.Inputs > 0)
+            {
+                shouldHaveButton = true;
+            }
+        }
+        
+        if (shouldHaveButton)
         {
             handles.Add(new NodeFixedUserHandle()
             {
                 ID = "injectButton",
-                Width = 16,
-                Height = 16,
+                Width = 14,
+                Height = 14,
                 Offset = new DiagramPoint() { X = 0, Y = 0.5 },
-                Margin = new DiagramThickness() { Left = -25 }, // Move further left, outside the node
-                PathData = "M8 5v14l11-7z", // Play icon SVG path
+                Margin = new DiagramThickness() { Left = -20 }, // Position outside node like Node-RED JS
+                PathData = "M0 0 L8 4 L0 8 Z", // Triangle play icon
                 Visibility = true,
-                CornerRadius = 2,
-                Fill = "#8aa3bc",
-                Stroke = "#7a93ac",
+                CornerRadius = 0,
+                Fill = "#d9d9d9",
+                Stroke = "#999",
                 StrokeThickness = 1,
-                IconStroke = "#fff",
+                IconStroke = "#777",
                 IconStrokeThickness = 0
             });
         }
@@ -566,14 +788,21 @@ public partial class Editor : IDisposable
 
     private DiagramObjectCollection<PointPort> CreatePorts(string nodeType = "")
     {
-        var ports = new DiagramObjectCollection<PointPort>();
-
-        // Determine inputs/outputs based on node type
+        // Use the hardcoded list as fallback for when palette info is not available
         bool hasInput = nodeType != "inject" && nodeType != "complete" && nodeType != "catch" && 
-                        nodeType != "status" && nodeType != "link in" && nodeType != "comment";
+                        nodeType != "status" && nodeType != "link in" && nodeType != "comment" &&
+                        nodeType != "mqtt in" && nodeType != "http in" && nodeType != "tcp in" && 
+                        nodeType != "udp in" && nodeType != "websocket in" && nodeType != "watch";
         bool hasOutput = nodeType != "debug" && nodeType != "link out" && nodeType != "http response" && 
                          nodeType != "mqtt out" && nodeType != "websocket out" && nodeType != "tcp out" && 
                          nodeType != "udp out" && nodeType != "comment";
+        
+        return CreatePortsFromNodeInfo(hasInput, hasOutput);
+    }
+
+    private DiagramObjectCollection<PointPort> CreatePortsFromNodeInfo(bool hasInput, bool hasOutput)
+    {
+        var ports = new DiagramObjectCollection<PointPort>();
 
         if (hasInput)
         {
@@ -627,8 +856,8 @@ public partial class Editor : IDisposable
             Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
             TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
             // Fallback points to prevent null reference during initialization
-            SourcePoint = new DiagramPoint() { X = 0, Y = 0 },
-            TargetPoint = new DiagramPoint() { X = 100, Y = 0 }
+            SourcePoint = new DiagramPoint() { X = FallbackSourcePointX, Y = FallbackSourcePointY },
+            TargetPoint = new DiagramPoint() { X = FallbackTargetPointX, Y = FallbackTargetPointY }
         };
         DiagramConnectors!.Add(connector);
     }
@@ -638,7 +867,8 @@ public partial class Editor : IDisposable
         if (args.NewValue?.Count > 0 && args.NewValue[0] is Node node)
         {
             SelectedDiagramNode = node;
-            SelectedNodeName = node.Annotations?.FirstOrDefault()?.Content ?? "";
+            // Get label from labelAnnotation (index 1), not iconAnnotation (index 0)
+            SelectedNodeName = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? "";
             LoadNodeProperties(node);
             SelectedSidebarTab = 0;
         }
@@ -656,6 +886,67 @@ public partial class Editor : IDisposable
         {
             IsPropertyTrayOpen = true;
             SelectedSidebarTab = 0; // Switch to Info tab
+        }
+    }
+
+    /// <summary>
+    /// Handles position changes - when a group is moved, move its contained nodes too.
+    /// Note: async void is acceptable here as this is an event handler.
+    /// </summary>
+    private async void OnPositionChanged(PositionChangedEventArgs args)
+    {
+        try
+        {
+            if (args.NewValue?.Nodes?.Count > 0)
+            {
+                foreach (var movedNode in args.NewValue.Nodes)
+                {
+                    // Update position in central registry
+                    UpdateNodePosition(movedNode.ID, movedNode.OffsetX, movedNode.OffsetY);
+                    
+                    // Check if this is a group node
+                    var group = Groups.FirstOrDefault(g => g.DiagramNodeId == movedNode.ID);
+                    if (group != null && DiagramNodes != null && group.NodeIds.Count > 0)
+                    {
+                        // Calculate the delta movement
+                        var oldNode = args.OldValue?.Nodes?.FirstOrDefault(n => n.ID == movedNode.ID);
+                        if (oldNode != null)
+                        {
+                            double deltaX = movedNode.OffsetX - oldNode.OffsetX;
+                            double deltaY = movedNode.OffsetY - oldNode.OffsetY;
+                            
+                            // Only move if there's actual movement
+                            if (Math.Abs(deltaX) > 0.001 || Math.Abs(deltaY) > 0.001)
+                            {
+                                // Move all nodes that belong to this group
+                                foreach (var nodeId in group.NodeIds)
+                                {
+                                    var node = DiagramNodes.FirstOrDefault(n => n.ID == nodeId);
+                                    if (node != null)
+                                    {
+                                        node.OffsetX += deltaX;
+                                        node.OffsetY += deltaY;
+                                        // Also update in registry
+                                        UpdateNodePosition(nodeId, node.OffsetX, node.OffsetY);
+                                    }
+                                }
+                                
+                                // Update group position info
+                                group.X += deltaX;
+                                group.Y += deltaY;
+                                
+                                // Force diagram to refresh and show updated positions
+                                await InvokeAsync(StateHasChanged);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't crash - this is an event handler
+            Console.WriteLine($"Error in OnPositionChanged: {ex.Message}");
         }
     }
 
@@ -688,7 +979,7 @@ public partial class Editor : IDisposable
                 // Check if flows are running
                 if (FlowRuntime.State != FlowState.Running)
                 {
-                    var nodeName = node.Annotations?.FirstOrDefault()?.Content ?? node.ID;
+                    var nodeName = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? node.ID;
                     DebugMessages.Add(new DebugMessage
                     {
                         NodeId = node.ID,
@@ -723,52 +1014,32 @@ public partial class Editor : IDisposable
 
     private void LoadNodeProperties(Node node)
     {
+        // All nodes use dynamic property loading from SDK definitions
+        LoadDynamicNodeProperties(node);
+    }
+
+    /// <summary>
+    /// Loads properties for SDK nodes dynamically from AdditionalInfo.
+    /// </summary>
+    private void LoadDynamicNodeProperties(Node node)
+    {
+        _nodePropertyValues.Clear();
+        
+        // Get the schema for this node type
         var nodeType = GetSelectedNodeType();
-
-        switch (nodeType)
+        var schema = GetNodeSchema(nodeType);
+        
+        // Load each property from the node's AdditionalInfo
+        foreach (var field in schema)
         {
-            case "inject":
-                InjectPayloadType = GetNodeProperty<string>(node, "payloadType", "date");
-                InjectPayloadValue = GetNodeProperty<string>(node, "payload", "");
-                InjectTopic = GetNodeProperty<string>(node, "topic", "");
-                InjectRepeatType = string.IsNullOrEmpty(GetNodeProperty<string>(node, "repeat", "")) ? "none" : "interval";
-                InjectRepeatInterval = GetNodeProperty<double>(node, "repeat", 1);
-                break;
-
-            case "debug":
-                DebugOutput = GetNodeProperty<string>(node, "complete", "payload");
-                DebugToSidebar = GetNodeProperty<bool>(node, "tosidebar", true);
-                DebugToConsole = GetNodeProperty<bool>(node, "console", false);
-                DebugToStatus = GetNodeProperty<bool>(node, "tostatus", false);
-                break;
-
-            case "function":
-                FunctionOutputs = GetNodeProperty<int>(node, "outputs", 1);
-                FunctionCode = GetNodeProperty<string>(node, "func", "return msg;");
-                break;
-
-            case "change":
-                ChangeAction = GetNodeProperty<string>(node, "action", "set");
-                ChangeProperty = GetNodeProperty<string>(node, "property", "payload");
-                ChangeValue = GetNodeProperty<string>(node, "value", "");
-                break;
-
-            case "switch":
-                SwitchProperty = GetNodeProperty<string>(node, "property", "payload");
-                break;
-
-            case "delay":
-                DelayAction = GetNodeProperty<string>(node, "pauseType", "delay");
-                DelayTime = GetNodeProperty<double>(node, "timeout", 1);
-                DelayUnits = GetNodeProperty<string>(node, "timeoutUnits", "s");
-                break;
-
-            case "template":
-                TemplateProperty = GetNodeProperty<string>(node, "field", "payload");
-                TemplateContent = GetNodeProperty<string>(node, "template", "This is the payload: {{payload}}");
-                TemplateFormat = GetNodeProperty<string>(node, "syntax", "mustache");
-                TemplateOutputAs = GetNodeProperty<string>(node, "output", "str");
-                break;
+            if (node.AdditionalInfo?.TryGetValue(field.Name, out var value) == true)
+            {
+                _nodePropertyValues[field.Name] = value;
+            }
+            else if (!string.IsNullOrEmpty(field.DefaultValue))
+            {
+                _nodePropertyValues[field.Name] = field.DefaultValue;
+            }
         }
     }
 
@@ -808,11 +1079,13 @@ public partial class Editor : IDisposable
             connector.Style.StrokeColor = "#999";
             connector.Style.StrokeWidth = 2;
             connector.TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None };
+            // TODO: Implement Bezier connectors - requires additional segment configuration
+            // For now, using Orthogonal connectors which work correctly with Syncfusion
             connector.Type = ConnectorSegmentType.Orthogonal;
             
             // Initialize source and target points to prevent null reference during connection
-            connector.SourcePoint ??= new DiagramPoint() { X = 0, Y = 0 };
-            connector.TargetPoint ??= new DiagramPoint() { X = 100, Y = 0 };
+            connector.SourcePoint ??= new DiagramPoint() { X = FallbackSourcePointX, Y = FallbackSourcePointY };
+            connector.TargetPoint ??= new DiagramPoint() { X = FallbackTargetPointX, Y = FallbackTargetPointY };
         }
     }
 
@@ -858,7 +1131,248 @@ public partial class Editor : IDisposable
 
     private void SwitchFlow(string flowId)
     {
+        if (flowId == CurrentFlowId) return;
+        
+        // Sync current diagram state to the central registry
+        SyncDiagramToRegistry();
+        
+        // Switch to the new flow
         CurrentFlowId = flowId;
+        
+        // Populate the diagram from the central registry for the new flow
+        PopulateDiagramFromRegistry(flowId);
+        
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Saves the current flow's diagram state (nodes and connectors) to the FlowTab
+    /// </summary>
+    private void SaveCurrentFlowState()
+    {
+        var currentFlow = Flows.FirstOrDefault(f => f.Id == CurrentFlowId);
+        if (currentFlow == null || DiagramNodes == null || DiagramConnectors == null) return;
+        
+        currentFlow.StoredNodes.Clear();
+        currentFlow.StoredConnectors.Clear();
+        currentFlow.NodeCounter = NodeCount;
+        currentFlow.ConnectorCounter = ConnectorCount;
+        currentFlow.Groups = new List<GroupInfo>(Groups);
+        
+        // Save all nodes
+        foreach (var node in DiagramNodes)
+        {
+            var nodeData = new FlowNodeData
+            {
+                Id = node.ID,
+                Type = node.AdditionalInfo?.ContainsKey("nodeType") == true ? node.AdditionalInfo["nodeType"]?.ToString() ?? "" : "",
+                OffsetX = node.OffsetX,
+                OffsetY = node.OffsetY,
+                Width = node.Width ?? 122,
+                Height = node.Height ?? 25,
+                AdditionalInfo = node.AdditionalInfo != null ? new Dictionary<string, object?>(node.AdditionalInfo) : new()
+            };
+            
+            // Check if this is a group node
+            var isGroup = Groups.Any(g => g.DiagramNodeId == node.ID);
+            nodeData.IsGroup = isGroup;
+            
+            // Get the node color
+            if (node.Style is ShapeStyle style)
+            {
+                nodeData.Color = style.Fill ?? "";
+                if (isGroup)
+                {
+                    nodeData.GroupStyle = $"{style.Fill}|{style.StrokeColor}";
+                }
+            }
+            
+            // Get icon and label from annotations
+            if (node.Annotations != null)
+            {
+                var iconAnnotation = node.Annotations.FirstOrDefault(a => a.ID == "iconAnnotation");
+                if (iconAnnotation != null)
+                {
+                    nodeData.IconContent = iconAnnotation.Content ?? "";
+                }
+                
+                var labelAnnotation = node.Annotations.FirstOrDefault(a => a.ID == "labelAnnotation");
+                if (labelAnnotation != null)
+                {
+                    nodeData.LabelContent = labelAnnotation.Content ?? "";
+                }
+                
+                // Also check for group label
+                var groupLabel = node.Annotations.FirstOrDefault(a => a.ID == "groupLabel");
+                if (groupLabel != null)
+                {
+                    nodeData.LabelContent = groupLabel.Content ?? "";
+                }
+            }
+            
+            currentFlow.StoredNodes.Add(nodeData);
+        }
+        
+        // Save all connectors
+        foreach (var connector in DiagramConnectors)
+        {
+            var connectorData = new FlowConnectorData
+            {
+                Id = connector.ID,
+                SourceId = connector.SourceID,
+                SourcePortId = connector.SourcePortID ?? "",
+                TargetId = connector.TargetID,
+                TargetPortId = connector.TargetPortID ?? ""
+            };
+            currentFlow.StoredConnectors.Add(connectorData);
+        }
+    }
+    
+    /// <summary>
+    /// Restores a flow's diagram state from the FlowTab
+    /// </summary>
+    private void RestoreFlowState(string flowId)
+    {
+        var flow = Flows.FirstOrDefault(f => f.Id == flowId);
+        if (flow == null || DiagramNodes == null || DiagramConnectors == null) return;
+        
+        // Clear current diagram
+        DiagramNodes.Clear();
+        DiagramConnectors.Clear();
+        Groups.Clear();
+        
+        NodeCount = flow.NodeCounter;
+        ConnectorCount = flow.ConnectorCounter;
+        Groups = new List<GroupInfo>(flow.Groups);
+        
+        // Restore nodes
+        foreach (var nodeData in flow.StoredNodes)
+        {
+            if (nodeData.IsGroup)
+            {
+                // Skip group nodes on first pass - we'll add them after all regular nodes
+                continue;
+            }
+            
+            // Handle special subflow I/O nodes
+            if (nodeData.Type == "subflow-in" || nodeData.Type == "subflow-out")
+            {
+                var isInput = nodeData.Type == "subflow-in";
+                var ioNode = new Node
+                {
+                    ID = nodeData.Id,
+                    OffsetX = nodeData.OffsetX,
+                    OffsetY = nodeData.OffsetY,
+                    Width = nodeData.Width,
+                    Height = nodeData.Height,
+                    Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
+                    Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
+                    AdditionalInfo = new Dictionary<string, object?>(nodeData.AdditionalInfo)
+                };
+                ioNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+                {
+                    new ShapeAnnotation { ID = "iconAnnotation", Content = isInput ? "→" : "←", Style = new TextStyle { Color = "#333", FontSize = 12 } },
+                    new ShapeAnnotation { ID = "labelAnnotation", Content = nodeData.LabelContent, Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
+                };
+                ioNode.Ports = new DiagramObjectCollection<PointPort>
+                {
+                    new PointPort
+                    {
+                        ID = isInput ? "output" : "input",
+                        Offset = new DiagramPoint { X = isInput ? 1 : 0, Y = 0.5 },
+                        Visibility = PortVisibility.Visible,
+                        Height = 8,
+                        Width = 8,
+                        Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+                    }
+                };
+                DiagramNodes.Add(ioNode);
+                continue;
+            }
+            
+            // Find palette node info
+            PaletteNodeInfo? paletteNode = null;
+            foreach (var category in PaletteCategories)
+            {
+                paletteNode = category.Nodes.FirstOrDefault(n => n.Type == nodeData.Type);
+                if (paletteNode != null) break;
+            }
+            
+            // Create regular node
+            var node = CreateNodeRedStyleNode(
+                nodeData.Id,
+                nodeData.OffsetX,
+                nodeData.OffsetY,
+                nodeData.Type,
+                nodeData.LabelContent,
+                !string.IsNullOrEmpty(nodeData.Color) && nodeData.Color.StartsWith("#") ? nodeData.Color : paletteNode?.Color ?? "#ddd",
+                paletteNode
+            );
+            
+            // Restore additional info
+            node.AdditionalInfo = new Dictionary<string, object?>(nodeData.AdditionalInfo);
+            
+            DiagramNodes.Add(node);
+        }
+        
+        // Restore connectors - add fallback points to prevent NullReferenceException
+        foreach (var connectorData in flow.StoredConnectors)
+        {
+            var connector = new Connector
+            {
+                ID = connectorData.Id,
+                SourceID = connectorData.SourceId,
+                SourcePortID = connectorData.SourcePortId,
+                TargetID = connectorData.TargetId,
+                TargetPortID = connectorData.TargetPortId,
+                Type = ConnectorSegmentType.Orthogonal,
+                Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
+                TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
+                // Fallback points to prevent null reference during initialization
+                SourcePoint = new DiagramPoint() { X = FallbackSourcePointX, Y = FallbackSourcePointY },
+                TargetPoint = new DiagramPoint() { X = FallbackTargetPointX, Y = FallbackTargetPointY }
+            };
+            DiagramConnectors.Add(connector);
+        }
+        
+        // Now add group visual nodes (using regular Node, not NodeGroup to avoid connector issues)
+        foreach (var group in Groups)
+        {
+            var parts = group.Color?.Split('|') ?? new[] { DefaultGroupFillColor, DefaultGroupStrokeColor };
+            var groupNode = new Node
+            {
+                ID = group.DiagramNodeId,
+                OffsetX = group.X + group.Width / 2,
+                OffsetY = group.Y + group.Height / 2,
+                Width = group.Width,
+                Height = group.Height,
+                Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
+                Style = new ShapeStyle
+                {
+                    Fill = parts.Length > 0 ? parts[0] : DefaultGroupFillColor,
+                    StrokeColor = parts.Length > 1 ? parts[1] : DefaultGroupStrokeColor,
+                    StrokeWidth = 2,
+                    StrokeDashArray = "5,3"
+                },
+                ZIndex = -1,
+                Ports = new DiagramObjectCollection<PointPort>(), // Empty ports - groups don't have connections
+                Constraints = GroupNodeConstraints, // No connections - groups don't have ports
+                Annotations = new DiagramObjectCollection<ShapeAnnotation>
+                {
+                    new ShapeAnnotation
+                    {
+                        ID = "groupLabel",
+                        Content = group.Name,
+                        Style = new TextStyle { Color = "#666", FontSize = 11, Bold = true },
+                        Offset = new DiagramPoint { X = 0, Y = 0 },
+                        Margin = new DiagramThickness { Left = 5, Top = 5, Right = 0, Bottom = 0 },
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        VerticalAlignment = VerticalAlignment.Top
+                    }
+                }
+            };
+            DiagramNodes.Add(groupNode);
+        }
     }
 
     private void DeleteFlow(string flowId)
@@ -890,8 +1404,8 @@ public partial class Editor : IDisposable
         {
             FlowPropertiesFlowId = flowId;
             FlowPropertiesLabel = flow.Label;
-            FlowPropertiesInfo = "";
-            FlowPropertiesEnabled = true;
+            FlowPropertiesInfo = flow.Info;
+            FlowPropertiesEnabled = !flow.Disabled;
             IsFlowPropertiesDialogOpen = true;
         }
     }
@@ -907,9 +1421,36 @@ public partial class Editor : IDisposable
         if (flow != null)
         {
             flow.Label = FlowPropertiesLabel;
+            flow.Info = FlowPropertiesInfo;
+            flow.Disabled = !FlowPropertiesEnabled;
         }
         IsFlowPropertiesDialogOpen = false;
+        HasUnsavedChanges = true;
         StateHasChanged();
+    }
+
+    private void EnableCurrentFlow()
+    {
+        var flow = Flows.FirstOrDefault(f => f.Id == CurrentFlowId);
+        if (flow != null)
+        {
+            flow.Disabled = false;
+            HasUnsavedChanges = true;
+            IsMainMenuOpen = false;
+            StateHasChanged();
+        }
+    }
+
+    private void DisableCurrentFlow()
+    {
+        var flow = Flows.FirstOrDefault(f => f.Id == CurrentFlowId);
+        if (flow != null)
+        {
+            flow.Disabled = true;
+            HasUnsavedChanges = true;
+            IsMainMenuOpen = false;
+            StateHasChanged();
+        }
     }
 
     private string GetSelectedNodeType()
@@ -944,58 +1485,32 @@ public partial class Editor : IDisposable
     {
         if (SelectedDiagramNode != null)
         {
-            // Update node name
-            if (SelectedDiagramNode.Annotations?.Count > 0)
+            // Update node name in labelAnnotation (not iconAnnotation)
+            var labelAnnotation = SelectedDiagramNode.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation");
+            if (labelAnnotation != null)
             {
-                SelectedDiagramNode.Annotations[0].Content = SelectedNodeName;
+                labelAnnotation.Content = SelectedNodeName;
             }
 
-            // Save properties to AdditionalInfo
-            var nodeType = GetSelectedNodeType();
-            switch (nodeType)
-            {
-                case "inject":
-                    SaveNodeProperty("payloadType", InjectPayloadType);
-                    SaveNodeProperty("payload", InjectPayloadValue);
-                    SaveNodeProperty("topic", InjectTopic);
-                    SaveNodeProperty("repeat", InjectRepeatType == "interval" ? InjectRepeatInterval.ToString() : "");
-                    break;
+            // All nodes use dynamic property saving from SDK definitions
+            SaveDynamicNodeProperties();
+        }
+    }
 
-                case "debug":
-                    SaveNodeProperty("complete", DebugOutput);
-                    SaveNodeProperty("tosidebar", DebugToSidebar);
-                    SaveNodeProperty("console", DebugToConsole);
-                    SaveNodeProperty("tostatus", DebugToStatus);
-                    break;
+    /// <summary>
+    /// Saves properties for SDK nodes dynamically to AdditionalInfo.
+    /// </summary>
+    private void SaveDynamicNodeProperties()
+    {
+        if (SelectedDiagramNode == null)
+            return;
 
-                case "function":
-                    SaveNodeProperty("outputs", FunctionOutputs);
-                    SaveNodeProperty("func", FunctionCode);
-                    break;
+        // Initialize AdditionalInfo if null
+        SelectedDiagramNode.AdditionalInfo ??= new Dictionary<string, object>();
 
-                case "change":
-                    SaveNodeProperty("action", ChangeAction);
-                    SaveNodeProperty("property", ChangeProperty);
-                    SaveNodeProperty("value", ChangeValue);
-                    break;
-
-                case "switch":
-                    SaveNodeProperty("property", SwitchProperty);
-                    break;
-
-                case "delay":
-                    SaveNodeProperty("pauseType", DelayAction);
-                    SaveNodeProperty("timeout", DelayTime);
-                    SaveNodeProperty("timeoutUnits", DelayUnits);
-                    break;
-
-                case "template":
-                    SaveNodeProperty("field", TemplateProperty);
-                    SaveNodeProperty("template", TemplateContent);
-                    SaveNodeProperty("syntax", TemplateFormat);
-                    SaveNodeProperty("output", TemplateOutputAs);
-                    break;
-            }
+        foreach (var (key, value) in _nodePropertyValues)
+        {
+            SelectedDiagramNode.AdditionalInfo[key] = value;
         }
     }
 
@@ -1063,6 +1578,335 @@ public partial class Editor : IDisposable
         DiagramInstance?.Zoom(1 / currentZoom, null);
     }
 
+    // =============== UNDO/REDO ===============
+    
+    /// <summary>
+    /// Records an action for undo/redo.
+    /// </summary>
+    private void RecordAction(EditorAction action)
+    {
+        _undoStack.Push(action);
+        // Remove oldest item if stack exceeds max size
+        if (_undoStack.Count > MaxUndoStackSize)
+        {
+            // Convert to array, remove oldest (last), convert back to stack
+            var items = _undoStack.ToArray();
+            _undoStack = new Stack<EditorAction>(items.Take(MaxUndoStackSize).Reverse());
+        }
+        // Clear redo stack when a new action is recorded
+        _redoStack.Clear();
+    }
+
+    /// <summary>
+    /// Gets the currently selected nodes in the diagram.
+    /// </summary>
+    private List<Node> GetSelectedNodes()
+    {
+        var result = new List<Node>();
+        var selectedNodes = DiagramInstance?.SelectionSettings?.Nodes;
+        if (selectedNodes != null && selectedNodes.Count > 0)
+        {
+            result.AddRange(selectedNodes);
+        }
+        else if (SelectedDiagramNode != null)
+        {
+            result.Add(SelectedDiagramNode);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Undo the last action.
+    /// </summary>
+    private void Undo()
+    {
+        if (_undoStack.Count == 0) return;
+
+        var action = _undoStack.Pop();
+        _redoStack.Push(action);
+
+        switch (action.Type)
+        {
+            case EditorActionType.AddNode:
+                // Undo add = remove node
+                if (DiagramNodes != null && action.NodeData != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        DiagramNodes.Remove(node);
+                    }
+                }
+                break;
+
+            case EditorActionType.DeleteNode:
+                // Undo delete = restore node
+                if (DiagramNodes != null && action.NodeData != null)
+                {
+                    DiagramNodes.Add(action.NodeData);
+                }
+                break;
+
+            case EditorActionType.MoveNode:
+                // Undo move = restore original position
+                if (DiagramNodes != null && action.NodeId != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        node.OffsetX = action.OldX;
+                        node.OffsetY = action.OldY;
+                    }
+                }
+                break;
+
+            case EditorActionType.EditNode:
+                // Undo edit = restore old properties
+                if (DiagramNodes != null && action.NodeId != null && action.OldProperties != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        foreach (var kv in action.OldProperties)
+                        {
+                            node.AdditionalInfo[kv.Key] = kv.Value;
+                        }
+                    }
+                }
+                break;
+        }
+
+        HasUnsavedChanges = true;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Redo the last undone action.
+    /// </summary>
+    private void Redo()
+    {
+        if (_redoStack.Count == 0) return;
+
+        var action = _redoStack.Pop();
+        _undoStack.Push(action);
+
+        switch (action.Type)
+        {
+            case EditorActionType.AddNode:
+                // Redo add = re-add node
+                if (DiagramNodes != null && action.NodeData != null)
+                {
+                    DiagramNodes.Add(action.NodeData);
+                }
+                break;
+
+            case EditorActionType.DeleteNode:
+                // Redo delete = remove node again
+                if (DiagramNodes != null && action.NodeData != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        DiagramNodes.Remove(node);
+                    }
+                }
+                break;
+
+            case EditorActionType.MoveNode:
+                // Redo move = apply new position
+                if (DiagramNodes != null && action.NodeId != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        node.OffsetX = action.NewX;
+                        node.OffsetY = action.NewY;
+                    }
+                }
+                break;
+
+            case EditorActionType.EditNode:
+                // Redo edit = apply new properties
+                if (DiagramNodes != null && action.NodeId != null && action.NewProperties != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        foreach (var kv in action.NewProperties)
+                        {
+                            node.AdditionalInfo[kv.Key] = kv.Value;
+                        }
+                    }
+                }
+                break;
+        }
+
+        HasUnsavedChanges = true;
+        StateHasChanged();
+    }
+
+    // =============== COPY/CUT/PASTE ===============
+
+    /// <summary>
+    /// Copy selected nodes to clipboard.
+    /// </summary>
+    private void CopySelection()
+    {
+        var selectedNodes = GetSelectedNodes();
+        if (selectedNodes.Count == 0) return;
+
+        var nodesToCopy = new List<object>();
+
+        foreach (var node in selectedNodes)
+        {
+            nodesToCopy.Add(new
+            {
+                id = node.ID,
+                type = node.AdditionalInfo.TryGetValue("nodeType", out var t) ? t?.ToString() : "unknown",
+                x = node.OffsetX,
+                y = node.OffsetY,
+                name = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content,
+                properties = node.AdditionalInfo
+            });
+        }
+
+        _nodeClipboard = System.Text.Json.JsonSerializer.Serialize(nodesToCopy);
+        _clipboardIsCut = false;
+
+        // Show notification
+        DebugMessages.Insert(0, new DebugMessage
+        {
+            Timestamp = DateTime.Now,
+            NodeId = "system",
+            NodeName = "clipboard",
+            Data = $"Copied {nodesToCopy.Count} node(s)"
+        });
+
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Cut selected nodes to clipboard.
+    /// </summary>
+    private void CutSelection()
+    {
+        CopySelection();
+        _clipboardIsCut = true;
+        DeleteSelection();
+    }
+
+    /// <summary>
+    /// Paste nodes from clipboard.
+    /// </summary>
+    private void PasteFromClipboard()
+    {
+        if (string.IsNullOrEmpty(_nodeClipboard)) return;
+
+        try
+        {
+            var nodeData = System.Text.Json.JsonSerializer.Deserialize<List<System.Text.Json.JsonElement>>(_nodeClipboard);
+            if (nodeData == null || nodeData.Count == 0) return;
+
+            int pastedCount = 0;
+            double offsetX = 20, offsetY = 20; // Offset pasted nodes slightly
+
+            foreach (var nodeJson in nodeData)
+            {
+                var type = nodeJson.TryGetProperty("type", out var tProp) ? tProp.GetString() ?? "unknown" : "unknown";
+                var x = nodeJson.TryGetProperty("x", out var xProp) ? xProp.GetDouble() : 200;
+                var y = nodeJson.TryGetProperty("y", out var yProp) ? yProp.GetDouble() : 200;
+                var name = nodeJson.TryGetProperty("name", out var nProp) ? nProp.GetString() : "";
+
+                // Find the palette node info
+                var paletteNode = PaletteCategories
+                    .SelectMany(c => c.Nodes)
+                    .FirstOrDefault(n => n.Type == type);
+
+                if (paletteNode != null)
+                {
+                    var nodeId = $"node{++NodeCount}";
+                    var label = string.IsNullOrEmpty(name) ? paletteNode.Label : name;
+                    var newNode = CreateNodeRedStyleNode(
+                        nodeId,
+                        x + offsetX,
+                        y + offsetY,
+                        type,
+                        label,
+                        paletteNode.Color,
+                        paletteNode
+                    );
+
+                    // Copy properties from original
+                    if (nodeJson.TryGetProperty("properties", out var propsJson))
+                    {
+                        foreach (var prop in propsJson.EnumerateObject())
+                        {
+                            newNode.AdditionalInfo[prop.Name] = prop.Value.ToString();
+                        }
+                    }
+
+                    DiagramNodes!.Add(newNode);
+                    pastedCount++;
+                }
+            }
+
+            if (_clipboardIsCut)
+            {
+                _nodeClipboard = "";
+                _clipboardIsCut = false;
+            }
+
+            HasUnsavedChanges = true;
+            
+            DebugMessages.Insert(0, new DebugMessage
+            {
+                Timestamp = DateTime.Now,
+                NodeId = "system",
+                NodeName = "clipboard",
+                Data = $"Pasted {pastedCount} node(s)"
+            });
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            DebugMessages.Insert(0, new DebugMessage
+            {
+                Timestamp = DateTime.Now,
+                NodeId = "system",
+                NodeName = "error",
+                Data = $"Paste failed: {ex.Message}"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Delete selected nodes.
+    /// </summary>
+    private void DeleteSelection()
+    {
+        var selectedNodes = GetSelectedNodes();
+        if (selectedNodes.Count == 0) return;
+
+        // Create a copy since we're modifying the collection
+        foreach (var node in selectedNodes.ToList())
+        {
+            // Record for undo
+            RecordAction(new EditorAction
+            {
+                Type = EditorActionType.DeleteNode,
+                NodeId = node.ID,
+                NodeData = node
+            });
+
+            DiagramNodes!.Remove(node);
+        }
+
+        SelectedDiagramNode = null;
+        HasUnsavedChanges = true;
+        StateHasChanged();
+    }
+
     private async Task OnDeployClick()
     {
         IsDeployMenuOpen = false;
@@ -1088,6 +1932,7 @@ public partial class Editor : IDisposable
         }
 
         HasUnsavedChanges = false;
+        HasBeenDeployed = true;
         StateHasChanged();
     }
 
@@ -1263,7 +2108,7 @@ public partial class Editor : IDisposable
         {
             foreach (var node in DiagramNodes)
             {
-                var nodeName = node.Annotations?.FirstOrDefault()?.Content ?? "";
+                var nodeName = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? "";
                 var nodeType = node.AdditionalInfo?.TryGetValue("nodeType", out var typeObj) == true
                     ? typeObj as string ?? ""
                     : "";
@@ -1365,7 +2210,7 @@ public partial class Editor : IDisposable
                 // Configuration nodes typically have types ending in "-config" or specific config types
                 if (nodeType.EndsWith("-config") || nodeType.Contains("config"))
                 {
-                    var label = node.Annotations?.FirstOrDefault()?.Content ?? nodeType;
+                    var label = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? nodeType;
                     if (!ConfigNodes.Any(cn => cn.Id == node.ID))
                     {
                         ConfigNodes.Add(new ConfigNodeInfo
@@ -1408,6 +2253,7 @@ public partial class Editor : IDisposable
 
     private void EditFlowFromDialog(string flowId)
     {
+        IsFlowsDialogOpen = false;
         EditFlowProperties(flowId);
     }
 
@@ -1439,7 +2285,7 @@ public partial class Editor : IDisposable
     private void CreateSubflow()
     {
         // Create a new subflow
-        var subflowId = $"subflow{Subflows.Count + 1}";
+        var subflowId = $"subflow_{Guid.NewGuid():N}";
         var subflowName = $"Subflow {Subflows.Count + 1}";
         
         var newSubflow = new SubflowInfo
@@ -1447,21 +2293,302 @@ public partial class Editor : IDisposable
             Id = subflowId,
             Name = subflowName,
             Inputs = 1,
-            Outputs = 1
+            Outputs = 1,
+            Description = "A reusable subflow",
+            Category = "subflows",
+            Color = "#DDAA99"
         };
         
         Subflows.Add(newSubflow);
         
-        // In a full implementation, this would create a new flow tab
-        // and allow editing the subflow's internal nodes
+        // Create a new flow tab for the subflow
+        var newFlow = new FlowTab
+        {
+            Id = subflowId,
+            Label = subflowName,
+            Disabled = false,
+            Info = "Subflow editor - add nodes here to define the subflow logic"
+        };
+        Flows.Add(newFlow);
+        
+        // Add the subflow as a node type to the palette
+        AddSubflowToPalette(newSubflow);
+        
+        // Sync current flow to the central registry before switching
+        SyncDiagramToRegistry();
+        
+        // Add subflow I/O nodes to the central registry
+        AddSubflowIONodesToRegistry(newSubflow);
+        
+        // Switch to the subflow tab and populate from registry
+        CurrentFlowId = subflowId;
+        PopulateDiagramFromRegistry(subflowId);
+        
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = $"Created subflow '{subflowName}'. In a full implementation, this would open a new editor tab for the subflow.",
+            Data = $"Created subflow '{subflowName}'. Add nodes between the input and output to define the subflow logic. The subflow is now available in the palette under 'subflows'.",
             Timestamp = DateTimeOffset.Now
         });
         
+        HasUnsavedChanges = true;
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Add subflow I/O nodes to the central registry
+    /// </summary>
+    private void AddSubflowIONodesToRegistry(SubflowInfo subflow)
+    {
+        // Add input node
+        var inputId = $"{subflow.Id}_in";
+        AllNodes[inputId] = new NodeData
+        {
+            Id = inputId,
+            Z = subflow.Id,
+            Type = "subflow-in",
+            X = 150,
+            Y = 200,
+            W = 80,
+            H = 25,
+            Name = "Input",
+            Color = "#A6BBCF",
+            IconClass = "→",
+            Props = new Dictionary<string, object?> { { "subflowId", subflow.Id } }
+        };
+        
+        // Add output node
+        var outputId = $"{subflow.Id}_out";
+        AllNodes[outputId] = new NodeData
+        {
+            Id = outputId,
+            Z = subflow.Id,
+            Type = "subflow-out",
+            X = 500,
+            Y = 200,
+            W = 80,
+            H = 25,
+            Name = "Output",
+            Color = "#A6BBCF",
+            IconClass = "←",
+            Props = new Dictionary<string, object?> { { "subflowId", subflow.Id } }
+        };
+    }
+    
+    private void AddSubflowIONodes(SubflowInfo subflow)
+    {
+        // Add subflow input node
+        var inputNode = new Node
+        {
+            ID = $"{subflow.Id}_in",
+            OffsetX = 150,
+            OffsetY = 200,
+            Width = 80,
+            Height = 25,
+            Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
+            Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
+            AdditionalInfo = new Dictionary<string, object?>
+            {
+                { "nodeType", "subflow-in" },
+                { "subflowId", subflow.Id }
+            }
+        };
+        inputNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+        {
+            new ShapeAnnotation { ID = "iconAnnotation", Content = "→", Style = new TextStyle { Color = "#333", FontSize = 12 } },
+            new ShapeAnnotation { ID = "labelAnnotation", Content = "Input", Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
+        };
+        inputNode.Ports = new DiagramObjectCollection<PointPort>
+        {
+            new PointPort
+            {
+                ID = "output",
+                Offset = new DiagramPoint { X = 1, Y = 0.5 },
+                Visibility = PortVisibility.Visible,
+                Height = 8,
+                Width = 8,
+                Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+            }
+        };
+        DiagramNodes?.Add(inputNode);
+        
+        // Add subflow output node
+        var outputNode = new Node
+        {
+            ID = $"{subflow.Id}_out",
+            OffsetX = 500,
+            OffsetY = 200,
+            Width = 80,
+            Height = 25,
+            Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
+            Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
+            AdditionalInfo = new Dictionary<string, object?>
+            {
+                { "nodeType", "subflow-out" },
+                { "subflowId", subflow.Id }
+            }
+        };
+        outputNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+        {
+            new ShapeAnnotation { ID = "iconAnnotation", Content = "←", Style = new TextStyle { Color = "#333", FontSize = 12 } },
+            new ShapeAnnotation { ID = "labelAnnotation", Content = "Output", Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
+        };
+        outputNode.Ports = new DiagramObjectCollection<PointPort>
+        {
+            new PointPort
+            {
+                ID = "input",
+                Offset = new DiagramPoint { X = 0, Y = 0.5 },
+                Visibility = PortVisibility.Visible,
+                Height = 8,
+                Width = 8,
+                Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+            }
+        };
+        DiagramNodes?.Add(outputNode);
+    }
+    
+    private void AddSubflowToPalette(SubflowInfo subflow)
+    {
+        // Add subflow to the "subflows" category in the palette
+        var subflowCategory = PaletteCategories.FirstOrDefault(c => c.Name == "subflows");
+        if (subflowCategory == null)
+        {
+            // Create the subflows category if it doesn't exist
+            subflowCategory = new PaletteCategory
+            {
+                Name = "subflows",
+                IsExpanded = true,
+                Nodes = new List<PaletteNodeInfo>()
+            };
+            PaletteCategories.Add(subflowCategory);
+        }
+        
+        // Add the subflow as a palette node
+        var paletteNode = new PaletteNodeInfo
+        {
+            Type = $"subflow:{subflow.Id}",
+            Label = subflow.Name,
+            Color = subflow.Color,
+            IconClass = "fa fa-th-large",
+            Inputs = subflow.Inputs,
+            Outputs = subflow.Outputs
+        };
+        subflowCategory.Nodes.Add(paletteNode);
+        
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = $"Subflow '{subflow.Name}' added to palette. Drag it from the 'subflows' category onto any flow to use it.",
+            Timestamp = DateTimeOffset.Now
+        });
+    }
+    
+    private void CreateSubflowFromSelection()
+    {
+        var selectedNodes = GetSelectedNodes();
+        
+        if (selectedNodes.Count == 0)
+        {
+            DebugMessages.Add(new DebugMessage
+            {
+                NodeId = "system",
+                NodeName = "System",
+                Data = "Please select nodes in the workspace first to convert them to a subflow.",
+                Timestamp = DateTimeOffset.Now
+            });
+            return;
+        }
+        
+        var subflowId = $"subflow_{Guid.NewGuid():N}";
+        var subflowName = $"Subflow {Subflows.Count + 1}";
+        
+        // Determine inputs and outputs based on unconnected ports
+        int inputs = 0;
+        int outputs = 0;
+        var nodeIds = selectedNodes.Select(n => n.ID).ToList();
+        
+        foreach (var node in selectedNodes)
+        {
+            // Check for incoming connections from outside the selection
+            var incomingFromOutside = DiagramConnectors?.Any(c => 
+                c.TargetID == node.ID && 
+                !nodeIds.Contains(c.SourceID)) ?? false;
+            if (incomingFromOutside) inputs = 1;
+            
+            // Check for outgoing connections to outside the selection
+            var outgoingToOutside = DiagramConnectors?.Any(c => 
+                c.SourceID == node.ID && 
+                !nodeIds.Contains(c.TargetID)) ?? false;
+            if (outgoingToOutside) outputs = 1;
+        }
+        
+        // Default to 1 input and 1 output if no connections found
+        if (inputs == 0) inputs = 1;
+        if (outputs == 0) outputs = 1;
+        
+        var newSubflow = new SubflowInfo
+        {
+            Id = subflowId,
+            Name = subflowName,
+            Inputs = inputs,
+            Outputs = outputs,
+            Description = $"Created from {selectedNodes.Count} selected node(s)",
+            Category = "subflows",
+            Color = "#DDAA99",
+            NodeIds = nodeIds
+        };
+        
+        Subflows.Add(newSubflow);
+        
+        // Create a new flow tab for the subflow
+        var newFlow = new FlowTab
+        {
+            Id = subflowId,
+            Label = subflowName,
+            Disabled = false,
+            Info = $"Subflow created from selection - {selectedNodes.Count} nodes"
+        };
+        Flows.Add(newFlow);
+        
+        // Remove selected nodes from current flow (they're now in the subflow)
+        foreach (var node in selectedNodes)
+        {
+            DiagramNodes?.Remove(node);
+        }
+        
+        // Remove connectors between the removed nodes
+        var connectorsToRemove = DiagramConnectors?
+            .Where(c => nodeIds.Contains(c.SourceID) || nodeIds.Contains(c.TargetID))
+            .ToList() ?? new List<Connector>();
+        foreach (var connector in connectorsToRemove)
+        {
+            DiagramConnectors?.Remove(connector);
+        }
+        
+        // Create a subflow instance node in place of the removed nodes
+        // Note: selectedNodes.Count > 0 is guaranteed by earlier check
+        var avgX = selectedNodes.Count > 0 ? selectedNodes.Average(n => n.OffsetX) : 300.0;
+        var avgY = selectedNodes.Count > 0 ? selectedNodes.Average(n => n.OffsetY) : 200.0;
+        
+        var subflowInstanceId = $"subflow_instance_{Guid.NewGuid():N}";
+        var subflowInstanceNode = CreateNodeRedStyleNode(subflowInstanceId, avgX, avgY, "subflow:" + subflowId, subflowName, "#DDAA99", null);
+        DiagramNodes?.Add(subflowInstanceNode);
+        
+        AddSubflowToPalette(newSubflow);
+        
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = $"Created subflow '{subflowName}' from {selectedNodes.Count} selected node(s). A subflow instance has been placed in the current flow.",
+            Timestamp = DateTimeOffset.Now
+        });
+        
+        HasUnsavedChanges = true;
+        IsSubflowsDialogOpen = false;
         StateHasChanged();
     }
 
@@ -1470,14 +2597,27 @@ public partial class Editor : IDisposable
         var subflow = Subflows.FirstOrDefault(sf => sf.Id == subflowId);
         if (subflow != null)
         {
+            // Use proper tab switching which saves/restores state
+            SwitchFlow(subflowId);
+            
             DebugMessages.Add(new DebugMessage
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = $"Editing subflow '{subflow.Name}'. In a full implementation, this would open the subflow editor.",
+                Data = $"Editing subflow '{subflow.Name}'. Add nodes between Input and Output to define the logic.",
                 Timestamp = DateTimeOffset.Now
             });
+            
+            IsSubflowsDialogOpen = false;
+            StateHasChanged();
         }
+    }
+    
+    private void LoadFlowNodes(string flowId)
+    {
+        // This method is now deprecated - use RestoreFlowState instead
+        // Keeping for backward compatibility but it will use restore logic
+        RestoreFlowState(flowId);
     }
 
     private void DeleteSubflow(string subflowId)
@@ -1485,14 +2625,41 @@ public partial class Editor : IDisposable
         var subflow = Subflows.FirstOrDefault(sf => sf.Id == subflowId);
         if (subflow != null)
         {
+            // Remove the flow tab for this subflow
+            var flowTab = Flows.FirstOrDefault(f => f.Id == subflowId);
+            if (flowTab != null)
+            {
+                Flows.Remove(flowTab);
+            }
+            
+            // If we're currently viewing this subflow, switch to a regular flow
+            if (CurrentFlowId == subflowId)
+            {
+                var firstRegularFlow = Flows.FirstOrDefault(f => !Subflows.Any(sf => sf.Id == f.Id));
+                if (firstRegularFlow != null)
+                {
+                    CurrentFlowId = firstRegularFlow.Id;
+                }
+                else if (Flows.Count > 0)
+                {
+                    CurrentFlowId = Flows[0].Id;
+                }
+                else
+                {
+                    // Create a new flow if none exist
+                    AddNewFlow();
+                }
+            }
+            
             Subflows.Remove(subflow);
             DebugMessages.Add(new DebugMessage
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = $"Deleted subflow '{subflow.Name}'.",
+                Data = $"Deleted subflow '{subflow.Name}'. Any instances in flows will need to be removed manually.",
                 Timestamp = DateTimeOffset.Now
             });
+            HasUnsavedChanges = true;
             StateHasChanged();
         }
     }
@@ -1523,17 +2690,99 @@ public partial class Editor : IDisposable
 
     private void GroupSelectedNodes()
     {
-        // Get the currently selected node (in a full implementation, this would get all selected nodes)
-        if (SelectedDiagramNode != null)
+        // Get all selected nodes using the helper
+        var selectedNodes = GetSelectedNodes();
+        
+        if (selectedNodes.Count > 0)
         {
-            var groupId = $"group{Groups.Count + 1}";
+            var groupId = $"group_{Guid.NewGuid():N}";
             var groupName = $"Group {Groups.Count + 1}";
+            
+            // Calculate bounding box for the group - initialize with first node
+            var firstNode = selectedNodes[0];
+            double minX = (firstNode.OffsetX) - (firstNode.Width ?? 100.0) / 2;
+            double minY = (firstNode.OffsetY) - (firstNode.Height ?? 30.0) / 2;
+            double maxX = (firstNode.OffsetX) + (firstNode.Width ?? 100.0) / 2;
+            double maxY = (firstNode.OffsetY) + (firstNode.Height ?? 30.0) / 2;
+            var nodeIds = new List<string> { firstNode.ID };
+            
+            foreach (var node in selectedNodes.Skip(1))
+            {
+                nodeIds.Add(node.ID);
+                double nodeMinX = (node.OffsetX) - (node.Width ?? 100.0) / 2;
+                double nodeMinY = (node.OffsetY) - (node.Height ?? 30.0) / 2;
+                double nodeMaxX = (node.OffsetX) + (node.Width ?? 100.0) / 2;
+                double nodeMaxY = (node.OffsetY) + (node.Height ?? 30.0) / 2;
+                if (nodeMinX < minX) minX = nodeMinX;
+                if (nodeMinY < minY) minY = nodeMinY;
+                if (nodeMaxX > maxX) maxX = nodeMaxX;
+                if (nodeMaxY > maxY) maxY = nodeMaxY;
+            }
+            
+            // Add padding around the group
+            var padding = 20.0;
+            minX -= padding;
+            minY -= padding;
+            maxX += padding;
+            maxY += padding;
+            
+            // Create visual group node (rectangle behind the nodes)
+            // Using regular Node instead of NodeGroup to avoid connector issues
+            var groupNode = new Node
+            {
+                ID = groupId,
+                OffsetX = minX + (maxX - minX) / 2,
+                OffsetY = minY + (maxY - minY) / 2,
+                Width = maxX - minX,
+                Height = maxY - minY,
+                Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
+                Style = new ShapeStyle
+                {
+                    Fill = DefaultGroupFillColor,
+                    StrokeColor = DefaultGroupStrokeColor,
+                    StrokeWidth = 2,
+                    StrokeDashArray = "5,3"
+                },
+                ZIndex = -1, // Behind other nodes
+                Ports = new DiagramObjectCollection<PointPort>(), // Empty ports - groups don't have connections
+                Constraints = GroupNodeConstraints, // No connections - groups don't have ports
+                AdditionalInfo = new Dictionary<string, object>
+                {
+                    ["nodeType"] = "group",
+                    ["color"] = DefaultGroupFillColor,
+                    ["isGroup"] = true
+                }
+            };
+            
+            // Add label annotation for the group name
+            groupNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+            {
+                new ShapeAnnotation
+                {
+                    ID = "groupLabel",
+                    Content = groupName,
+                    Style = new TextStyle { Color = "#666", FontSize = 11, Bold = true },
+                    Offset = new DiagramPoint { X = 0, Y = 0 },
+                    Margin = new DiagramThickness { Left = 5, Top = 5, Right = 0, Bottom = 0 },
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment = VerticalAlignment.Top
+                }
+            };
+            
+            DiagramNodes?.Add(groupNode);
             
             var newGroup = new GroupInfo
             {
                 Id = groupId,
                 Name = groupName,
-                NodeCount = 1 // In full implementation, would be count of selected nodes
+                NodeCount = selectedNodes.Count,
+                NodeIds = nodeIds,
+                Color = "#FFCCCC",
+                X = minX,
+                Y = minY,
+                Width = maxX - minX,
+                Height = maxY - minY,
+                DiagramNodeId = groupId
             };
             
             Groups.Add(newGroup);
@@ -1542,10 +2791,11 @@ public partial class Editor : IDisposable
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = $"Created group '{groupName}'. In a full implementation, selected nodes would be visually grouped.",
+                Data = $"Created group '{groupName}' containing {selectedNodes.Count} node(s).",
                 Timestamp = DateTimeOffset.Now
             });
             
+            HasUnsavedChanges = true;
             StateHasChanged();
         }
         else
@@ -1554,7 +2804,7 @@ public partial class Editor : IDisposable
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = "Please select nodes to group. In a full implementation, multiple selected nodes would be grouped together.",
+                Data = "Please select nodes to group. Select multiple nodes by holding Ctrl while clicking.",
                 Timestamp = DateTimeOffset.Now
             });
         }
@@ -1562,19 +2812,53 @@ public partial class Editor : IDisposable
 
     private void UngroupSelectedNodes()
     {
-        if (Groups.Count > 0)
+        // First check if we have a group selected (via its visual node)
+        var selectedNodes = GetSelectedNodes();
+        GroupInfo? groupToRemove = null;
+        
+        // Check if any selected node is a group node
+        foreach (var node in selectedNodes)
         {
-            var lastGroup = Groups.Last();
-            Groups.Remove(lastGroup);
+            var group = Groups.FirstOrDefault(g => g.DiagramNodeId == node.ID);
+            if (group != null)
+            {
+                groupToRemove = group;
+                break;
+            }
+        }
+        
+        // If no group node selected, try to find a group containing the selected node
+        if (groupToRemove == null && SelectedDiagramNode != null)
+        {
+            groupToRemove = Groups.FirstOrDefault(g => g.NodeIds.Contains(SelectedDiagramNode.ID));
+        }
+        
+        // If still no group found, just remove the last group
+        if (groupToRemove == null && Groups.Count > 0)
+        {
+            groupToRemove = Groups.Last();
+        }
+        
+        if (groupToRemove != null)
+        {
+            // Remove the visual group node from the diagram
+            var groupNode = DiagramNodes?.FirstOrDefault(n => n.ID == groupToRemove.DiagramNodeId);
+            if (groupNode != null)
+            {
+                DiagramNodes?.Remove(groupNode);
+            }
+            
+            Groups.Remove(groupToRemove);
             
             DebugMessages.Add(new DebugMessage
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = $"Ungrouped '{lastGroup.Name}'. In a full implementation, nodes would be removed from their group.",
+                Data = $"Ungrouped '{groupToRemove.Name}'. {groupToRemove.NodeCount} node(s) are now independent.",
                 Timestamp = DateTimeOffset.Now
             });
             
+            HasUnsavedChanges = true;
             StateHasChanged();
         }
         else
@@ -1609,14 +2893,22 @@ public partial class Editor : IDisposable
         var group = Groups.FirstOrDefault(g => g.Id == groupId);
         if (group != null)
         {
+            // Remove the visual group node from the diagram
+            var groupNode = DiagramNodes?.FirstOrDefault(n => n.ID == group.DiagramNodeId);
+            if (groupNode != null)
+            {
+                DiagramNodes?.Remove(groupNode);
+            }
+            
             Groups.Remove(group);
             DebugMessages.Add(new DebugMessage
             {
                 NodeId = "system",
                 NodeName = "System",
-                Data = $"Deleted group '{group.Name}'.",
+                Data = $"Deleted group '{group.Name}'. Contained nodes are now independent.",
                 Timestamp = DateTimeOffset.Now
             });
+            HasUnsavedChanges = true;
             StateHasChanged();
         }
     }
@@ -1899,7 +3191,7 @@ public partial class Editor : IDisposable
                 {
                     Id = node.ID ?? "",
                     Type = nodeType,
-                    Name = node.Annotations?.FirstOrDefault()?.Content ?? "",
+                    Name = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? "",
                     X = node.OffsetX,
                     Y = node.OffsetY,
                     FlowId = CurrentFlowId,
@@ -1957,7 +3249,90 @@ public partial class Editor : IDisposable
 
     private void OnNodeStatusChanged(string nodeId, NodeStatus status)
     {
+        _nodeStatuses[nodeId] = status;
+        
+        // Update the status annotation on the diagram node
+        var node = DiagramNodes?.FirstOrDefault(n => n.ID == nodeId);
+        if (node?.Annotations != null && node.Annotations.Count >= 3)
+        {
+            var statusAnnotation = node.Annotations.FirstOrDefault(a => a.ID == "statusAnnotation");
+            if (statusAnnotation != null)
+            {
+                // Build status text with indicator
+                var statusText = "";
+                if (!string.IsNullOrEmpty(status.Text))
+                {
+                    var indicator = status.Shape == StatusShape.Ring ? "○" : "●";
+                    statusText = $"{indicator} {status.Text}";
+                }
+                statusAnnotation.Content = statusText;
+                
+                // Set color based on status
+                if (statusAnnotation.Style != null)
+                {
+                    statusAnnotation.Style.Color = GetStatusColor(status.Color);
+                }
+            }
+        }
+        
         InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Gets the status for a node.
+    /// </summary>
+    private NodeStatus? GetNodeStatus(string nodeId)
+    {
+        return _nodeStatuses.TryGetValue(nodeId, out var status) ? status : null;
+    }
+
+    /// <summary>
+    /// Gets the help text for a node type from SDK definitions.
+    /// </summary>
+    private NodeHelpText? GetNodeHelp(string nodeType)
+    {
+        // Handle special node types that aren't in SDK
+        if (nodeType == "group")
+        {
+            return new NodeHelpText
+            {
+                Summary = "A group is a visual container that organizes related nodes together. When you move a group, all nodes inside it move together.",
+                Details = "Groups help organize complex flows by visually grouping related nodes. You can:\n\n- Select multiple nodes and click 'Group Selected' to create a group\n- Drag the group to move all contained nodes together\n- Ungroup to release the nodes back to independent movement"
+            };
+        }
+        
+        if (nodeType == "subflow-in" || nodeType == "subflow-out")
+        {
+            return new NodeHelpText
+            {
+                Summary = nodeType == "subflow-in" 
+                    ? "Subflow Input - receives messages passed into this subflow when it's used as a node in another flow."
+                    : "Subflow Output - sends messages out of this subflow when it's used as a node in another flow.",
+                Details = nodeType == "subflow-in"
+                    ? "The subflow input node defines the entry point for messages into this subflow. Any message sent to a subflow instance will arrive at this input node."
+                    : "The subflow output node defines the exit point for messages from this subflow. Messages sent to this node will be passed out of the subflow instance."
+            };
+        }
+        
+        _cachedNodeDefinitions ??= NodeLoader.GetNodeDefinitions().ToList();
+        var def = _cachedNodeDefinitions.FirstOrDefault(d => d.Type == nodeType);
+        return def?.Help;
+    }
+
+    /// <summary>
+    /// Gets the CSS color for a node status.
+    /// </summary>
+    private string GetStatusColor(StatusColor color)
+    {
+        return color switch
+        {
+            StatusColor.Red => "#c00",
+            StatusColor.Green => "#5a8",
+            StatusColor.Yellow => "#f90",
+            StatusColor.Blue => "#53a3f3",
+            StatusColor.Grey => "#999",
+            _ => "#999"
+        };
     }
 
     private void ClearDebugMessages()
@@ -2047,6 +3422,98 @@ public partial class Editor : IDisposable
     {
         public string Id { get; set; } = "";
         public string Label { get; set; } = "";
+        public string Info { get; set; } = "";
+        public bool Disabled { get; set; } = false;
+        
+        /// <summary>
+        /// Serialized nodes for this flow - stores diagram state when switching tabs
+        /// </summary>
+        public List<FlowNodeData> StoredNodes { get; set; } = new();
+        
+        /// <summary>
+        /// Serialized connectors for this flow - stores diagram state when switching tabs
+        /// </summary>
+        public List<FlowConnectorData> StoredConnectors { get; set; } = new();
+        
+        /// <summary>
+        /// Node counter for unique IDs within this flow
+        /// </summary>
+        public int NodeCounter { get; set; } = 0;
+        
+        /// <summary>
+        /// Connector counter for unique IDs within this flow
+        /// </summary>
+        public int ConnectorCounter { get; set; } = 0;
+        
+        /// <summary>
+        /// Groups for this flow
+        /// </summary>
+        public List<GroupInfo> Groups { get; set; } = new();
+    }
+    
+    /// <summary>
+    /// Serializable node data for storing flow state
+    /// </summary>
+    private class FlowNodeData
+    {
+        public string Id { get; set; } = "";
+        public string Type { get; set; } = "";
+        public double OffsetX { get; set; }
+        public double OffsetY { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+        public string Color { get; set; } = "";
+        public string IconContent { get; set; } = "";
+        public string LabelContent { get; set; } = "";
+        public Dictionary<string, object?> AdditionalInfo { get; set; } = new();
+        public bool IsGroup { get; set; } = false;
+        public string? GroupStyle { get; set; }
+    }
+    
+    /// <summary>
+    /// Serializable connector data for storing flow state
+    /// </summary>
+    private class FlowConnectorData
+    {
+        public string Id { get; set; } = "";
+        public string SourceId { get; set; } = "";
+        public string SourcePortId { get; set; } = "";
+        public string TargetId { get; set; } = "";
+        public string TargetPortId { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Central node data storage (like RED.nodes in JS Node-RED)
+    /// Each node has a 'z' property indicating which flow it belongs to
+    /// </summary>
+    private class NodeData
+    {
+        public string Id { get; set; } = "";
+        public string Z { get; set; } = ""; // Flow ID (like JS Node-RED's z property)
+        public string Type { get; set; } = "";
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double W { get; set; } = 122;
+        public double H { get; set; } = 25;
+        public string Name { get; set; } = "";
+        public string Color { get; set; } = "#ddd";
+        public string IconClass { get; set; } = "";
+        public Dictionary<string, object?> Props { get; set; } = new();
+        public bool Changed { get; set; } = false;
+        public bool Dirty { get; set; } = false;
+    }
+
+    /// <summary>
+    /// Central connector data storage
+    /// </summary>
+    private class ConnectorData
+    {
+        public string Id { get; set; } = "";
+        public string Z { get; set; } = ""; // Flow ID
+        public string SourceId { get; set; } = "";
+        public string SourcePortId { get; set; } = "";
+        public string TargetId { get; set; } = "";
+        public string TargetPortId { get; set; } = "";
     }
 
     private class PaletteCategory
@@ -2088,13 +3555,26 @@ public partial class Editor : IDisposable
         public string Name { get; set; } = "";
         public int Inputs { get; set; }
         public int Outputs { get; set; }
+        public string Description { get; set; } = "";
+        public string Category { get; set; } = "subflows";
+        public string Color { get; set; } = "#DDAA99";
+        public List<string> NodeIds { get; set; } = new();
+        public List<(string ConnectorId, string SourceId, string SourcePort, string TargetId, string TargetPort)> Connections { get; set; } = new();
     }
 
     private class GroupInfo
     {
         public string Id { get; set; } = "";
         public string Name { get; set; } = "";
+        public string FlowId { get; set; } = ""; // Which flow this group belongs to
         public int NodeCount { get; set; }
+        public List<string> NodeIds { get; set; } = new();
+        public string Color { get; set; } = "#FFCCCC";
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+        public string DiagramNodeId { get; set; } = "";
     }
 
     private class PaletteModuleInfo
@@ -2109,5 +3589,163 @@ public partial class Editor : IDisposable
     {
         public string Key { get; set; } = "";
         public string Description { get; set; } = "";
+    }
+
+    // Context menu methods
+    private void ShowNodeContextMenu(Node node, double x, double y)
+    {
+        ContextMenuNode = node;
+        ContextMenuX = x;
+        ContextMenuY = y;
+        IsNodeContextMenuOpen = true;
+        IsCanvasContextMenuOpen = false;
+        StateHasChanged();
+    }
+
+    private void ShowCanvasContextMenu(double x, double y)
+    {
+        ContextMenuX = x;
+        ContextMenuY = y;
+        IsCanvasContextMenuOpen = true;
+        IsNodeContextMenuOpen = false;
+        StateHasChanged();
+    }
+
+    private void CloseContextMenus()
+    {
+        IsNodeContextMenuOpen = false;
+        IsCanvasContextMenuOpen = false;
+        ContextMenuNode = null;
+        StateHasChanged();
+    }
+
+    private void ContextMenuEditNode()
+    {
+        if (ContextMenuNode != null)
+        {
+            SelectedDiagramNode = ContextMenuNode;
+            IsPropertyTrayOpen = true;
+            LoadNodeProperties(ContextMenuNode);
+        }
+        CloseContextMenus();
+    }
+
+    private void ContextMenuCopyNode()
+    {
+        if (ContextMenuNode != null)
+        {
+            SelectedDiagramNode = ContextMenuNode;
+            CopySelection();
+        }
+        CloseContextMenus();
+    }
+
+    private void ContextMenuCutNode()
+    {
+        if (ContextMenuNode != null)
+        {
+            SelectedDiagramNode = ContextMenuNode;
+            CutSelection();
+        }
+        CloseContextMenus();
+    }
+
+    private void ContextMenuDeleteNode()
+    {
+        if (ContextMenuNode != null)
+        {
+            // Record for undo
+            RecordAction(new EditorAction
+            {
+                Type = EditorActionType.DeleteNode,
+                NodeId = ContextMenuNode.ID,
+                NodeData = ContextMenuNode
+            });
+            DiagramNodes!.Remove(ContextMenuNode);
+            SelectedDiagramNode = null;
+            HasUnsavedChanges = true;
+        }
+        CloseContextMenus();
+    }
+
+    private void ContextMenuPaste()
+    {
+        PasteFromClipboard();
+        CloseContextMenus();
+    }
+
+    private void ContextMenuAddInject()
+    {
+        AddNodeAtPosition("inject", ContextMenuX, ContextMenuY);
+        CloseContextMenus();
+    }
+
+    private void ContextMenuAddDebug()
+    {
+        AddNodeAtPosition("debug", ContextMenuX, ContextMenuY);
+        CloseContextMenus();
+    }
+
+    private void ContextMenuAddFunction()
+    {
+        AddNodeAtPosition("function", ContextMenuX, ContextMenuY);
+        CloseContextMenus();
+    }
+
+    private void ContextMenuAddChange()
+    {
+        AddNodeAtPosition("change", ContextMenuX, ContextMenuY);
+        CloseContextMenus();
+    }
+
+    private void AddNodeAtPosition(string nodeType, double x, double y)
+    {
+        var paletteNode = GetPaletteNodeInfo(nodeType);
+        
+        if (paletteNode != null)
+        {
+            var nodeName = $"{paletteNode.Label}{++NodeCount}";
+            var nodeId = $"{nodeType}{NodeCount}";
+            var newNode = CreateNodeRedStyleNode(nodeId, x, y, paletteNode.Type, nodeName, paletteNode.Color, paletteNode);
+            DiagramNodes?.Add(newNode);
+            
+            // Record undo action
+            RecordAction(new EditorAction
+            {
+                Type = EditorActionType.AddNode,
+                NodeId = newNode.ID,
+                NodeData = newNode
+            });
+            
+            HasUnsavedChanges = true;
+            StateHasChanged();
+        }
+    }
+
+    // Undo/Redo action types
+    private enum EditorActionType
+    {
+        AddNode,
+        DeleteNode,
+        MoveNode,
+        EditNode,
+        AddConnector,
+        DeleteConnector
+    }
+
+    // Represents an editor action for undo/redo
+    private class EditorAction
+    {
+        public EditorActionType Type { get; set; }
+        public string? NodeId { get; set; }
+        public Node? NodeData { get; set; }
+        public double OldX { get; set; }
+        public double OldY { get; set; }
+        public double NewX { get; set; }
+        public double NewY { get; set; }
+        public Dictionary<string, object?>? OldProperties { get; set; }
+        public Dictionary<string, object?>? NewProperties { get; set; }
+        public string? ConnectorId { get; set; }
+        public Connector? ConnectorData { get; set; }
     }
 }
