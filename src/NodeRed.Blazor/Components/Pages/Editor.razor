@@ -90,6 +90,26 @@
                             <i class="fa fa-share-square-o"></i> Export
                         </a>
                         <div class="red-ui-menu-divider"></div>
+                        <a class="red-ui-menu-item @(_undoStack.Count == 0 ? "disabled" : "")" @onclick="Undo">
+                            <i class="fa fa-undo"></i> Undo <span class="red-ui-menu-shortcut">Ctrl+Z</span>
+                        </a>
+                        <a class="red-ui-menu-item @(_redoStack.Count == 0 ? "disabled" : "")" @onclick="Redo">
+                            <i class="fa fa-repeat"></i> Redo <span class="red-ui-menu-shortcut">Ctrl+Y</span>
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
+                        <a class="red-ui-menu-item @(SelectedDiagramNode == null ? "disabled" : "")" @onclick="CutSelection">
+                            <i class="fa fa-cut"></i> Cut <span class="red-ui-menu-shortcut">Ctrl+X</span>
+                        </a>
+                        <a class="red-ui-menu-item @(SelectedDiagramNode == null ? "disabled" : "")" @onclick="CopySelection">
+                            <i class="fa fa-copy"></i> Copy <span class="red-ui-menu-shortcut">Ctrl+C</span>
+                        </a>
+                        <a class="red-ui-menu-item @(string.IsNullOrEmpty(_nodeClipboard) ? "disabled" : "")" @onclick="PasteFromClipboard">
+                            <i class="fa fa-paste"></i> Paste <span class="red-ui-menu-shortcut">Ctrl+V</span>
+                        </a>
+                        <a class="red-ui-menu-item @(SelectedDiagramNode == null ? "disabled" : "")" @onclick="DeleteSelection">
+                            <i class="fa fa-trash"></i> Delete <span class="red-ui-menu-shortcut">Delete</span>
+                        </a>
+                        <div class="red-ui-menu-divider"></div>
                         <a class="red-ui-menu-item" @onclick="OnSearchClick">
                             <i class="fa fa-search"></i> Search flows <span class="red-ui-menu-shortcut">Ctrl+.</span>
                         </a>
@@ -2012,6 +2032,12 @@
         color: #888;
         margin-top: 2px;
         padding-left: 0;
+    }
+
+    .red-ui-menu-item.disabled {
+        opacity: 0.4;
+        pointer-events: none;
+        cursor: default;
     }
 
     .red-ui-menu-shortcut {

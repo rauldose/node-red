@@ -66,6 +66,15 @@ public partial class Editor : IDisposable
     // Cached node definitions for performance
     private List<NodeDefinition>? _cachedNodeDefinitions;
 
+    // Undo/Redo history stacks
+    private Stack<EditorAction> _undoStack = new();
+    private Stack<EditorAction> _redoStack = new();
+    private const int MaxUndoStackSize = 50;
+
+    // Clipboard for copy/paste
+    private string _nodeClipboard = "";
+    private bool _clipboardIsCut = false;
+
     // Node counter for unique IDs
     private int NodeCount = 0;
     private int ConnectorCount = 0;
@@ -937,6 +946,326 @@ public partial class Editor : IDisposable
     {
         var currentZoom = DiagramInstance?.ScrollSettings?.CurrentZoom ?? 1;
         DiagramInstance?.Zoom(1 / currentZoom, null);
+    }
+
+    // =============== UNDO/REDO ===============
+    
+    /// <summary>
+    /// Records an action for undo/redo.
+    /// </summary>
+    private void RecordAction(EditorAction action)
+    {
+        _undoStack.Push(action);
+        if (_undoStack.Count > MaxUndoStackSize)
+        {
+            // Remove oldest items if stack exceeds max size
+            var tempStack = new Stack<EditorAction>(_undoStack.Take(MaxUndoStackSize).Reverse());
+            _undoStack = tempStack;
+        }
+        // Clear redo stack when a new action is recorded
+        _redoStack.Clear();
+    }
+
+    /// <summary>
+    /// Undo the last action.
+    /// </summary>
+    private void Undo()
+    {
+        if (_undoStack.Count == 0) return;
+
+        var action = _undoStack.Pop();
+        _redoStack.Push(action);
+
+        switch (action.Type)
+        {
+            case EditorActionType.AddNode:
+                // Undo add = remove node
+                if (DiagramNodes != null && action.NodeData != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        DiagramNodes.Remove(node);
+                    }
+                }
+                break;
+
+            case EditorActionType.DeleteNode:
+                // Undo delete = restore node
+                if (DiagramNodes != null && action.NodeData != null)
+                {
+                    DiagramNodes.Add(action.NodeData);
+                }
+                break;
+
+            case EditorActionType.MoveNode:
+                // Undo move = restore original position
+                if (DiagramNodes != null && action.NodeId != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        node.OffsetX = action.OldX;
+                        node.OffsetY = action.OldY;
+                    }
+                }
+                break;
+
+            case EditorActionType.EditNode:
+                // Undo edit = restore old properties
+                if (DiagramNodes != null && action.NodeId != null && action.OldProperties != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        foreach (var kv in action.OldProperties)
+                        {
+                            node.AdditionalInfo[kv.Key] = kv.Value;
+                        }
+                    }
+                }
+                break;
+        }
+
+        HasUnsavedChanges = true;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Redo the last undone action.
+    /// </summary>
+    private void Redo()
+    {
+        if (_redoStack.Count == 0) return;
+
+        var action = _redoStack.Pop();
+        _undoStack.Push(action);
+
+        switch (action.Type)
+        {
+            case EditorActionType.AddNode:
+                // Redo add = re-add node
+                if (DiagramNodes != null && action.NodeData != null)
+                {
+                    DiagramNodes.Add(action.NodeData);
+                }
+                break;
+
+            case EditorActionType.DeleteNode:
+                // Redo delete = remove node again
+                if (DiagramNodes != null && action.NodeData != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        DiagramNodes.Remove(node);
+                    }
+                }
+                break;
+
+            case EditorActionType.MoveNode:
+                // Redo move = apply new position
+                if (DiagramNodes != null && action.NodeId != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        node.OffsetX = action.NewX;
+                        node.OffsetY = action.NewY;
+                    }
+                }
+                break;
+
+            case EditorActionType.EditNode:
+                // Redo edit = apply new properties
+                if (DiagramNodes != null && action.NodeId != null && action.NewProperties != null)
+                {
+                    var node = DiagramNodes.FirstOrDefault(n => n.ID == action.NodeId);
+                    if (node != null)
+                    {
+                        foreach (var kv in action.NewProperties)
+                        {
+                            node.AdditionalInfo[kv.Key] = kv.Value;
+                        }
+                    }
+                }
+                break;
+        }
+
+        HasUnsavedChanges = true;
+        StateHasChanged();
+    }
+
+    // =============== COPY/CUT/PASTE ===============
+
+    /// <summary>
+    /// Copy selected nodes to clipboard.
+    /// </summary>
+    private void CopySelection()
+    {
+        if (SelectedDiagramNode == null) return;
+
+        var nodesToCopy = new List<object>();
+        
+        // Get all selected nodes
+        var selectedNodes = DiagramInstance?.SelectionSettings?.Nodes ?? new DiagramObjectCollection<Node>();
+        if (selectedNodes.Count == 0 && SelectedDiagramNode != null)
+        {
+            selectedNodes = new DiagramObjectCollection<Node> { SelectedDiagramNode };
+        }
+
+        foreach (var node in selectedNodes)
+        {
+            nodesToCopy.Add(new
+            {
+                id = node.ID,
+                type = node.AdditionalInfo.TryGetValue("nodeType", out var t) ? t?.ToString() : "unknown",
+                x = node.OffsetX,
+                y = node.OffsetY,
+                name = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content,
+                properties = node.AdditionalInfo
+            });
+        }
+
+        _nodeClipboard = System.Text.Json.JsonSerializer.Serialize(nodesToCopy);
+        _clipboardIsCut = false;
+
+        // Show notification
+        DebugMessages.Insert(0, new DebugMessage
+        {
+            Timestamp = DateTime.Now,
+            NodeId = "system",
+            NodeName = "clipboard",
+            Data = $"Copied {nodesToCopy.Count} node(s)"
+        });
+
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Cut selected nodes to clipboard.
+    /// </summary>
+    private void CutSelection()
+    {
+        CopySelection();
+        _clipboardIsCut = true;
+        DeleteSelection();
+    }
+
+    /// <summary>
+    /// Paste nodes from clipboard.
+    /// </summary>
+    private void PasteFromClipboard()
+    {
+        if (string.IsNullOrEmpty(_nodeClipboard)) return;
+
+        try
+        {
+            var nodeData = System.Text.Json.JsonSerializer.Deserialize<List<System.Text.Json.JsonElement>>(_nodeClipboard);
+            if (nodeData == null || nodeData.Count == 0) return;
+
+            int pastedCount = 0;
+            double offsetX = 20, offsetY = 20; // Offset pasted nodes slightly
+
+            foreach (var nodeJson in nodeData)
+            {
+                var type = nodeJson.TryGetProperty("type", out var tProp) ? tProp.GetString() ?? "unknown" : "unknown";
+                var x = nodeJson.TryGetProperty("x", out var xProp) ? xProp.GetDouble() : 200;
+                var y = nodeJson.TryGetProperty("y", out var yProp) ? yProp.GetDouble() : 200;
+                var name = nodeJson.TryGetProperty("name", out var nProp) ? nProp.GetString() : "";
+
+                // Find the palette node info
+                var paletteNode = PaletteCategories
+                    .SelectMany(c => c.Nodes)
+                    .FirstOrDefault(n => n.Type == type);
+
+                if (paletteNode != null)
+                {
+                    var nodeId = $"node{++NodeCount}";
+                    var label = string.IsNullOrEmpty(name) ? paletteNode.Label : name;
+                    var newNode = CreateNodeRedStyleNode(
+                        nodeId,
+                        x + offsetX,
+                        y + offsetY,
+                        type,
+                        label,
+                        paletteNode.Color,
+                        paletteNode
+                    );
+
+                    // Copy properties from original
+                    if (nodeJson.TryGetProperty("properties", out var propsJson))
+                    {
+                        foreach (var prop in propsJson.EnumerateObject())
+                        {
+                            newNode.AdditionalInfo[prop.Name] = prop.Value.ToString();
+                        }
+                    }
+
+                    DiagramNodes!.Add(newNode);
+                    pastedCount++;
+                }
+            }
+
+            if (_clipboardIsCut)
+            {
+                _nodeClipboard = "";
+                _clipboardIsCut = false;
+            }
+
+            HasUnsavedChanges = true;
+            
+            DebugMessages.Insert(0, new DebugMessage
+            {
+                Timestamp = DateTime.Now,
+                NodeId = "system",
+                NodeName = "clipboard",
+                Data = $"Pasted {pastedCount} node(s)"
+            });
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            DebugMessages.Insert(0, new DebugMessage
+            {
+                Timestamp = DateTime.Now,
+                NodeId = "system",
+                NodeName = "error",
+                Data = $"Paste failed: {ex.Message}"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Delete selected nodes.
+    /// </summary>
+    private void DeleteSelection()
+    {
+        if (SelectedDiagramNode == null) return;
+
+        var selectedNodes = DiagramInstance?.SelectionSettings?.Nodes ?? new DiagramObjectCollection<Node>();
+        if (selectedNodes.Count == 0 && SelectedDiagramNode != null)
+        {
+            selectedNodes = new DiagramObjectCollection<Node> { SelectedDiagramNode };
+        }
+
+        foreach (var node in selectedNodes.ToList())
+        {
+            // Record for undo
+            RecordAction(new EditorAction
+            {
+                Type = EditorActionType.DeleteNode,
+                NodeId = node.ID,
+                NodeData = node
+            });
+
+            DiagramNodes!.Remove(node);
+        }
+
+        SelectedDiagramNode = null;
+        HasUnsavedChanges = true;
+        StateHasChanged();
     }
 
     private async Task OnDeployClick()
@@ -2048,5 +2377,32 @@ public partial class Editor : IDisposable
     {
         public string Key { get; set; } = "";
         public string Description { get; set; } = "";
+    }
+
+    // Undo/Redo action types
+    private enum EditorActionType
+    {
+        AddNode,
+        DeleteNode,
+        MoveNode,
+        EditNode,
+        AddConnector,
+        DeleteConnector
+    }
+
+    // Represents an editor action for undo/redo
+    private class EditorAction
+    {
+        public EditorActionType Type { get; set; }
+        public string? NodeId { get; set; }
+        public Node? NodeData { get; set; }
+        public double OldX { get; set; }
+        public double OldY { get; set; }
+        public double NewX { get; set; }
+        public double NewY { get; set; }
+        public Dictionary<string, object?>? OldProperties { get; set; }
+        public Dictionary<string, object?>? NewProperties { get; set; }
+        public string? ConnectorId { get; set; }
+        public Connector? ConnectorData { get; set; }
     }
 }
