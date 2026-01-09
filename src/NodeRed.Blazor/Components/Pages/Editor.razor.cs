@@ -892,7 +892,7 @@ public partial class Editor : IDisposable
     /// <summary>
     /// Handles position changes - when a group is moved, move its contained nodes too
     /// </summary>
-    private void OnPositionChanged(PositionChangedEventArgs args)
+    private async void OnPositionChanged(PositionChangedEventArgs args)
     {
         if (args.NewValue?.Nodes?.Count > 0)
         {
@@ -933,7 +933,7 @@ public partial class Editor : IDisposable
                             group.Y += deltaY;
                             
                             // Force diagram to refresh and show updated positions
-                            InvokeAsync(StateHasChanged);
+                            await InvokeAsync(StateHasChanged);
                         }
                     }
                 }
@@ -2736,7 +2736,13 @@ public partial class Editor : IDisposable
                 },
                 ZIndex = -1, // Behind other nodes
                 Ports = new DiagramObjectCollection<PointPort>(), // Empty ports - groups don't have connections
-                Constraints = GroupNodeConstraints // No connections - groups don't have ports
+                Constraints = GroupNodeConstraints, // No connections - groups don't have ports
+                AdditionalInfo = new Dictionary<string, object>
+                {
+                    ["nodeType"] = "group",
+                    ["color"] = DefaultGroupFillColor,
+                    ["isGroup"] = true
+                }
             };
             
             // Add label annotation for the group name
@@ -3276,6 +3282,29 @@ public partial class Editor : IDisposable
     /// </summary>
     private NodeHelpText? GetNodeHelp(string nodeType)
     {
+        // Handle special node types that aren't in SDK
+        if (nodeType == "group")
+        {
+            return new NodeHelpText
+            {
+                Summary = "A group is a visual container that organizes related nodes together. When you move a group, all nodes inside it move together.",
+                Details = "Groups help organize complex flows by visually grouping related nodes. You can:\n\n- Select multiple nodes and click 'Group Selected' to create a group\n- Drag the group to move all contained nodes together\n- Ungroup to release the nodes back to independent movement"
+            };
+        }
+        
+        if (nodeType == "subflow-in" || nodeType == "subflow-out")
+        {
+            return new NodeHelpText
+            {
+                Summary = nodeType == "subflow-in" 
+                    ? "Subflow Input - receives messages passed into this subflow when it's used as a node in another flow."
+                    : "Subflow Output - sends messages out of this subflow when it's used as a node in another flow.",
+                Details = nodeType == "subflow-in"
+                    ? "The subflow input node defines the entry point for messages into this subflow. Any message sent to a subflow instance will arrive at this input node."
+                    : "The subflow output node defines the exit point for messages from this subflow. Messages sent to this node will be passed out of the subflow instance."
+            };
+        }
+        
         _cachedNodeDefinitions ??= NodeLoader.GetNodeDefinitions().ToList();
         var def = _cachedNodeDefinitions.FirstOrDefault(d => d.Type == nodeType);
         return def?.Help;
