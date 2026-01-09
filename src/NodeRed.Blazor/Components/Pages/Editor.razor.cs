@@ -576,8 +576,7 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
-    /// Handles position changes - Syncfusion's NodeGroup automatically moves children
-    /// This handler now just tracks group positions for save/restore
+    /// Handles position changes - when a group is moved, move its contained nodes too
     /// </summary>
     private void OnPositionChanged(PositionChangedEventArgs args)
     {
@@ -585,15 +584,29 @@ public partial class Editor : IDisposable
         {
             foreach (var movedNode in args.NewValue.Nodes)
             {
-                // Update group position info for save/restore
+                // Check if this is a group node
                 var group = Groups.FirstOrDefault(g => g.DiagramNodeId == movedNode.ID);
-                if (group != null)
+                if (group != null && DiagramNodes != null)
                 {
+                    // Calculate the delta movement
                     var oldNode = args.OldValue?.Nodes?.FirstOrDefault(n => n.ID == movedNode.ID);
                     if (oldNode != null)
                     {
                         double deltaX = movedNode.OffsetX - oldNode.OffsetX;
                         double deltaY = movedNode.OffsetY - oldNode.OffsetY;
+                        
+                        // Move all nodes that belong to this group
+                        foreach (var nodeId in group.NodeIds)
+                        {
+                            var node = DiagramNodes.FirstOrDefault(n => n.ID == nodeId);
+                            if (node != null)
+                            {
+                                node.OffsetX += deltaX;
+                                node.OffsetY += deltaY;
+                            }
+                        }
+                        
+                        // Update group position info
                         group.X += deltaX;
                         group.Y += deltaY;
                     }
@@ -946,14 +959,18 @@ public partial class Editor : IDisposable
             DiagramConnectors.Add(connector);
         }
         
-        // Now add NodeGroup elements with Children referencing the regular nodes
+        // Now add group visual nodes (using regular Node, not NodeGroup to avoid connector issues)
         foreach (var group in Groups)
         {
             var parts = group.Color?.Split('|') ?? new[] { DefaultGroupFillColor, DefaultGroupStrokeColor };
-            var groupNode = new NodeGroup
+            var groupNode = new Node
             {
                 ID = group.DiagramNodeId,
-                Children = group.NodeIds.ToArray(),
+                OffsetX = group.X + group.Width / 2,
+                OffsetY = group.Y + group.Height / 2,
+                Width = group.Width,
+                Height = group.Height,
+                Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
                 Style = new ShapeStyle
                 {
                     Fill = parts.Length > 0 ? parts[0] : DefaultGroupFillColor,
@@ -961,7 +978,7 @@ public partial class Editor : IDisposable
                     StrokeWidth = 2,
                     StrokeDashArray = "5,3"
                 },
-                Padding = new DiagramThickness { Left = 20, Top = 20, Right = 20, Bottom = 20 },
+                ZIndex = -1,
                 Constraints = NodeConstraints.Default & ~NodeConstraints.Resize,
                 Annotations = new DiagramObjectCollection<ShapeAnnotation>
                 {
@@ -2262,13 +2279,16 @@ public partial class Editor : IDisposable
             maxX += padding;
             maxY += padding;
             
-            // Use Syncfusion's built-in grouping with Children property
-            // This automatically handles moving children when the group moves
-            var groupNode = new NodeGroup
+            // Create visual group node (rectangle behind the nodes)
+            // Using regular Node instead of NodeGroup to avoid connector issues
+            var groupNode = new Node
             {
                 ID = groupId,
-                // Add all selected node IDs as children - Syncfusion will move them together
-                Children = nodeIds.ToArray(),
+                OffsetX = minX + (maxX - minX) / 2,
+                OffsetY = minY + (maxY - minY) / 2,
+                Width = maxX - minX,
+                Height = maxY - minY,
+                Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
                 Style = new ShapeStyle
                 {
                     Fill = DefaultGroupFillColor,
@@ -2276,8 +2296,7 @@ public partial class Editor : IDisposable
                     StrokeWidth = 2,
                     StrokeDashArray = "5,3"
                 },
-                // Padding around children
-                Padding = new DiagramThickness { Left = 20, Top = 20, Right = 20, Bottom = 20 },
+                ZIndex = -1, // Behind other nodes
                 Constraints = NodeConstraints.Default & ~NodeConstraints.Resize
             };
             
