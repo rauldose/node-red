@@ -325,7 +325,7 @@ public partial class Editor : IDisposable
         // Use palette node info if available, otherwise fall back to hardcoded lists
         bool hasInput;
         bool hasOutput;
-        if (paletteNode != null)
+        if (paletteNode is not null)
         {
             hasInput = paletteNode.Inputs > 0;
             hasOutput = paletteNode.Outputs > 0;
