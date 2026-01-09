@@ -571,6 +571,46 @@ public partial class Editor : IDisposable
         }
     }
 
+    /// <summary>
+    /// Handles position changes - when a group is moved, move its contained nodes too
+    /// </summary>
+    private void OnPositionChanged(PositionChangedEventArgs args)
+    {
+        if (args.NewValue?.Nodes?.Count > 0)
+        {
+            foreach (var movedNode in args.NewValue.Nodes)
+            {
+                // Check if this is a group node
+                var group = Groups.FirstOrDefault(g => g.DiagramNodeId == movedNode.ID);
+                if (group != null && DiagramNodes != null)
+                {
+                    // Calculate the delta movement
+                    var oldNode = args.OldValue?.Nodes?.FirstOrDefault(n => n.ID == movedNode.ID);
+                    if (oldNode != null)
+                    {
+                        double deltaX = movedNode.OffsetX - oldNode.OffsetX;
+                        double deltaY = movedNode.OffsetY - oldNode.OffsetY;
+                        
+                        // Move all nodes that belong to this group
+                        foreach (var nodeId in group.NodeIds)
+                        {
+                            var node = DiagramNodes.FirstOrDefault(n => n.ID == nodeId);
+                            if (node != null)
+                            {
+                                node.OffsetX += deltaX;
+                                node.OffsetY += deltaY;
+                            }
+                        }
+                        
+                        // Update group position info
+                        group.X += deltaX;
+                        group.Y += deltaY;
+                    }
+                }
+            }
+        }
+    }
+
     private void ClosePropertyTray()
     {
         IsPropertyTrayOpen = false;
@@ -750,7 +790,205 @@ public partial class Editor : IDisposable
 
     private void SwitchFlow(string flowId)
     {
+        if (flowId == CurrentFlowId) return;
+        
+        // Save current flow's nodes and connectors
+        SaveCurrentFlowState();
+        
+        // Switch to the new flow
         CurrentFlowId = flowId;
+        
+        // Restore the new flow's nodes and connectors
+        RestoreFlowState(flowId);
+        
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Saves the current flow's diagram state (nodes and connectors) to the FlowTab
+    /// </summary>
+    private void SaveCurrentFlowState()
+    {
+        var currentFlow = Flows.FirstOrDefault(f => f.Id == CurrentFlowId);
+        if (currentFlow == null || DiagramNodes == null || DiagramConnectors == null) return;
+        
+        currentFlow.StoredNodes.Clear();
+        currentFlow.StoredConnectors.Clear();
+        currentFlow.NodeCounter = NodeCount;
+        currentFlow.ConnectorCounter = ConnectorCount;
+        currentFlow.Groups = new List<GroupInfo>(Groups);
+        
+        // Save all nodes
+        foreach (var node in DiagramNodes)
+        {
+            var nodeData = new FlowNodeData
+            {
+                Id = node.ID,
+                Type = node.AdditionalInfo?.ContainsKey("nodeType") == true ? node.AdditionalInfo["nodeType"]?.ToString() ?? "" : "",
+                OffsetX = node.OffsetX,
+                OffsetY = node.OffsetY,
+                Width = node.Width ?? 122,
+                Height = node.Height ?? 25,
+                AdditionalInfo = node.AdditionalInfo != null ? new Dictionary<string, object?>(node.AdditionalInfo) : new()
+            };
+            
+            // Check if this is a group node
+            var isGroup = Groups.Any(g => g.DiagramNodeId == node.ID);
+            nodeData.IsGroup = isGroup;
+            
+            // Get the node color
+            if (node.Style is ShapeStyle style)
+            {
+                nodeData.Color = style.Fill ?? "";
+                if (isGroup)
+                {
+                    nodeData.GroupStyle = $"{style.Fill}|{style.StrokeColor}";
+                }
+            }
+            
+            // Get icon and label from annotations
+            if (node.Annotations != null)
+            {
+                var iconAnnotation = node.Annotations.FirstOrDefault(a => a.ID == "iconAnnotation");
+                if (iconAnnotation != null)
+                {
+                    nodeData.IconContent = iconAnnotation.Content ?? "";
+                }
+                
+                var labelAnnotation = node.Annotations.FirstOrDefault(a => a.ID == "labelAnnotation");
+                if (labelAnnotation != null)
+                {
+                    nodeData.LabelContent = labelAnnotation.Content ?? "";
+                }
+                
+                // Also check for group label
+                var groupLabel = node.Annotations.FirstOrDefault(a => a.ID == "groupLabel");
+                if (groupLabel != null)
+                {
+                    nodeData.LabelContent = groupLabel.Content ?? "";
+                }
+            }
+            
+            currentFlow.StoredNodes.Add(nodeData);
+        }
+        
+        // Save all connectors
+        foreach (var connector in DiagramConnectors)
+        {
+            var connectorData = new FlowConnectorData
+            {
+                Id = connector.ID,
+                SourceId = connector.SourceID,
+                SourcePortId = connector.SourcePortID ?? "",
+                TargetId = connector.TargetID,
+                TargetPortId = connector.TargetPortID ?? ""
+            };
+            currentFlow.StoredConnectors.Add(connectorData);
+        }
+    }
+    
+    /// <summary>
+    /// Restores a flow's diagram state from the FlowTab
+    /// </summary>
+    private void RestoreFlowState(string flowId)
+    {
+        var flow = Flows.FirstOrDefault(f => f.Id == flowId);
+        if (flow == null || DiagramNodes == null || DiagramConnectors == null) return;
+        
+        // Clear current diagram
+        DiagramNodes.Clear();
+        DiagramConnectors.Clear();
+        Groups.Clear();
+        
+        NodeCount = flow.NodeCounter;
+        ConnectorCounter = flow.ConnectorCounter;
+        Groups = new List<GroupInfo>(flow.Groups);
+        
+        // Restore nodes
+        foreach (var nodeData in flow.StoredNodes)
+        {
+            Node node;
+            
+            if (nodeData.IsGroup)
+            {
+                // Create group node
+                var parts = nodeData.GroupStyle?.Split('|') ?? new[] { "rgba(255, 204, 204, 0.3)", "#FF9999" };
+                node = new Node
+                {
+                    ID = nodeData.Id,
+                    OffsetX = nodeData.OffsetX,
+                    OffsetY = nodeData.OffsetY,
+                    Width = nodeData.Width,
+                    Height = nodeData.Height,
+                    Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 5 },
+                    Style = new ShapeStyle
+                    {
+                        Fill = parts.Length > 0 ? parts[0] : "rgba(255, 204, 204, 0.3)",
+                        StrokeColor = parts.Length > 1 ? parts[1] : "#FF9999",
+                        StrokeWidth = 2,
+                        StrokeDashArray = "5,3"
+                    },
+                    ZIndex = -1,
+                    Constraints = NodeConstraints.Default & ~NodeConstraints.Resize,
+                    Annotations = new DiagramObjectCollection<ShapeAnnotation>
+                    {
+                        new ShapeAnnotation
+                        {
+                            ID = "groupLabel",
+                            Content = nodeData.LabelContent,
+                            Style = new TextStyle { Color = "#666", FontSize = 11, Bold = true },
+                            Offset = new DiagramPoint { X = 0, Y = 0 },
+                            Margin = new DiagramThickness { Left = 5, Top = 5, Right = 0, Bottom = 0 },
+                            HorizontalAlignment = HorizontalAlignment.Left,
+                            VerticalAlignment = VerticalAlignment.Top
+                        }
+                    }
+                };
+            }
+            else
+            {
+                // Find palette node info
+                PaletteNodeInfo? paletteNode = null;
+                foreach (var category in PaletteCategories)
+                {
+                    paletteNode = category.Nodes.FirstOrDefault(n => n.Type == nodeData.Type);
+                    if (paletteNode != null) break;
+                }
+                
+                // Create regular node
+                node = CreateNodeRedStyleNode(
+                    nodeData.Id,
+                    nodeData.OffsetX,
+                    nodeData.OffsetY,
+                    nodeData.Type,
+                    nodeData.LabelContent,
+                    nodeData.Color.StartsWith("#") ? nodeData.Color : paletteNode?.Color ?? "#ddd",
+                    paletteNode
+                );
+                
+                // Restore additional info
+                node.AdditionalInfo = new Dictionary<string, object?>(nodeData.AdditionalInfo);
+            }
+            
+            DiagramNodes.Add(node);
+        }
+        
+        // Restore connectors
+        foreach (var connectorData in flow.StoredConnectors)
+        {
+            var connector = new Connector
+            {
+                ID = connectorData.Id,
+                SourceID = connectorData.SourceId,
+                SourcePortID = connectorData.SourcePortId,
+                TargetID = connectorData.TargetId,
+                TargetPortID = connectorData.TargetPortId,
+                Type = ConnectorSegmentType.Bezier,
+                Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
+                TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None }
+            };
+            DiagramConnectors.Add(connector);
+        }
     }
 
     private void DeleteFlow(string flowId)
@@ -2701,6 +2939,62 @@ public partial class Editor : IDisposable
         public string Label { get; set; } = "";
         public string Info { get; set; } = "";
         public bool Disabled { get; set; } = false;
+        
+        /// <summary>
+        /// Serialized nodes for this flow - stores diagram state when switching tabs
+        /// </summary>
+        public List<FlowNodeData> StoredNodes { get; set; } = new();
+        
+        /// <summary>
+        /// Serialized connectors for this flow - stores diagram state when switching tabs
+        /// </summary>
+        public List<FlowConnectorData> StoredConnectors { get; set; } = new();
+        
+        /// <summary>
+        /// Node counter for unique IDs within this flow
+        /// </summary>
+        public int NodeCounter { get; set; } = 0;
+        
+        /// <summary>
+        /// Connector counter for unique IDs within this flow
+        /// </summary>
+        public int ConnectorCounter { get; set; } = 0;
+        
+        /// <summary>
+        /// Groups for this flow
+        /// </summary>
+        public List<GroupInfo> Groups { get; set; } = new();
+    }
+    
+    /// <summary>
+    /// Serializable node data for storing flow state
+    /// </summary>
+    private class FlowNodeData
+    {
+        public string Id { get; set; } = "";
+        public string Type { get; set; } = "";
+        public double OffsetX { get; set; }
+        public double OffsetY { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+        public string Color { get; set; } = "";
+        public string IconContent { get; set; } = "";
+        public string LabelContent { get; set; } = "";
+        public Dictionary<string, object?> AdditionalInfo { get; set; } = new();
+        public bool IsGroup { get; set; } = false;
+        public string? GroupStyle { get; set; }
+    }
+    
+    /// <summary>
+    /// Serializable connector data for storing flow state
+    /// </summary>
+    private class FlowConnectorData
+    {
+        public string Id { get; set; } = "";
+        public string SourceId { get; set; } = "";
+        public string SourcePortId { get; set; } = "";
+        public string TargetId { get; set; } = "";
+        public string TargetPortId { get; set; } = "";
     }
 
     private class PaletteCategory
