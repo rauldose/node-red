@@ -529,7 +529,8 @@ public partial class Editor : IDisposable
         if (args.NewValue?.Count > 0 && args.NewValue[0] is Node node)
         {
             SelectedDiagramNode = node;
-            SelectedNodeName = node.Annotations?.FirstOrDefault()?.Content ?? "";
+            // Get label from labelAnnotation (index 1), not iconAnnotation (index 0)
+            SelectedNodeName = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? "";
             LoadNodeProperties(node);
             SelectedSidebarTab = 0;
         }
@@ -579,7 +580,7 @@ public partial class Editor : IDisposable
                 // Check if flows are running
                 if (FlowRuntime.State != FlowState.Running)
                 {
-                    var nodeName = node.Annotations?.FirstOrDefault()?.Content ?? node.ID;
+                    var nodeName = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? node.ID;
                     DebugMessages.Add(new DebugMessage
                     {
                         NodeId = node.ID,
@@ -865,10 +866,11 @@ public partial class Editor : IDisposable
     {
         if (SelectedDiagramNode != null)
         {
-            // Update node name
-            if (SelectedDiagramNode.Annotations?.Count > 0)
+            // Update node name in labelAnnotation (not iconAnnotation)
+            var labelAnnotation = SelectedDiagramNode.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation");
+            if (labelAnnotation != null)
             {
-                SelectedDiagramNode.Annotations[0].Content = SelectedNodeName;
+                labelAnnotation.Content = SelectedNodeName;
             }
 
             // Save properties to AdditionalInfo
@@ -1206,7 +1208,7 @@ public partial class Editor : IDisposable
         {
             foreach (var node in DiagramNodes)
             {
-                var nodeName = node.Annotations?.FirstOrDefault()?.Content ?? "";
+                var nodeName = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? "";
                 var nodeType = node.AdditionalInfo?.TryGetValue("nodeType", out var typeObj) == true
                     ? typeObj as string ?? ""
                     : "";
@@ -1308,7 +1310,7 @@ public partial class Editor : IDisposable
                 // Configuration nodes typically have types ending in "-config" or specific config types
                 if (nodeType.EndsWith("-config") || nodeType.Contains("config"))
                 {
-                    var label = node.Annotations?.FirstOrDefault()?.Content ?? nodeType;
+                    var label = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? nodeType;
                     if (!ConfigNodes.Any(cn => cn.Id == node.ID))
                     {
                         ConfigNodes.Add(new ConfigNodeInfo
@@ -1842,7 +1844,7 @@ public partial class Editor : IDisposable
                 {
                     Id = node.ID ?? "",
                     Type = nodeType,
-                    Name = node.Annotations?.FirstOrDefault()?.Content ?? "",
+                    Name = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? "",
                     X = node.OffsetX,
                     Y = node.OffsetY,
                     FlowId = CurrentFlowId,
