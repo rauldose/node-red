@@ -137,11 +137,22 @@ h1:focus {
     background-color: #f0f0f0 !important;
 }
 
-/* Hide icons on the splitter bar, show on hover */
+/* Hide collapse buttons by default, show on hover */
 .e-splitter .e-split-bar .e-navigate-arrow {
-    opacity: 0.7;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out !important;
 }
 
 .e-splitter .e-split-bar:hover .e-navigate-arrow {
     opacity: 1;
+}
+
+/* Ensure pane content takes 100% */
+.e-splitter .e-pane {
+    overflow: hidden;
+}
+
+.e-splitter .e-pane > div {
+    height: 100%;
+    width: 100%;
 }

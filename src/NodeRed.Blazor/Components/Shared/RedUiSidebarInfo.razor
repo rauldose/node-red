@@ -135,7 +135,7 @@
     [Parameter] public string StatusColor { get; set; } = "transparent";
     [Parameter] public string? SelectedNodeId { get; set; }
     [Parameter] public string? SelectedFlowId { get; set; }
-    [Parameter] public string CurrentTip { get; set; } = "Click and drag the left edge of this panel to change its width";
+    [Parameter] public string CurrentTip { get; set; } = "Use Ctrl+Z to undo changes";
     [Parameter] public List<FlowInfo> Flows { get; set; } = new();
     [Parameter] public List<NodeInfo> GlobalConfigNodes { get; set; } = new();
     [Parameter] public EventCallback<string> OnNodeSelected { get; set; }
@@ -152,10 +152,10 @@
     // Tips
     private string[] _tips = new[]
     {
-        "Click and drag the left edge of this panel to change its width",
         "Use Ctrl+Z to undo changes",
         "Press Delete to remove selected nodes",
-        "Ctrl+click to select multiple nodes"
+        "Ctrl+click to select multiple nodes",
+        "Double-click a node to edit its properties"
     };
     private int _currentTipIndex = 0;
     private string _displayTip = "";
