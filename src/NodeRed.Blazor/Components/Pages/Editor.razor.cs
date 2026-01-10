@@ -1,6 +1,41 @@
 // Copyright OpenJS Foundation and other contributors
 // Licensed under the Apache License, Version 2.0
 
+// =============================================================================
+// MODULARIZATION TODO - Future PRs
+// =============================================================================
+// This file is currently ~5000 lines with 250+ methods. The following 
+// modularization opportunities have been identified:
+//
+// 1. MODELS (Ready - see Models/EditorModels.cs):
+//    - Replace private nested classes (FlowTab, NodeData, ConnectorData, etc.)
+//      with the public classes from NodeRed.Blazor.Models namespace
+//    - Classes to replace: FlowTab, FlowNodeData, FlowConnectorData, NodeData,
+//      ConnectorData, PaletteCategory, PaletteNodeInfo, SearchResult,
+//      ConfigNodeInfo, SubflowInfo, GroupInfo, PaletteModuleInfo, KeyboardShortcut
+//    - EditorActionType enum and EditorAction class also extracted to UndoRedoService
+//
+// 2. SERVICES (Available - inject and use):
+//    - IUndoRedoService: Replace _undoStack/_redoStack with injected service
+//    - ISearchService: Replace PerformSearch() with service call
+//    - IClipboardService: Already used for clipboard operations
+//    - INotificationService: Already used for toast notifications
+//    - IDiagramNavigationService: Already used for pan/zoom
+//    - IContextDataService: Already used for context data
+//    - IDialogService: Available for future dialog extraction
+//
+// 3. COMPONENT EXTRACTION (Future work):
+//    - Extract flow tab management to FlowTabsComponent
+//    - Extract palette to separate PaletteComponent (beyond RedUiPalette wrapper)
+//    - Extract context menu handling to ContextMenuComponent
+//    - Extract keyboard shortcut handling to KeyboardShortcutsService
+//
+// 4. STATE MANAGEMENT (Future work):
+//    - Consider Fluxor or similar state management for AllNodes, AllConnectors, AllGroups
+//    - Extract flow state to a FlowStateService
+//
+// =============================================================================
+
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -119,6 +154,7 @@ public partial class Editor : IDisposable
     // Cached node definitions for performance
     private List<NodeDefinition>? _cachedNodeDefinitions;
 
+    // TODO: Replace with IUndoRedoService injection (see Services/UndoRedoService.cs)
     // Undo/Redo history stacks
     private Stack<EditorAction> _undoStack = new();
     private Stack<EditorAction> _redoStack = new();
@@ -2187,6 +2223,7 @@ public partial class Editor : IDisposable
         }
     }
 
+    // TODO: Replace PerformSearch() with ISearchService.Search() (see Services/SearchService.cs)
     // Search dialog state
     private bool IsSearchDialogOpen = false;
     private string SearchQuery = "";
@@ -4358,6 +4395,12 @@ public partial class Editor : IDisposable
         FlowRuntime.OnNodeStatusChanged -= OnNodeStatusChanged;
     }
 
+    // =============================================================================
+    // TODO: MODULARIZATION - Replace these private nested classes with the public 
+    // classes from NodeRed.Blazor.Models.EditorModels (Models/EditorModels.cs)
+    // This will reduce this file by ~700 lines.
+    // =============================================================================
+    
     // Helper classes
     private class FlowTab
     {
