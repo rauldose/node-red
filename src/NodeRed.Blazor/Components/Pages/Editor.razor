@@ -7,6 +7,7 @@
 @using Syncfusion.Blazor.SplitButtons
 @using Syncfusion.Blazor.Inputs
 @using Syncfusion.Blazor.Popups
+@using Syncfusion.Blazor.Layouts
 @using System.Collections.ObjectModel
 @using NodeRed.Blazor.Models
 @using NodeRed.SDK
@@ -595,304 +596,286 @@
         </div>
     }
 
-    <!-- Main Container -->
+    <!-- Main Container with Syncfusion Splitter for collapsible palette/sidebar -->
     <div id="red-ui-main-container">
-        <!-- Custom Palette (Node-RED style) -->
-        <div id="red-ui-palette">
-            <div class="red-ui-palette-search">
-                <input type="text" placeholder="filter nodes" @bind="PaletteFilter" @bind:event="oninput" />
-                <i class="fa fa-search"></i>
-            </div>
-            <div class="red-ui-palette-scroll">
-                @foreach (var category in PaletteCategories.Where(c => FilterCategory(c)))
-                {
-                    <div class="red-ui-palette-category">
-                        <div class="red-ui-palette-header" @onclick="() => ToggleCategory(category.Name)">
-                            <i class="fa fa-angle-down @(category.IsExpanded ? "expanded" : "")"></i>
-                            <span>@category.Name</span>
-                        </div>
-                        @if (category.IsExpanded)
-                        {
-                            <div class="red-ui-palette-content">
-                                @foreach (var node in category.Nodes.Where(n => FilterNode(n)))
+        <SfSplitter @ref="_mainSplitter" Height="100%" Width="100%" Orientation="Syncfusion.Blazor.Layouts.Orientation.Horizontal" CssClass="red-ui-main-splitter">
+            <SplitterPanes>
+                <!-- Palette Pane (collapsible) -->
+                <SplitterPane Size="180px" Min="100px" Max="300px" Collapsible="true" CssClass="red-ui-palette-pane">
+                    <ContentTemplate>
+                        <div id="red-ui-palette">
+                            <div class="red-ui-palette-search">
+                                <input type="text" placeholder="filter nodes" @bind="PaletteFilter" @bind:event="oninput" />
+                                <i class="fa fa-search"></i>
+                            </div>
+                            <div class="red-ui-palette-scroll">
+                                @foreach (var category in PaletteCategories.Where(c => FilterCategory(c)))
                                 {
-                                    <div class="red-ui-palette-node" 
-                                         style="background-color: @node.Color;"
-                                         draggable="true"
-                                         @ondragstart="() => OnPaletteDragStart(node)"
-                                         @ondragend="OnPaletteDragEnd">
-                                        @if (node.Inputs > 0)
-                                        {
-                                            <div class="red-ui-palette-port red-ui-palette-port-input"></div>
-                                        }
-                                        <div class="red-ui-palette-icon-container" style="background-color: @node.IconBackground;">
-                                            <i class="@node.IconClass red-ui-palette-icon-fa"></i>
+                                    <div class="red-ui-palette-category">
+                                        <div class="red-ui-palette-header" @onclick="() => ToggleCategory(category.Name)">
+                                            <i class="fa fa-angle-down @(category.IsExpanded ? "expanded" : "")"></i>
+                                            <span>@category.Name</span>
                                         </div>
-                                        <div class="red-ui-palette-label">@node.Label</div>
-                                        @if (node.Outputs > 0)
+                                        @if (category.IsExpanded)
                                         {
-                                            <div class="red-ui-palette-port red-ui-palette-port-output"></div>
+                                            <div class="red-ui-palette-content">
+                                                @foreach (var node in category.Nodes.Where(n => FilterNode(n)))
+                                                {
+                                                    <div class="red-ui-palette-node" 
+                                                         style="background-color: @node.Color;"
+                                                         draggable="true"
+                                                         @ondragstart="() => OnPaletteDragStart(node)"
+                                                         @ondragend="OnPaletteDragEnd">
+                                                        @if (node.Inputs > 0)
+                                                        {
+                                                            <div class="red-ui-palette-port red-ui-palette-port-input"></div>
+                                                        }
+                                                        <div class="red-ui-palette-icon-container" style="background-color: @node.IconBackground;">
+                                                            <i class="@node.IconClass red-ui-palette-icon-fa"></i>
+                                                        </div>
+                                                        <div class="red-ui-palette-label">@node.Label</div>
+                                                        @if (node.Outputs > 0)
+                                                        {
+                                                            <div class="red-ui-palette-port red-ui-palette-port-output"></div>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
                                         }
                                     </div>
                                 }
                             </div>
-                        }
-                    </div>
-                }
-            </div>
-        </div>
+                        </div>
+                    </ContentTemplate>
+                </SplitterPane>
 
-        <!-- Workspace -->
-        <div id="red-ui-workspace">
-            <ul id="red-ui-workspace-tabs">
-                @foreach (var flow in Flows)
-                {
-                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "") @(flow.Disabled ? "red-ui-workspace-disabled" : "")"
-                        @onclick="() => SwitchFlow(flow.Id)"
-                        @ondblclick="() => EditFlowProperties(flow.Id)">
-                        <a href="javascript:void(0)">
-                            @if (flow.Disabled)
-                            {
-                                <i class="fa fa-ban red-ui-workspace-disabled-icon"></i>
-                            }
-                            <span>@flow.Label</span>
-                            @if (Flows.Count > 1)
-                            {
-                                <span class="red-ui-tab-close" @onclick:stopPropagation="true" @onclick="() => DeleteFlow(flow.Id)">
-                                    <i class="fa fa-times"></i>
-                                </span>
-                            }
-                        </a>
-                    </li>
-                }
-                <li class="red-ui-tab-button" @onclick="AddNewFlow">
-                    <a href="javascript:void(0)"><i class="fa fa-plus"></i></a>
-                </li>
-            </ul>
-
-            <div id="red-ui-workspace-chart" 
-                 @ondrop="OnWorkspaceDrop" 
-                 @ondragover="OnWorkspaceDragOver"
-                 @ondragover:preventDefault="true">
-                <SfDiagramComponent @ref="@DiagramInstance"
-                                    Connectors="@DiagramConnectors"
-                                    Created="OnCreated"
-                                    SelectionChanged="@OnSelectionChanged"
-                                    ConnectionChanging="@OnConnectionChanging"
-                                    Click="@OnDiagramClick"
-                                    FixedUserHandleClick="@OnFixedUserHandleClick"
-                                    PositionChanged="@OnPositionChanged"
-                                    Height="100%"
-                                    Width="100%"
-                                    Nodes="@DiagramNodes"
-                                    NodeCreating="OnNodeCreating"
-                                    ConnectorCreating="OnConnectorCreating"
-                                    SelectionSettings="@SelectionSettings">
-                    <SnapSettings Constraints="SnapConstraints.ShowLines">
-                        <HorizontalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></HorizontalGridLines>
-                        <VerticalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></VerticalGridLines>
-                    </SnapSettings>
-                    <PageSettings>
-                        <BackgroundStyle Background="#fff" />
-                    </PageSettings>
-                </SfDiagramComponent>
-            </div>
-
-            <div id="red-ui-workspace-footer">
-                <span class="red-ui-footer-left">
-                    <i class="fa @(FlowRuntime.State == FlowState.Running ? "fa-circle status-running" : "fa-circle-o status-stopped")"></i>
-                    <span class="flow-state-text">@(FlowRuntime.State == FlowState.Running ? "Running" : (HasBeenDeployed ? "Stopped" : "Not deployed"))</span>
-                </span>
-                <span class="red-ui-footer-right">
-                    <a href="javascript:void(0)" @onclick="ZoomIn"><i class="fa fa-plus"></i></a>
-                    <a href="javascript:void(0)" @onclick="ZoomOut"><i class="fa fa-minus"></i></a>
-                    <a href="javascript:void(0)" @onclick="ZoomReset"><i class="fa fa-circle-o-notch"></i></a>
-                </span>
-            </div>
-        </div>
-
-        <!-- Property Editor Tray (slides out when double-clicking a node) -->
-        @if (IsPropertyTrayOpen && SelectedDiagramNode != null)
-        {
-            <div class="red-ui-tray">
-                <div class="red-ui-tray-header">
-                    <div class="red-ui-tray-titlebar">
-                        <ul class="red-ui-tray-breadcrumbs">
-                            <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
-                        </ul>
-                    </div>
-                    <div class="red-ui-tray-toolbar">
-                        <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
-                        <button class="red-ui-button red-ui-button-primary" @onclick="SaveAndClosePropertyTray">Done</button>
-                    </div>
-                </div>
-                <div class="red-ui-tray-body">
-                    <div class="red-ui-tray-content">
-                        @RenderNodePropertyPanel()
-                    </div>
-                </div>
-            </div>
-        }
-
-        <!-- Sidebar -->
-        <div id="red-ui-sidebar">
-            <ul id="red-ui-sidebar-tabs">
-                <li class="@(SelectedSidebarTab == 0 ? "active" : "")" @onclick="() => SelectedSidebarTab = 0">
-                    <a href="javascript:void(0)" title="Info"><i class="fa fa-info"></i></a>
-                </li>
-                <li class="@(SelectedSidebarTab == 1 ? "active" : "")" @onclick="() => SelectedSidebarTab = 1">
-                    <a href="javascript:void(0)" title="Debug"><i class="fa fa-bug"></i></a>
-                </li>
-            </ul>
-            
-            <div id="red-ui-sidebar-content">
-                @if (SelectedSidebarTab == 0)
-                {
-                    <div class="red-ui-sidebar-info">
-                        @if (SelectedDiagramNode != null)
-                        {
-                            <!-- Node Info (documentation/help style) -->
-                            <div class="red-ui-info-header">
-                                <span class="red-ui-info-icon" style="background-color: @GetSelectedNodeColor()"></span>
-                                <span class="red-ui-info-type">@GetSelectedNodeType()</span>
-                            </div>
-                            <table class="red-ui-info-table">
-                                <tr>
-                                    <td>node</td>
-                                    <td class="red-ui-info-value">@SelectedDiagramNode.ID</td>
-                                </tr>
-                                <tr>
-                                    <td>name</td>
-                                    <td class="red-ui-info-value">@(SelectedNodeName ?? "(none)")</td>
-                                </tr>
-                                @{
-                                    var nodeStatus = GetNodeStatus(SelectedDiagramNode.ID);
-                                    if (nodeStatus != null && !string.IsNullOrEmpty(nodeStatus.Text))
-                                    {
-                                        <tr>
-                                            <td>status</td>
-                                            <td class="red-ui-info-value">
-                                                <span class="red-ui-node-status-indicator" style="background-color: @GetStatusColor(nodeStatus.Color); border-radius: @(nodeStatus.Shape == StatusShape.Ring ? "0" : "50%"); border: @(nodeStatus.Shape == StatusShape.Ring ? "2px solid " + GetStatusColor(nodeStatus.Color) : "none"); width: 10px; height: 10px; display: inline-block;"></span>
-                                                <span style="margin-left: 5px;">@nodeStatus.Text</span>
-                                            </td>
-                                        </tr>
-                                    }
-                                }
-                            </table>
-                            
-                            @* Node Help/Documentation Section *@
-                            <text>
-                            @{
-                                var nodeHelp = GetNodeHelp(GetSelectedNodeType());
-                                if (nodeHelp != null)
+                <!-- Workspace Pane (main content, flexible) -->
+                <SplitterPane CssClass="red-ui-workspace-pane">
+                    <ContentTemplate>
+                        <div id="red-ui-workspace">
+                            <ul id="red-ui-workspace-tabs">
+                                @foreach (var flow in Flows)
                                 {
-                                    if (!string.IsNullOrEmpty(nodeHelp.Summary))
-                                    {
-                                        <div class="red-ui-info-section">
-                                            <p>@nodeHelp.Summary</p>
-                                        </div>
-                                    }
-                                    
-                                    if (nodeHelp.Inputs?.Count > 0)
-                                    {
-                                        <div class="red-ui-info-section">
-                                            <h4>Inputs</h4>
-                                            <dl>
-                                                @foreach (var input in nodeHelp.Inputs)
-                                                {
-                                                    <dt><code>@input.Name</code> <span class="red-ui-info-type-tag">@input.Type</span></dt>
-                                                    <dd>@input.Description</dd>
-                                                }
-                                            </dl>
-                                        </div>
-                                    }
-                                    
-                                    if (nodeHelp.Outputs?.Count > 0)
-                                    {
-                                        <div class="red-ui-info-section">
-                                            <h4>Outputs</h4>
-                                            <dl>
-                                                @foreach (var output in nodeHelp.Outputs)
-                                                {
-                                                    <dt><code>@output.Name</code> <span class="red-ui-info-type-tag">@output.Type</span></dt>
-                                                    <dd>@output.Description</dd>
-                                                }
-                                            </dl>
-                                        </div>
-                                    }
-                                    
-                                    if (!string.IsNullOrEmpty(nodeHelp.Details))
-                                    {
-                                        <div class="red-ui-info-section red-ui-info-details">
-                                            <h4>Details</h4>
-                                            <p style="white-space: pre-wrap;">@nodeHelp.Details</p>
-                                        </div>
-                                    }
-                                    
-                                    if (nodeHelp.References?.Count > 0)
-                                    {
-                                        <div class="red-ui-info-section">
-                                            <h4>References</h4>
-                                            <ul>
-                                                @foreach (var reference in nodeHelp.References)
-                                                {
-                                                    <li><a href="@reference.Url" target="_blank">@reference.Title</a></li>
-                                                }
-                                            </ul>
-                                        </div>
-                                    }
+                                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "") @(flow.Disabled ? "red-ui-workspace-disabled" : "")"
+                                        @onclick="() => SwitchFlow(flow.Id)"
+                                        @ondblclick="() => EditFlowProperties(flow.Id)">
+                                        <a href="javascript:void(0)">
+                                            @if (flow.Disabled)
+                                            {
+                                                <i class="fa fa-ban red-ui-workspace-disabled-icon"></i>
+                                            }
+                                            <span>@flow.Label</span>
+                                            @if (Flows.Count > 1)
+                                            {
+                                                <span class="red-ui-tab-close" @onclick:stopPropagation="true" @onclick="() => DeleteFlow(flow.Id)">
+                                                    <i class="fa fa-times"></i>
+                                                </span>
+                                            }
+                                        </a>
+                                    </li>
                                 }
-                            }
-                            </text>
-                            
-                            <div class="red-ui-info-tips">
-                                <p><strong>Tip:</strong> Double-click the node to edit its properties.</p>
+                                <li class="red-ui-tab-button" @onclick="AddNewFlow">
+                                    <a href="javascript:void(0)"><i class="fa fa-plus"></i></a>
+                                </li>
+                            </ul>
+
+                            <div id="red-ui-workspace-chart" 
+                                 @ondrop="OnWorkspaceDrop" 
+                                 @ondragover="OnWorkspaceDragOver"
+                                 @ondragover:preventDefault="true">
+                                <SfDiagramComponent @ref="@DiagramInstance"
+                                                    Connectors="@DiagramConnectors"
+                                                    Created="OnCreated"
+                                                    SelectionChanged="@OnSelectionChanged"
+                                                    ConnectionChanging="@OnConnectionChanging"
+                                                    Click="@OnDiagramClick"
+                                                    FixedUserHandleClick="@OnFixedUserHandleClick"
+                                                    PositionChanged="@OnPositionChanged"
+                                                    Height="100%"
+                                                    Width="100%"
+                                                    Nodes="@DiagramNodes"
+                                                    NodeCreating="OnNodeCreating"
+                                                    ConnectorCreating="OnConnectorCreating"
+                                                    SelectionSettings="@SelectionSettings">
+                                    <SnapSettings Constraints="SnapConstraints.ShowLines">
+                                        <HorizontalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></HorizontalGridLines>
+                                        <VerticalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></VerticalGridLines>
+                                    </SnapSettings>
+                                    <PageSettings>
+                                        <BackgroundStyle Background="#fff" />
+                                    </PageSettings>
+                                </SfDiagramComponent>
                             </div>
-                        }
-                        else
-                        {
-                            <div class="red-ui-info-none">
-                                <p>Select a node to see information about it, or double-click to edit</p>
+
+                            <div id="red-ui-workspace-footer">
+                                <span class="red-ui-footer-left">
+                                    <i class="fa @(FlowRuntime.State == FlowState.Running ? "fa-circle status-running" : "fa-circle-o status-stopped")"></i>
+                                    <span class="flow-state-text">@(FlowRuntime.State == FlowState.Running ? "Running" : (HasBeenDeployed ? "Stopped" : "Not deployed"))</span>
+                                </span>
+                                <span class="red-ui-footer-right">
+                                    <a href="javascript:void(0)" @onclick="ZoomIn"><i class="fa fa-plus"></i></a>
+                                    <a href="javascript:void(0)" @onclick="ZoomOut"><i class="fa fa-minus"></i></a>
+                                    <a href="javascript:void(0)" @onclick="ZoomReset"><i class="fa fa-circle-o-notch"></i></a>
+                                </span>
                             </div>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <div class="red-ui-sidebar-debug">
-                        <div class="red-ui-debug-toolbar">
-                            <a href="javascript:void(0)" class="red-ui-debug-button" @onclick="ClearDebugMessages">
-                                <i class="fa fa-trash"></i>
-                            </a>
-                            <a href="javascript:void(0)" class="red-ui-debug-button" @onclick="FilterDebugMessages">
-                                <i class="fa fa-filter"></i>
-                            </a>
-                            <span class="red-ui-debug-count">@DebugMessages.Count</span>
                         </div>
-                        @if (DebugFilterByNode)
+                    </ContentTemplate>
+                </SplitterPane>
+
+                <!-- Property Editor Tray Pane (always rendered, size controlled) -->
+                <SplitterPane Size="@GetTraySize()" 
+                              Min="@GetTrayMinSize()" 
+                              Max="@GetTrayMaxSize()" 
+                              Resizable="@IsTrayVisible()"
+                              CssClass="@GetTrayCssClass()">
+                    <ContentTemplate>
+                        @if (IsTrayVisible())
                         {
-                            <div style="padding: 5px; background: #f4f4f4;">
-                                <input type="text" @bind="DebugMessageFilter" @bind:event="oninput" placeholder="Filter messages..." style="width: 100%; padding: 5px;" />
-                            </div>
-                        }
-                        <div class="red-ui-debug-content">
-                            @if (DebugMessages.Count == 0)
-                            {
-                                <div class="red-ui-debug-none">No messages</div>
-                            }
-                            @foreach (var msg in GetFilteredDebugMessages())
-                            {
-                                <div class="red-ui-debug-msg" @onclick="() => HighlightDebugNode(msg.NodeId)">
-                                    <span class="red-ui-debug-msg-date">@msg.Timestamp.ToString("M/d/yyyy, h:mm:ss tt")</span>
-                                    <span class="red-ui-debug-msg-topic">node: @msg.NodeName</span>
-                                    <pre class="red-ui-debug-msg-payload">@FormatDebugData(msg.Data)</pre>
+                            <div class="red-ui-tray-inline">
+                                @* Tray header *@
+                                <div class="red-ui-tray-header editor-tray-header">
+                                    @* Titlebar with breadcrumbs *@
+                                    <div class="red-ui-tray-titlebar">
+                                        <ul class="red-ui-tray-breadcrumbs">
+                                            <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
+                                        </ul>
+                                    </div>
+                                    @* Toolbar with buttons *@
+                                    <div class="red-ui-tray-toolbar">
+                                        <button class="red-ui-button red-ui-tray-toolbar-left" @onclick="DeleteSelectionAndCloseTray" title="Delete node">
+                                            <i class="fa fa-trash"></i> Delete
+                                        </button>
+                                        <span class="red-ui-tray-toolbar-spacer"></span>
+                                        <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
+                                        <button class="red-ui-button primary" @onclick="SaveAndClosePropertyTray">Done</button>
+                                    </div>
                                 </div>
-                            }
-                        </div>
-                    </div>
-                }
-            </div>
-        </div>
+                                
+                                @* Tray tabs - Properties, Description, Appearance *@
+                                <div class="red-ui-tray-tabs">
+                                    <ul class="red-ui-tray-tab-list">
+                                        <li class="@(_activeTrayTab == "properties" ? "active" : "")" @onclick='() => _activeTrayTab = "properties"'>
+                                            <a><i class="fa fa-cog"></i> Properties</a>
+                                        </li>
+                                        <li class="@(_activeTrayTab == "description" ? "active" : "")" @onclick='() => _activeTrayTab = "description"'>
+                                            <a><i class="fa fa-file-text-o"></i> Description</a>
+                                        </li>
+                                        <li class="@(_activeTrayTab == "appearance" ? "active" : "")" @onclick='() => _activeTrayTab = "appearance"'>
+                                            <a><i class="fa fa-object-group"></i> Appearance</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                @* Tray body *@
+                                <div class="red-ui-tray-body-wrapper">
+                                    <div class="red-ui-tray-body editor-tray-body">
+                                        @if (_activeTrayTab == "properties")
+                                        {
+                                            <div class="red-ui-tray-content">
+                                                @RenderNodePropertyPanel()
+                                            </div>
+                                        }
+                                        else if (_activeTrayTab == "description")
+                                        {
+                                            <div class="red-ui-tray-content">
+                                                @RenderNodeDescriptionPanel()
+                                            </div>
+                                        }
+                                        else if (_activeTrayTab == "appearance")
+                                        {
+                                            <div class="red-ui-tray-content">
+                                                @RenderNodeAppearancePanel()
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                                
+                                @* Tray footer *@
+                                <div class="red-ui-tray-footer">
+                                    <span class="red-ui-tray-footer-left">
+                                        <span class="red-ui-tray-footer-node-id">@(SelectedDiagramNode?.ID ?? "")</span>
+                                    </span>
+                                </div>
+                            </div>
+                        }
+                    </ContentTemplate>
+                </SplitterPane>
+
+                <!-- Sidebar Pane (collapsible) -->
+                <SplitterPane Size="315px" Min="200px" Max="500px" Collapsible="true" CssClass="red-ui-sidebar-pane">
+                    <ContentTemplate>
+                        <RedUiSidebar Tabs="@_sidebarTabs"
+                                      ActiveTabId="@_activeSidebarTabId"
+                                      ActiveTabIdChanged="@((string id) => { _activeSidebarTabId = id; })">
+                            <ContentTemplate Context="tabId">
+                                @if (tabId == "info")
+                                {
+                                    <RedUiSidebarInfo 
+                                        SelectedNode="@SelectedDiagramNode"
+                                        NodeId="@(SelectedDiagramNode?.ID ?? "")"
+                                        NodeType="@GetSelectedNodeType()"
+                                        NodeName="@SelectedNodeName"
+                                        NodeColor="@GetSelectedNodeColor()"
+                                        NodeDescription="@GetNodeHelp(GetSelectedNodeType())?.Summary"
+                                        StatusText="@GetNodeStatus(SelectedDiagramNode?.ID ?? "")?.Text"
+                                        StatusColor="@GetSidebarStatusColor()"
+                                        SelectedNodeId="@(SelectedDiagramNode?.ID)"
+                                        SelectedFlowId="@CurrentFlowId"
+                                        Flows="@GetFlowsForOutliner()"
+                                        GlobalConfigNodes="@GetGlobalConfigNodesForOutliner()"
+                                        GetFlowNodesFunc="@GetFlowNodesForOutliner"
+                                        OnNodeSelected="@SelectNodeById"
+                                        OnFlowSelected="@SelectFlowById"
+                                        OnHelpClick="@(() => { _activeSidebarTabId = "help"; StateHasChanged(); })"
+                                        OnRevealClick="@RevealSelectedNode"
+                                        OnCopyLinkClick="@CopyNodeLink" />
+                                }
+                                else if (tabId == "help")
+                                {
+                                    <RedUiSidebarHelp 
+                                        SelectedNodeType="@GetNodeTypeForHelp()"
+                                        HelpSummary="@GetNodeHelp(GetNodeTypeForHelp())?.Summary"
+                                        HelpDetails="@GetNodeHelp(GetNodeTypeForHelp())?.Details"
+                                        HelpInputs="@GetHelpInputsForHelp()"
+                                        HelpOutputs="@GetHelpOutputsForHelp()"
+                                        HelpReferences="@GetHelpReferencesForHelp()"
+                                        Categories="@GetHelpCategories()"
+                                        OnNodeTypeSelected="@((string type) => SelectNodeTypeForHelp(type))" />
+                                }
+                                else if (tabId == "config")
+                                {
+                                    <RedUiSidebarConfig 
+                                        ConfigNodes="@GetConfigNodes()"
+                                        CurrentFlowName="@GetCurrentFlowName()"
+                                        CurrentFlowId="@CurrentFlowId"
+                                        OnConfigSelected="@((string id) => SelectConfigNode(id))" />
+                                }
+                                else if (tabId == "context")
+                                {
+                                    <RedUiSidebarContext 
+                                        SelectedNodeId="@(SelectedDiagramNode?.ID)"
+                                        CurrentFlowId="@CurrentFlowId"
+                                        CurrentFlowName="@GetCurrentFlowName()"
+                                        NodeContextData="@GetNodeContextData()"
+                                        FlowContextData="@GetFlowContextData()"
+                                        GlobalContextData="@GetGlobalContextData()"
+                                        OnRefreshNodeContext="@RefreshNodeContext"
+                                        OnRefreshFlowContext="@RefreshFlowContext"
+                                        OnRefreshGlobalContext="@RefreshGlobalContext" />
+                                }
+                                else if (tabId == "debug")
+                                {
+                                    <RedUiSidebarDebug 
+                                        Messages="@GetDebugMessagesForSidebar()"
+                                        OnMessageClick="@((string nodeId) => HighlightDebugNode(nodeId))"
+                                        OnClearMessages="@ClearDebugMessages" />
+                                }
+                            </ContentTemplate>
+                        </RedUiSidebar>
+                    </ContentTemplate>
+                </SplitterPane>
+            </SplitterPanes>
+        </SfSplitter>
     </div>
 </div>
 
@@ -1092,6 +1075,83 @@
             }
         </div>
     };
+
+    /// <summary>
+    /// Render the Description tab panel - markdown editor for node info
+    /// </summary>
+    private RenderFragment RenderNodeDescriptionPanel() => __builder =>
+    {
+        <div class="red-ui-editor-form">
+            <div class="form-row form-row-full">
+                <label><i class="fa fa-file-text-o"></i> Node Description</label>
+                <p class="form-tips">
+                    Add a description for this node. This will be shown in the Info sidebar.
+                </p>
+                <textarea rows="12" 
+                          @bind="_selectedNodeDescription" 
+                          placeholder="Enter a description for this node (supports Markdown)"
+                          class="red-ui-description-textarea"></textarea>
+            </div>
+        </div>
+    };
+
+    /// <summary>
+    /// Render the Appearance tab panel - icon, label, color settings
+    /// </summary>
+    private RenderFragment RenderNodeAppearancePanel() => __builder =>
+    {
+        var nodeType = GetSelectedNodeType();
+        var nodeColor = GetSelectedNodeColor();
+        
+        <div class="red-ui-editor-form">
+            @* Show Label toggle *@
+            <div class="form-row">
+                <label><i class="fa fa-tag"></i> Label</label>
+                <label class="checkbox-label">
+                    <input type="checkbox" @bind="_selectedNodeShowLabel" />
+                    Show label on node
+                </label>
+            </div>
+
+            @* Node Icon *@
+            <div class="form-row">
+                <label><i class="fa fa-image"></i> Icon</label>
+                <div class="red-ui-icon-row">
+                    <div class="red-ui-node-icon-preview" style="background-color: @nodeColor;">
+                        <i class="fa fa-cube"></i>
+                    </div>
+                    <span class="red-ui-icon-hint">Default icon for @nodeType</span>
+                </div>
+            </div>
+
+            @* Port Labels section *@
+            <div class="form-row">
+                <label class="red-ui-port-labels-header">Port Labels</label>
+            </div>
+
+            @* Input Labels *@
+            <div class="form-row">
+                <label class="red-ui-port-label"><i class="fa fa-arrow-right"></i> Inputs</label>
+                <div class="red-ui-port-inputs">
+                    <div class="red-ui-editor-node-label-row">
+                        <span class="red-ui-port-number">1.</span>
+                        <input type="text" placeholder="Input label" />
+                    </div>
+                </div>
+            </div>
+
+            @* Output Labels *@
+            <div class="form-row">
+                <label class="red-ui-port-label"><i class="fa fa-arrow-left"></i> Outputs</label>
+                <div class="red-ui-port-inputs">
+                    <div class="red-ui-editor-node-label-row">
+                        <span class="red-ui-port-number">1.</span>
+                        <input type="text" placeholder="Output label" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    };
 }
 
 @* Context Menus *@
@@ -1262,15 +1322,53 @@
         left: 0;
         right: 0;
         bottom: 0;
-        display: flex;
+    }
+
+    /* Syncfusion Splitter styling for main layout */
+    ::deep .red-ui-main-splitter {
+        height: 100% !important;
+    }
+
+    ::deep .red-ui-main-splitter .e-split-bar {
+        background: #f3f3f3;
+        border-color: #bbb;
+    }
+
+    ::deep .red-ui-main-splitter .e-split-bar .e-resize-handler {
+        background: #999;
+    }
+
+    ::deep .red-ui-main-splitter .e-split-bar:hover {
+        background: #e8e8e8;
+    }
+
+    ::deep .red-ui-main-splitter .e-split-bar .e-navigate-arrow {
+        color: #666;
+    }
+
+    ::deep .red-ui-main-splitter .e-split-bar .e-navigate-arrow:hover {
+        color: #333;
+    }
+
+    /* Pane styling */
+    ::deep .red-ui-palette-pane {
+        background: #f3f3f3;
+    }
+
+    ::deep .red-ui-workspace-pane {
+        background: #fff;
+        position: relative;
+    }
+
+    ::deep .red-ui-sidebar-pane {
+        background: #fff;
     }
 
     /* ========== PALETTE ========== */
     #red-ui-palette {
-        width: 180px;
-        min-width: 180px;
+        width: 100%;
+        height: 100%;
         background: #f3f3f3;
-        border-right: 1px solid #bbb;
         display: flex;
         flex-direction: column;
         user-select: none;
@@ -1422,7 +1520,8 @@
 
     /* ========== WORKSPACE ========== */
     #red-ui-workspace {
-        flex: 1;
+        width: 100%;
+        height: 100%;
         display: flex;
         flex-direction: column;
         background: #f3f3f3;
@@ -1564,14 +1663,8 @@
     }
 
     /* ========== SIDEBAR ========== */
-    #red-ui-sidebar {
-        width: 315px;
-        min-width: 315px;
-        background: #fff;
-        border-left: 1px solid #bbb;
-        display: flex;
-        flex-direction: column;
-    }
+    /* Sidebar styles are now in RedUiSidebar.razor.css */
+    /* Only keep the generic tab styles that apply when tabs are used directly */
 
     #red-ui-sidebar-tabs {
         display: flex;

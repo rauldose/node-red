@@ -1,0 +1,361 @@
+/**
+ * RedUiSidebar CSS - Matches the original Node-RED sidebar.scss
+ * Uses Syncfusion Tab component with custom styling
+ * Now contained within a Syncfusion Splitter pane for collapse functionality
+ */
+
+/* Main sidebar container */
+#red-ui-sidebar {
+    width: 100%;
+    height: 100%;
+    background: var(--red-ui-primary-background, #fff);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+#red-ui-sidebar.closing {
+    border-style: dashed;
+}
+
+/* Syncfusion Tab styling to match Node-RED */
+::deep .red-ui-sidebar-tabs {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+::deep .red-ui-sidebar-tabs .e-tab-header {
+    background: var(--red-ui-tab-background, #f3f3f3);
+    border-bottom: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    min-height: 35px;
+    height: 35px;
+}
+
+::deep .red-ui-sidebar-tabs .e-tab-header .e-toolbar-items {
+    height: 35px;
+}
+
+::deep .red-ui-sidebar-tabs .e-tab-header .e-toolbar-item {
+    height: 32px;
+    margin: 3px 2px 0 2px;
+    border: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    background: var(--red-ui-tab-background-inactive, #e9e9e9);
+    border-radius: 0;
+}
+
+::deep .red-ui-sidebar-tabs .e-tab-header .e-toolbar-item.e-active {
+    background: var(--red-ui-tab-background-active, #fff);
+    border-bottom: 1px solid var(--red-ui-tab-background-active, #fff);
+}
+
+::deep .red-ui-sidebar-tabs .e-tab-header .e-toolbar-item:not(.e-active):hover {
+    background: var(--red-ui-tab-background-hover, #f0f0f0);
+}
+
+::deep .red-ui-sidebar-tabs .e-tab-header .e-toolbar-item .e-tab-wrap {
+    height: 100%;
+    padding: 0 10px;
+}
+
+::deep .red-ui-sidebar-tabs .e-tab-header .e-toolbar-item .e-tab-text {
+    color: var(--red-ui-tab-text-color-inactive, #888888);
+    font-size: 12px;
+}
+
+::deep .red-ui-sidebar-tabs .e-tab-header .e-toolbar-item.e-active .e-tab-text {
+    color: var(--red-ui-tab-text-color-active, #444);
+    font-weight: bold;
+}
+
+::deep .red-ui-sidebar-tabs .e-tab-header .e-toolbar-item .e-icons {
+    font-size: 14px;
+    color: var(--red-ui-tab-text-color-inactive, #888888);
+}
+
+::deep .red-ui-sidebar-tabs .e-tab-header .e-toolbar-item.e-active .e-icons {
+    color: var(--red-ui-tab-text-color-active, #444);
+}
+
+/* Pinned tabs - icon only */
+::deep .red-ui-sidebar-tabs .e-tab-header .e-toolbar-item.red-ui-tab-pinned {
+    min-width: 32px;
+    width: 32px;
+}
+
+::deep .red-ui-sidebar-tabs .e-tab-header .e-toolbar-item.red-ui-tab-pinned .e-tab-wrap {
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Tab content area */
+::deep .red-ui-sidebar-tabs .e-content {
+    flex: 1;
+    overflow: hidden;
+    background: var(--red-ui-secondary-background, #fff);
+}
+
+::deep .red-ui-sidebar-tabs .e-content .e-item {
+    height: 100%;
+    padding: 0;
+}
+
+/* Sidebar content area */
+#red-ui-sidebar-content {
+    position: absolute;
+    background: var(--red-ui-secondary-background, #fff);
+    top: 35px;
+    right: 0;
+    bottom: 25px;
+    left: 0px;
+    overflow-y: auto;
+}
+
+.red-ui-sidebar-tab-wrapper {
+    height: 100%;
+    position: relative;
+}
+
+.red-ui-sidebar-tab-wrapper.hide {
+    display: none;
+}
+
+/* Sidebar footer */
+#red-ui-sidebar-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 25px;
+    background: var(--red-ui-primary-background, #f3f3f3);
+    border-top: 1px solid var(--red-ui-secondary-border-color, #dddddd);
+    box-sizing: border-box;
+}
+
+/* Sidebar shade - for modal states */
+#red-ui-sidebar-shade {
+    position: absolute;
+    top: 35px;
+    left: 0;
+    right: 0;
+    bottom: 25px;
+    background: rgba(160, 160, 160, 0.5);
+    z-index: 5;
+}
+
+#red-ui-sidebar-shade.hide {
+    display: none;
+}
+
+.red-ui-sidebar-shade {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(160, 160, 160, 0.5);
+    z-index: 5;
+}
+
+/* Sidebar info panel styles */
+.red-ui-sidebar-info {
+    padding: 10px;
+}
+
+.red-ui-info-header {
+    display: flex;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    margin-bottom: 10px;
+}
+
+.red-ui-info-icon {
+    width: 20px;
+    height: 17px;
+    border-radius: 3px;
+    border: 1px solid #999;
+    margin-right: 8px;
+}
+
+.red-ui-info-type {
+    font-weight: 500;
+    color: var(--red-ui-primary-text-color, #444);
+}
+
+.red-ui-info-table {
+    width: 100%;
+    font-size: 12px;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+}
+
+.red-ui-info-table td {
+    padding: 4px 0;
+    vertical-align: top;
+}
+
+.red-ui-info-table td:first-child {
+    width: 60px;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+.red-ui-info-value {
+    color: var(--red-ui-primary-text-color, #444);
+    word-break: break-all;
+}
+
+.red-ui-info-section {
+    margin-bottom: 15px;
+}
+
+.red-ui-info-section h4 {
+    font-size: 13px;
+    font-weight: bold;
+    margin: 0 0 8px 0;
+    color: var(--red-ui-primary-text-color, #444);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    padding-bottom: 5px;
+}
+
+.red-ui-info-section dl {
+    margin: 0;
+    padding: 0;
+}
+
+.red-ui-info-section dt {
+    font-weight: normal;
+    margin-top: 8px;
+}
+
+.red-ui-info-section dt code {
+    background: var(--red-ui-tertiary-background, #f7f7f7);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.red-ui-info-type-tag {
+    font-size: 11px;
+    color: var(--red-ui-secondary-text-color, #888);
+    margin-left: 5px;
+}
+
+.red-ui-info-section dd {
+    margin: 3px 0 0 15px;
+    color: var(--red-ui-secondary-text-color, #666);
+    font-size: 12px;
+}
+
+.red-ui-info-section ul {
+    margin: 5px 0;
+    padding-left: 20px;
+}
+
+.red-ui-info-section ul li {
+    margin-bottom: 3px;
+}
+
+.red-ui-info-section a {
+    color: var(--red-ui-text-color-link, #0066cc);
+}
+
+.red-ui-info-tips {
+    background: var(--red-ui-form-tips-background, #ffffc0);
+    padding: 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    margin-top: 15px;
+}
+
+.red-ui-info-tips p {
+    margin: 0;
+}
+
+.red-ui-info-none {
+    padding: 20px;
+    text-align: center;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+/* Debug panel styles */
+.red-ui-sidebar-debug {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.red-ui-debug-toolbar {
+    padding: 5px 10px;
+    background: var(--red-ui-primary-background, #f7f7f7);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.red-ui-debug-button {
+    color: var(--red-ui-secondary-text-color, #888);
+    cursor: pointer;
+}
+
+.red-ui-debug-button:hover {
+    color: var(--red-ui-primary-text-color, #444);
+}
+
+.red-ui-debug-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+.red-ui-debug-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.red-ui-debug-none {
+    padding: 20px;
+    text-align: center;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+.red-ui-debug-msg {
+    background: var(--red-ui-secondary-background, #fff);
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    border-radius: 3px;
+    margin-bottom: 5px;
+    padding: 8px;
+    cursor: pointer;
+}
+
+.red-ui-debug-msg:hover {
+    border-color: var(--red-ui-primary-border-color, #999);
+}
+
+.red-ui-debug-msg-date {
+    font-size: 11px;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+.red-ui-debug-msg-topic {
+    font-size: 11px;
+    color: var(--red-ui-secondary-text-color, #888);
+    margin-left: 10px;
+}
+
+.red-ui-debug-msg-payload {
+    margin: 5px 0 0 0;
+    padding: 5px;
+    background: var(--red-ui-tertiary-background, #f7f7f7);
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 200px;
+    overflow-y: auto;
+}

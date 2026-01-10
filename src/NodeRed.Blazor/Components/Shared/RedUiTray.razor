@@ -1,0 +1,131 @@
+@* 
+    RedUiTray - Blazor implementation of Node-RED's red-ui-tray
+    Matches the exact structure from packages/node_modules/@node-red/editor-client/src/js/ui/tray.js
+    
+    Structure:
+    - #red-ui-editor-stack (container for stacked trays)
+      - .red-ui-tray
+        - .red-ui-tray-resize-handle
+        - .red-ui-tray-header.editor-tray-header
+          - .red-ui-tray-titlebar (with breadcrumbs)
+          - .red-ui-tray-toolbar (buttons)
+        - .red-ui-tray-body-wrapper
+          - .red-ui-tray-body.editor-tray-body
+        - .red-ui-tray-footer
+    - Shades: #red-ui-header-shade, #red-ui-editor-shade, #red-ui-palette-shade
+*@
+
+@if (IsOpen)
+{
+    @* Shade overlays - match original tray shades *@
+    <div id="red-ui-header-shade" class="red-ui-shade"></div>
+    <div id="red-ui-editor-shade" class="red-ui-shade"></div>
+    <div id="red-ui-palette-shade" class="red-ui-shade"></div>
+    
+    @* Editor stack container *@
+    <div id="red-ui-editor-stack">
+        @* Tray container *@
+        <div class="red-ui-tray" style="width: @(TrayWidth)px; right: 0;">
+            @* Resize handle *@
+            <div class="red-ui-tray-resize-handle @(IsMaximized ? "red-ui-tray-resize-maximised" : "")">
+            </div>
+            
+            @* Tray header *@
+            <div class="red-ui-tray-header editor-tray-header">
+                @* Title bar with breadcrumbs *@
+                @if (!string.IsNullOrEmpty(Title) || TitleTemplate != null)
+                {
+                    <div class="red-ui-tray-titlebar">
+                        @if (TitleTemplate != null)
+                        {
+                            @TitleTemplate
+                        }
+                        else
+                        {
+                            <ul class="red-ui-tray-breadcrumbs">
+                                <li>@Title</li>
+                            </ul>
+                        }
+                    </div>
+                }
+                
+                @* Toolbar with buttons *@
+                <div class="red-ui-tray-toolbar">
+                    @if (ToolbarTemplate != null)
+                    {
+                        @ToolbarTemplate
+                    }
+                </div>
+            </div>
+            
+            @* Tray body wrapper *@
+            <div class="red-ui-tray-body-wrapper">
+                @* Tray body *@
+                <div class="red-ui-tray-body editor-tray-body">
+                    @if (ChildContent != null)
+                    {
+                        @ChildContent
+                    }
+                </div>
+            </div>
+            
+            @* Tray footer *@
+            <div class="red-ui-tray-footer">
+                @if (FooterTemplate != null)
+                {
+                    @FooterTemplate
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>
+    /// Whether the tray is open
+    /// </summary>
+    [Parameter]
+    public bool IsOpen { get; set; } = false;
+
+    /// <summary>
+    /// Tray title - displayed in breadcrumbs
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "";
+
+    /// <summary>
+    /// Custom title template (overrides Title string)
+    /// </summary>
+    [Parameter]
+    public RenderFragment? TitleTemplate { get; set; }
+
+    /// <summary>
+    /// Toolbar template (buttons)
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ToolbarTemplate { get; set; }
+
+    /// <summary>
+    /// Main body content
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Footer template
+    /// </summary>
+    [Parameter]
+    public RenderFragment? FooterTemplate { get; set; }
+
+    /// <summary>
+    /// Tray width in pixels
+    /// </summary>
+    [Parameter]
+    public int TrayWidth { get; set; } = 500;
+
+    /// <summary>
+    /// Whether the tray is maximized
+    /// </summary>
+    [Parameter]
+    public bool IsMaximized { get; set; } = false;
+}

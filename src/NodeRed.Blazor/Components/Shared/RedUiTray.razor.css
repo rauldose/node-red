@@ -1,0 +1,281 @@
+/**
+ * RedUiTray CSS - Matches the original Node-RED editor.scss tray styles exactly
+ * From: packages/node_modules/@node-red/editor-client/src/sass/editor.scss
+ */
+
+/* Shade overlays - match original tray shades */
+.red-ui-shade {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(160, 160, 160, 0.5);
+    z-index: 5;
+}
+
+#red-ui-header-shade {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: rgba(160, 160, 160, 0.5);
+    z-index: 1000;
+}
+
+#red-ui-editor-shade {
+    position: absolute;
+    top: 0;
+    left: 180px;
+    right: 315px;
+    bottom: 0;
+    background: rgba(160, 160, 160, 0.5);
+    z-index: 5;
+}
+
+#red-ui-palette-shade {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 180px;
+    bottom: 0;
+    background: rgba(160, 160, 160, 0.5);
+    z-index: 5;
+}
+
+/* Editor stack container */
+#red-ui-editor-stack {
+    position: absolute;
+    margin: 0;
+    top: 0;
+    bottom: 0px;
+    right: 323px;
+    width: 0;
+    z-index: 9;
+}
+
+/* Main tray container */
+.red-ui-tray {
+    position: absolute;
+    margin: 0;
+    top: 0;
+    width: auto;
+    right: 0;
+    bottom: 0;
+    background: var(--red-ui-secondary-background, #fff);
+    border-left: 1px solid var(--red-ui-secondary-border-color, #bbbbbb);
+    border-bottom: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    box-sizing: content-box;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Tray resize handle */
+.red-ui-tray-resize-handle {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    width: 7px;
+    left: -9px;
+    background-color: var(--red-ui-primary-background, #f3f3f3);
+    cursor: col-resize;
+    border-left: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    box-shadow: -1px 0 6px var(--red-ui-shadow, rgba(0, 0, 0, 0.1));
+}
+
+.red-ui-tray-resize-handle.red-ui-tray-resize-maximised {
+    background: var(--red-ui-primary-background, #f3f3f3);
+    cursor: default;
+}
+
+/* Tray header */
+.red-ui-tray-header,
+.editor-tray-header {
+    user-select: none;
+    position: relative;
+    box-sizing: border-box;
+    font-weight: bold;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #dddddd);
+    background: var(--red-ui-palette-header-background, #f7f7f7);
+}
+
+.red-ui-tray-header:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* Tray titlebar */
+.red-ui-tray-titlebar {
+    color: var(--red-ui-header-text-color, #444);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #dddddd);
+    padding: 8px 10px;
+}
+
+/* Tray breadcrumbs */
+ul.red-ui-tray-breadcrumbs {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow-wrap: anywhere;
+}
+
+ul.red-ui-tray-breadcrumbs li {
+    display: inline-block;
+    padding: 0;
+    margin: 0;
+}
+
+ul.red-ui-tray-breadcrumbs li:not(:last-child) {
+    color: var(--red-ui-workspace-button-color, #888);
+    font-weight: normal;
+}
+
+ul.red-ui-tray-breadcrumbs li:not(:last-child):after {
+    display: inline-block;
+    content: '>';
+    margin: 0 5px;
+}
+
+/* Tray toolbar */
+.red-ui-tray-toolbar {
+    text-align: right;
+    padding: 6px;
+}
+
+.red-ui-tray-toolbar button {
+    margin-left: 5px;
+}
+
+/* Tray body wrapper */
+.red-ui-tray-body-wrapper {
+    flex: 1;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: auto;
+}
+
+/* Tray body */
+.red-ui-tray-body,
+.editor-tray-body {
+    position: relative;
+    box-sizing: border-box;
+    padding: 0.1px; /* prevent margin collapsing */
+}
+
+/* Tray content */
+.red-ui-tray-content {
+    padding: 10px 20px;
+    overflow: auto;
+    position: relative;
+}
+
+/* Tray footer */
+.red-ui-tray-footer {
+    height: 35px;
+    font-size: 14px !important;
+    line-height: 35px;
+    vertical-align: middle;
+    background: var(--red-ui-tertiary-background, #f7f7f7);
+    border-top: 1px solid var(--red-ui-secondary-border-color, #dddddd);
+    box-sizing: border-box;
+}
+
+.red-ui-tray-footer-left {
+    margin-right: 20px;
+    float: left;
+    padding-left: 10px;
+}
+
+.red-ui-tray-footer-right {
+    float: right;
+    padding-right: 10px;
+}
+
+/* Button styles for tray */
+.red-ui-button,
+button.red-ui-button {
+    height: 28px;
+    line-height: 26px;
+    font-size: 13px;
+    border-radius: 4px;
+    padding: 0 12px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    border: 1px solid var(--red-ui-form-input-border-color, #cccccc);
+    background: var(--red-ui-primary-background, #fff);
+    cursor: pointer;
+    color: var(--red-ui-primary-text-color, #444);
+    text-decoration: none;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.red-ui-button:hover,
+button.red-ui-button:hover {
+    background: var(--red-ui-secondary-background-hover, #e6e6e6);
+}
+
+.red-ui-button.primary,
+button.red-ui-button.primary {
+    background: var(--red-ui-deploy-button-background, #8f0000);
+    color: #fff;
+    border-color: var(--red-ui-deploy-button-background-hover, #6e0000);
+}
+
+.red-ui-button.primary:hover,
+button.red-ui-button.primary:hover {
+    background: var(--red-ui-deploy-button-background-hover, #6e0000);
+}
+
+.red-ui-button.disabled,
+button.red-ui-button.disabled {
+    opacity: 0.5;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* Form styles within tray */
+.red-ui-editor-form {
+    margin: 10px 20px;
+}
+
+.form-row {
+    clear: both;
+    color: var(--red-ui-form-text-color, #444);
+    margin-bottom: 12px;
+}
+
+.form-row label {
+    display: inline-block;
+    width: 100px;
+    vertical-align: top;
+    padding-top: 7px;
+}
+
+.form-row input[type="text"],
+.form-row input[type="number"],
+.form-row select,
+.form-row textarea {
+    width: calc(100% - 110px);
+    padding: 6px 8px;
+    border: 1px solid var(--red-ui-form-input-border-color, #ccc);
+    border-radius: 4px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.form-row input[type="checkbox"] {
+    margin-top: 8px;
+}
+
+.form-tips {
+    background: var(--red-ui-form-tips-background, #ffffc0);
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    max-width: 450px;
+    font-size: 12px;
+    margin-top: 10px;
+}

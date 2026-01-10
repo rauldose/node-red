@@ -58,3 +58,407 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* ============================================= */
+/* Syncfusion Splitter Styling for Node-RED     */
+/* ============================================= */
+
+/* Main splitter bar styling */
+.e-splitter .e-split-bar {
+    background-color: #f3f3f3 !important;
+    border-color: #bbb !important;
+}
+
+.e-splitter.e-splitter-horizontal .e-split-bar {
+    width: 7px !important;
+    min-width: 7px !important;
+}
+
+.e-splitter.e-splitter-vertical .e-split-bar {
+    height: 7px !important;
+    min-height: 7px !important;
+}
+
+/* Collapse/expand arrow icons - Node-RED style */
+.e-splitter .e-split-bar .e-navigate-arrow {
+    background-color: #f3f3f3 !important;
+    border: 1px solid #bbb !important;
+    border-radius: 3px !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background-color 0.2s, border-color 0.2s !important;
+}
+
+.e-splitter .e-split-bar .e-navigate-arrow:hover {
+    background-color: #ddd !important;
+    border-color: #999 !important;
+}
+
+.e-splitter .e-split-bar .e-navigate-arrow::before,
+.e-splitter .e-split-bar .e-navigate-arrow::after {
+    color: #666 !important;
+    font-size: 10px !important;
+}
+
+.e-splitter .e-split-bar .e-navigate-arrow:hover::before,
+.e-splitter .e-split-bar .e-navigate-arrow:hover::after {
+    color: #444 !important;
+}
+
+/* Horizontal splitter arrows (left/right) */
+.e-splitter.e-splitter-horizontal .e-split-bar .e-navigate-arrow {
+    margin: 2px 0 !important;
+}
+
+/* Vertical splitter arrows (up/down) */
+.e-splitter.e-splitter-vertical .e-split-bar .e-navigate-arrow {
+    margin: 0 2px !important;
+}
+
+/* Splitter bar resize cursor */
+.e-splitter.e-splitter-horizontal .e-split-bar {
+    cursor: col-resize !important;
+}
+
+.e-splitter.e-splitter-vertical .e-split-bar {
+    cursor: row-resize !important;
+}
+
+/* Custom Node-RED splitter class styles */
+.red-ui-main-splitter .e-split-bar {
+    background-color: #eee !important;
+}
+
+.red-ui-info-splitter .e-split-bar,
+.red-ui-help-splitter .e-split-bar {
+    background-color: #f0f0f0 !important;
+}
+
+/* Center navigate arrows on vertical splitters in sidebar */
+.red-ui-info-splitter.e-splitter-vertical .e-split-bar,
+.red-ui-help-splitter.e-splitter-vertical .e-split-bar {
+    position: relative !important;
+}
+
+.red-ui-info-splitter.e-splitter-vertical .e-split-bar .e-navigate-arrow,
+.red-ui-help-splitter.e-splitter-vertical .e-split-bar .e-navigate-arrow {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+}
+
+/* Hide collapse buttons by default, show on hover */
+.e-splitter .e-split-bar .e-navigate-arrow {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out !important;
+}
+
+.e-splitter .e-split-bar:hover .e-navigate-arrow {
+    opacity: 1;
+}
+
+/* Ensure pane content takes 100% */
+.e-splitter .e-pane {
+    overflow: hidden;
+}
+
+.e-splitter .e-pane > div {
+    height: 100%;
+    width: 100%;
+}
+
+/* ============================================= */
+/* Inline Tray Pane Styling                     */
+/* ============================================= */
+
+.red-ui-tray-pane {
+    background: #fff;
+}
+
+.red-ui-tray-inline {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-left: 1px solid #bbb;
+}
+
+.red-ui-tray-inline .red-ui-tray-header {
+    background: #f7f7f7;
+    border-bottom: 1px solid #ddd;
+}
+
+.red-ui-tray-inline .red-ui-tray-titlebar {
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+    font-weight: bold;
+    color: #444;
+}
+
+.red-ui-tray-inline .red-ui-tray-toolbar {
+    padding: 6px 10px;
+    text-align: right;
+    display: flex;
+    justify-content: flex-end;
+    gap: 5px;
+}
+
+.red-ui-tray-inline .red-ui-tray-body-wrapper {
+    flex: 1;
+    overflow: auto;
+}
+
+.red-ui-tray-inline .red-ui-tray-body {
+    padding: 0.1px;
+}
+
+.red-ui-tray-inline .red-ui-tray-content {
+    padding: 10px 20px;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li {
+    display: inline-block;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li i {
+    margin-right: 5px;
+    color: #888;
+}
+
+/* Tray toolbar with left/right buttons */
+.red-ui-tray-inline .red-ui-tray-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    gap: 5px;
+}
+
+.red-ui-tray-toolbar-left {
+    color: #c00 !important;
+    border-color: #c00 !important;
+}
+
+.red-ui-tray-toolbar-left:hover {
+    background: #fee !important;
+}
+
+.red-ui-tray-toolbar-spacer {
+    flex: 1;
+}
+
+/* Tray tabs - Properties, Description, Appearance */
+.red-ui-tray-tabs {
+    background: #f7f7f7;
+    border-bottom: 1px solid #ddd;
+}
+
+.red-ui-tray-tab-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+.red-ui-tray-tab-list li {
+    flex: 1;
+    text-align: center;
+}
+
+.red-ui-tray-tab-list li a {
+    display: block;
+    padding: 8px 10px;
+    color: #888;
+    text-decoration: none;
+    font-size: 12px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+    cursor: pointer;
+}
+
+.red-ui-tray-tab-list li a i {
+    margin-right: 4px;
+}
+
+.red-ui-tray-tab-list li:hover a {
+    color: #444;
+}
+
+.red-ui-tray-tab-list li.active a {
+    color: #444;
+    border-bottom-color: #8f0000;
+}
+
+/* Tray footer */
+.red-ui-tray-inline .red-ui-tray-footer {
+    height: 30px;
+    background: #f7f7f7;
+    border-top: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 11px;
+    color: #888;
+}
+
+.red-ui-tray-footer-left {
+    flex: 1;
+}
+
+.red-ui-tray-footer-node-id {
+    font-family: monospace;
+    font-size: 10px;
+    color: #aaa;
+}
+
+/* Form tips styling */
+.form-tips {
+    background: #ffffc0;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+/* Description textarea */
+.red-ui-description-textarea {
+    width: 100%;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+/* Appearance tab styles */
+.red-ui-icon-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.red-ui-node-icon-preview {
+    width: 40px;
+    height: 30px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.red-ui-node-icon-preview i {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.red-ui-icon-hint {
+    color: #888;
+    font-size: 12px;
+}
+
+.red-ui-port-labels-header {
+    font-weight: bold;
+    margin-top: 15px;
+}
+
+.red-ui-port-label {
+    margin-left: 20px;
+}
+
+.red-ui-port-inputs {
+    flex: 1;
+}
+
+.red-ui-editor-node-label-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.red-ui-port-number {
+    width: 20px;
+    text-align: right;
+}
+
+.red-ui-editor-node-label-row input {
+    flex: 1;
+}
+
+/* Hidden tray pane when not open */
+.red-ui-tray-hidden {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    flex: 0 0 0px !important;
+}
+
+/* Hide the splitter bar adjacent to the hidden tray pane using :has() */
+/* When tray is hidden, hide the split-bar that comes before it */
+.e-splitter.e-splitter-horizontal .e-split-bar:has(+ .red-ui-tray-hidden) {
+    display: none !important;
+    width: 0 !important;
+}
+
+/* Also target by index - tray pane is index 2 (0-indexed), so hide bar index 2 when tray is hidden */
+.red-ui-main-splitter:has(.red-ui-tray-hidden) > .e-split-bar:nth-of-type(2) {
+    display: none !important;
+    width: 0 !important;
+}
+
+/* Ensure sidebar splitter bar remains visible and functional */
+.red-ui-main-splitter > .e-split-bar:nth-of-type(3),
+.red-ui-main-splitter > .e-split-bar:last-of-type {
+    display: flex !important;
+}
+
+/* Sidebar internal splitter centering */
+.red-ui-info-splitter,
+.red-ui-help-splitter {
+    height: 100% !important;
+}
+
+.red-ui-info-splitter .e-split-bar,
+.red-ui-help-splitter .e-split-bar {
+    justify-content: center !important;
+}
+
+.red-ui-info-splitter .e-split-bar .e-resize-handler,
+.red-ui-help-splitter .e-split-bar .e-resize-handler {
+    margin: 0 auto !important;
+}
+
+/* Ensure splitter arrows are centered */
+.red-ui-info-splitter .e-split-bar .e-navigate-arrow,
+.red-ui-help-splitter .e-split-bar .e-navigate-arrow {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+}
+
+/* Vertical splitter specific centering */
+.e-splitter.e-splitter-vertical .e-split-bar {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+.e-splitter.e-splitter-vertical .e-split-bar .e-icon-bar {
+    display: none !important;
+}
+
+/* Horizontal splitter specific centering */
+.e-splitter.e-splitter-horizontal .e-split-bar {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex-direction: column !important;
+}

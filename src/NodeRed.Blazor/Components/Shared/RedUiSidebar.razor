@@ -1,0 +1,122 @@
+@*
+    RedUiSidebar - Blazor implementation of Node-RED's red-ui-sidebar
+    Uses Syncfusion SfTab for tab navigation with matching Node-RED styling
+    Now used inside a Syncfusion SfSplitter pane for collapse functionality
+*@
+
+<div id="red-ui-sidebar">
+    @* Sidebar tabs using Syncfusion SfTab *@
+    <SfTab CssClass="red-ui-sidebar-tabs" OverflowMode="OverflowMode.Popup" @bind-SelectedItem="@_selectedTabIndex">
+        <TabEvents Selected="OnTabSelected"></TabEvents>
+        <TabItems>
+            @foreach (var tab in Tabs)
+            {
+                <TabItem CssClass="@(tab.Pinned ? "red-ui-tab-pinned" : "")">
+                    <ChildContent>
+                        <TabHeader IconCss="@tab.IconClass" Text="@(tab.Pinned ? "" : tab.Label)"></TabHeader>
+                    </ChildContent>
+                    <ContentTemplate>
+                        <div class="red-ui-sidebar-tab-wrapper" style="height: 100%;">
+                            @if (ContentTemplate != null)
+                            {
+                                @ContentTemplate(tab.Id)
+                            }
+                            @if (!tab.EnableOnEdit && ShowShade)
+                            {
+                                <div class="red-ui-sidebar-shade"></div>
+                            }
+                        </div>
+                    </ContentTemplate>
+                </TabItem>
+            }
+        </TabItems>
+    </SfTab>
+
+    @* Sidebar footer *@
+    <div id="red-ui-sidebar-footer" class="red-ui-component-footer">
+        @if (FooterTemplate != null)
+        {
+            @FooterTemplate(ActiveTabId)
+        }
+    </div>
+
+    @* Sidebar shade - for modal states *@
+    <div id="red-ui-sidebar-shade" class="@(ShowShade ? "" : "hide")"></div>
+</div>
+
+@code {
+    /// <summary>
+    /// Tab definitions
+    /// </summary>
+    [Parameter]
+    public List<SidebarTab> Tabs { get; set; } = new();
+
+    /// <summary>
+    /// Currently active tab ID
+    /// </summary>
+    [Parameter]
+    public string ActiveTabId { get; set; } = "info";
+
+    /// <summary>
+    /// Event callback when active tab changes
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> ActiveTabIdChanged { get; set; }
+
+    /// <summary>
+    /// Content template - receives tab ID
+    /// </summary>
+    [Parameter]
+    public RenderFragment<string>? ContentTemplate { get; set; }
+
+    /// <summary>
+    /// Footer template - receives active tab ID
+    /// </summary>
+    [Parameter]
+    public RenderFragment<string>? FooterTemplate { get; set; }
+
+    /// <summary>
+    /// Whether to show the shade overlay (when tray is open)
+    /// </summary>
+    [Parameter]
+    public bool ShowShade { get; set; } = false;
+
+    // Private state
+    private int _selectedTabIndex = 0;
+
+    protected override void OnParametersSet()
+    {
+        // Sync _selectedTabIndex with ActiveTabId
+        var index = Tabs.FindIndex(t => t.Id == ActiveTabId);
+        if (index >= 0 && index != _selectedTabIndex)
+        {
+            _selectedTabIndex = index;
+        }
+    }
+
+    private async Task OnTabSelected(SelectEventArgs args)
+    {
+        if (args.SelectedIndex >= 0 && args.SelectedIndex < Tabs.Count)
+        {
+            var tabId = Tabs[args.SelectedIndex].Id;
+            if (tabId != ActiveTabId)
+            {
+                ActiveTabId = tabId;
+                await ActiveTabIdChanged.InvokeAsync(tabId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Represents a sidebar tab
+    /// </summary>
+    public class SidebarTab
+    {
+        public string Id { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string IconClass { get; set; } = "fa fa-square-o";
+        public bool Pinned { get; set; } = true;
+        public bool EnableOnEdit { get; set; } = false;
+    }
+}

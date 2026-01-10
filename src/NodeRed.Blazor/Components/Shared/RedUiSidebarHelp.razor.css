@@ -1,0 +1,170 @@
+/**
+ * RedUiSidebarHelp CSS - Matches the original Node-RED tab-help styles
+ * Uses Syncfusion Splitter and TreeView
+ */
+
+.red-ui-sidebar-help {
+    background: var(--red-ui-secondary-background, #fff);
+    height: 100%;
+}
+
+/* Toolbar */
+.red-ui-info-toolbar {
+    background: var(--red-ui-primary-background, #f7f7f7);
+}
+
+.red-ui-button-small.selected {
+    background: var(--red-ui-form-input-focus-color, #888);
+    color: #fff;
+}
+
+/* Syncfusion Splitter styling */
+::deep .red-ui-help-splitter {
+    border: none;
+}
+
+::deep .red-ui-help-splitter .e-pane {
+    overflow: hidden;
+}
+
+::deep .red-ui-help-splitter .e-split-bar {
+    background: #f3f3f3;
+}
+
+::deep .red-ui-help-splitter .e-split-bar:hover {
+    background: #e0e0e0;
+}
+
+/* TOC section */
+.red-ui-sidebar-help-toc {
+    overflow: auto;
+}
+
+/* Syncfusion TreeView styling */
+::deep .red-ui-help-treeview {
+    background: transparent;
+}
+
+::deep .red-ui-help-treeview .e-list-item {
+    padding: 2px 0;
+    background: transparent !important;
+}
+
+::deep .red-ui-help-treeview .e-list-item .e-text-content {
+    padding: 3px 8px;
+    background: transparent;
+}
+
+/* Override Syncfusion default hover that affects all items */
+::deep .red-ui-help-treeview .e-list-item .e-fullrow {
+    background: transparent !important;
+}
+
+::deep .red-ui-help-treeview .e-list-item:hover > .e-fullrow {
+    background: var(--red-ui-list-item-background-hover, #f0f0f0) !important;
+}
+
+::deep .red-ui-help-treeview .e-list-item.e-active > .e-fullrow {
+    background: var(--red-ui-list-item-background-selected, #e0e0e0) !important;
+}
+
+/* Disable hover on parent items when hovering child */
+::deep .red-ui-help-treeview .e-list-item:not(:hover) .e-fullrow {
+    background: transparent !important;
+}
+
+/* Tree node custom template */
+.red-ui-help-tree-node {
+    display: flex;
+    align-items: center;
+    padding: 2px 5px;
+    cursor: pointer;
+}
+
+.red-ui-help-tree-node.selected {
+    background: #efe7d5;
+}
+
+.red-ui-help-tree-label {
+    font-size: 12px;
+    color: var(--red-ui-primary-text-color, #444);
+}
+
+/* Search box */
+::deep .red-ui-help-search {
+    margin-left: 10px;
+}
+
+::deep .red-ui-help-search .e-input {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+/* Help content */
+.red-ui-sidebar-help-content {
+    padding: 10px;
+}
+
+.red-ui-help h3 {
+    margin-top: 0;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 8px;
+    color: var(--red-ui-primary-text-color, #444);
+}
+
+.red-ui-help h4 {
+    margin: 15px 0 8px 0;
+    font-size: 13px;
+    color: var(--red-ui-primary-text-color, #444);
+}
+
+.red-ui-help p {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--red-ui-secondary-text-color, #666);
+}
+
+.red-ui-help dl {
+    margin: 0;
+    padding: 0;
+}
+
+.red-ui-help dt {
+    font-weight: 500;
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.red-ui-help dt .property-type {
+    font-size: 11px;
+    color: var(--red-ui-secondary-text-color, #888);
+    font-weight: normal;
+    margin-left: 5px;
+}
+
+.red-ui-help dd {
+    margin: 3px 0 0 15px;
+    font-size: 12px;
+    color: var(--red-ui-secondary-text-color, #666);
+}
+
+.red-ui-help ul {
+    margin: 5px 0;
+    padding-left: 20px;
+}
+
+.red-ui-help ul li {
+    font-size: 12px;
+    margin-bottom: 3px;
+}
+
+.red-ui-help a {
+    color: var(--red-ui-text-color-link, #0066cc);
+}
+
+.red-ui-help-info-none {
+    color: var(--red-ui-secondary-text-color, #888);
+    text-align: center;
+    padding: 20px;
+    display: block;
+}

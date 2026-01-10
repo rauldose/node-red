@@ -1,0 +1,185 @@
+@*
+    RedUiSidebarContext - Blazor implementation of Node-RED's tab-context.js
+    Matches the exact structure from packages/node_modules/@node-red/editor-client/src/js/ui/tab-context.js
+*@
+
+<div class="red-ui-sidebar-context" style="position: relative; height: 100%;">
+    <div class="red-ui-sidebar-context-stack">
+        @* Node context section *@
+        <div class="red-ui-panel" style="border-bottom: 1px solid #ddd;">
+            <div class="red-ui-panel-header" style="padding: 8px 10px; background: #f7f7f7; cursor: pointer; display: flex; align-items: center;"
+                 @onclick="() => NodeSectionExpanded = !NodeSectionExpanded">
+                <i class="fa @(NodeSectionExpanded ? "fa-angle-down" : "fa-angle-right")" style="width: 12px; margin-right: 5px;"></i>
+                <span style="font-weight: 500;">Node</span>
+                <div style="margin-left: auto; display: flex; align-items: center;">
+                    <input type="checkbox" @bind="NodeAutoRefresh" title="Auto refresh" style="margin-right: 5px;" @onclick:stopPropagation="true" />
+                    <button class="red-ui-button red-ui-button-small" @onclick="RefreshNodeContext" @onclick:stopPropagation="true" title="Refresh">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+            @if (NodeSectionExpanded)
+            {
+                <div class="red-ui-panel-content" style="padding: 10px;">
+                    <div class="red-ui-sidebar-context-updated" style="font-size: 11px; color: #888; margin-bottom: 5px;">
+                        @(NodeContextTimestamp != null ? $"Updated: {NodeContextTimestamp:HH:mm:ss}" : " ")
+                    </div>
+                    @if (SelectedNodeId != null && NodeContextData.Any())
+                    {
+                        <table class="red-ui-info-table" style="width: 100%; font-size: 12px;">
+                            <tbody>
+                                @foreach (var item in NodeContextData)
+                                {
+                                    <tr>
+                                        <td style="padding: 3px 0; color: #666; width: 100px;">@item.Key</td>
+                                        <td style="padding: 3px 0; font-family: monospace;">@FormatValue(item.Value)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div style="color: #888; font-size: 12px;">
+                            @(SelectedNodeId == null ? "No node selected" : "No context data")
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        
+        @* Flow context section *@
+        <div class="red-ui-panel" style="border-bottom: 1px solid #ddd;">
+            <div class="red-ui-panel-header" style="padding: 8px 10px; background: #f7f7f7; cursor: pointer; display: flex; align-items: center;"
+                 @onclick="() => FlowSectionExpanded = !FlowSectionExpanded">
+                <i class="fa @(FlowSectionExpanded ? "fa-angle-down" : "fa-angle-right")" style="width: 12px; margin-right: 5px;"></i>
+                <span style="font-weight: 500;">Flow</span>
+                <span style="color: #888; margin-left: 5px; font-size: 11px;">@CurrentFlowName</span>
+                <div style="margin-left: auto; display: flex; align-items: center;">
+                    <input type="checkbox" @bind="FlowAutoRefresh" title="Auto refresh" style="margin-right: 5px;" @onclick:stopPropagation="true" />
+                    <button class="red-ui-button red-ui-button-small" @onclick="RefreshFlowContext" @onclick:stopPropagation="true" title="Refresh">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+            @if (FlowSectionExpanded)
+            {
+                <div class="red-ui-panel-content" style="padding: 10px;">
+                    <div class="red-ui-sidebar-context-updated" style="font-size: 11px; color: #888; margin-bottom: 5px;">
+                        @(FlowContextTimestamp != null ? $"Updated: {FlowContextTimestamp:HH:mm:ss}" : " ")
+                    </div>
+                    @if (FlowContextData.Any())
+                    {
+                        <table class="red-ui-info-table" style="width: 100%; font-size: 12px;">
+                            <tbody>
+                                @foreach (var item in FlowContextData)
+                                {
+                                    <tr>
+                                        <td style="padding: 3px 0; color: #666; width: 100px;">@item.Key</td>
+                                        <td style="padding: 3px 0; font-family: monospace;">@FormatValue(item.Value)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div style="color: #888; font-size: 12px;">No context data</div>
+                    }
+                </div>
+            }
+        </div>
+        
+        @* Global context section *@
+        <div class="red-ui-panel">
+            <div class="red-ui-panel-header" style="padding: 8px 10px; background: #f7f7f7; cursor: pointer; display: flex; align-items: center;"
+                 @onclick="() => GlobalSectionExpanded = !GlobalSectionExpanded">
+                <i class="fa @(GlobalSectionExpanded ? "fa-angle-down" : "fa-angle-right")" style="width: 12px; margin-right: 5px;"></i>
+                <span style="font-weight: 500;">Global</span>
+                <div style="margin-left: auto; display: flex; align-items: center;">
+                    <input type="checkbox" @bind="GlobalAutoRefresh" title="Auto refresh" style="margin-right: 5px;" @onclick:stopPropagation="true" />
+                    <button class="red-ui-button red-ui-button-small" @onclick="RefreshGlobalContext" @onclick:stopPropagation="true" title="Refresh">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+            @if (GlobalSectionExpanded)
+            {
+                <div class="red-ui-panel-content" style="padding: 10px;">
+                    <div class="red-ui-sidebar-context-updated" style="font-size: 11px; color: #888; margin-bottom: 5px;">
+                        @(GlobalContextTimestamp != null ? $"Updated: {GlobalContextTimestamp:HH:mm:ss}" : " ")
+                    </div>
+                    @if (GlobalContextData.Any())
+                    {
+                        <table class="red-ui-info-table" style="width: 100%; font-size: 12px;">
+                            <tbody>
+                                @foreach (var item in GlobalContextData)
+                                {
+                                    <tr>
+                                        <td style="padding: 3px 0; color: #666; width: 100px;">@item.Key</td>
+                                        <td style="padding: 3px 0; font-family: monospace;">@FormatValue(item.Value)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div style="color: #888; font-size: 12px;">No context data</div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? SelectedNodeId { get; set; }
+    [Parameter] public string CurrentFlowId { get; set; } = "";
+    [Parameter] public string CurrentFlowName { get; set; } = "Flow 1";
+    [Parameter] public Dictionary<string, object?> NodeContextData { get; set; } = new();
+    [Parameter] public Dictionary<string, object?> FlowContextData { get; set; } = new();
+    [Parameter] public Dictionary<string, object?> GlobalContextData { get; set; } = new();
+    [Parameter] public DateTime? NodeContextTimestamp { get; set; }
+    [Parameter] public DateTime? FlowContextTimestamp { get; set; }
+    [Parameter] public DateTime? GlobalContextTimestamp { get; set; }
+    [Parameter] public EventCallback OnRefreshNodeContext { get; set; }
+    [Parameter] public EventCallback OnRefreshFlowContext { get; set; }
+    [Parameter] public EventCallback OnRefreshGlobalContext { get; set; }
+
+    private bool NodeSectionExpanded { get; set; } = true;
+    private bool FlowSectionExpanded { get; set; } = true;
+    private bool GlobalSectionExpanded { get; set; } = true;
+    private bool NodeAutoRefresh { get; set; } = false;
+    private bool FlowAutoRefresh { get; set; } = false;
+    private bool GlobalAutoRefresh { get; set; } = false;
+
+    private async Task RefreshNodeContext()
+    {
+        await OnRefreshNodeContext.InvokeAsync();
+    }
+
+    private async Task RefreshFlowContext()
+    {
+        await OnRefreshFlowContext.InvokeAsync();
+    }
+
+    private async Task RefreshGlobalContext()
+    {
+        await OnRefreshGlobalContext.InvokeAsync();
+    }
+
+    private string FormatValue(object? value)
+    {
+        if (value == null) return "null";
+        if (value is string s) return $"\"{s}\"";
+        try
+        {
+            return System.Text.Json.JsonSerializer.Serialize(value);
+        }
+        catch
+        {
+            return value.ToString() ?? "null";
+        }
+    }
+}

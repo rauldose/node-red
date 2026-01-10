@@ -1,0 +1,167 @@
+@*
+    RedUiSidebarConfig - Blazor implementation of Node-RED's tab-config.js
+    Matches the exact structure from packages/node_modules/@node-red/editor-client/src/js/ui/tab-config.js
+*@
+
+<div class="red-ui-sidebar-node-config" id="red-ui-sidebar-node-config" tabindex="0">
+    @* Header with filter buttons *@
+    <div class="red-ui-sidebar-header" style="padding: 8px 10px; border-bottom: 1px solid #ddd;">
+        <span class="button-group">
+            <a class="red-ui-sidebar-header-button-toggle @(FilterMode == "all" ? "selected" : "")" 
+               href="javascript:void(0)" @onclick="SetFilterAll">
+                <span>all</span>
+            </a>
+            <a class="red-ui-sidebar-header-button-toggle @(FilterMode == "unused" ? "selected" : "")" 
+               href="javascript:void(0)" @onclick="SetFilterUnused">
+                <span>unused</span>
+            </a>
+        </span>
+    </div>
+    
+    @* Global config nodes *@
+    <div class="red-ui-sidebar-config-section">
+        <div class="red-ui-palette-category red-ui-sidebar-config-category">
+            <div class="red-ui-sidebar-config-tray-header red-ui-palette-header" 
+                 style="padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #ddd;"
+                 @onclick="ToggleGlobalSection">
+                <i class="fa @(GlobalExpanded ? "fa-angle-down" : "fa-angle-right") expanded" style="width: 12px;"></i>
+                <span class="red-ui-palette-node-config-label" style="margin-left: 5px;">global</span>
+                <span class="red-ui-sidebar-node-config-filter-info" style="float: right; color: #888; font-size: 11px;">
+                    (@GetGlobalConfigNodes().Count())
+                </span>
+            </div>
+            @if (GlobalExpanded)
+            {
+                <ul class="red-ui-palette-content red-ui-sidebar-node-config-list" style="list-style: none; margin: 0; padding: 0;">
+                    @{
+                        var globalNodes = GetGlobalConfigNodes();
+                        if (globalNodes.Any())
+                        {
+                            foreach (var node in globalNodes)
+                            {
+                                <li class="red-ui-palette-node red-ui-palette-node-config @(SelectedConfigId == node.Id ? "selected" : "")"
+                                    style="padding: 5px 10px; border-bottom: 1px solid #eee; cursor: pointer;"
+                                    @onclick="() => SelectConfig(node.Id)">
+                                    <div class="red-ui-palette-node-config-label" style="display: flex; align-items: center;">
+                                        <span class="red-ui-palette-icon-container" style="width: 20px; height: 17px; border-radius: 3px; background-color: @node.Color; border: 1px solid #999; margin-right: 8px;"></span>
+                                        <span>@node.Label</span>
+                                        <span style="color: #888; margin-left: 5px; font-size: 11px;">@node.Type</span>
+                                        @if (node.UsageCount == 0)
+                                        {
+                                            <span style="color: #c00; margin-left: auto; font-size: 11px;">unused</span>
+                                        }
+                                    </div>
+                                </li>
+                            }
+                        }
+                        else
+                        {
+                            <li class="red-ui-palette-node-config-none" style="padding: 10px; color: #888; text-align: center;">
+                                none
+                            </li>
+                        }
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+    
+    @* Flow config nodes *@
+    <div class="red-ui-sidebar-config-section">
+        <div class="red-ui-palette-category red-ui-sidebar-config-category">
+            <div class="red-ui-sidebar-config-tray-header red-ui-palette-header" 
+                 style="padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #ddd;"
+                 @onclick="ToggleFlowsSection">
+                <i class="fa @(FlowsExpanded ? "fa-angle-down" : "fa-angle-right") expanded" style="width: 12px;"></i>
+                <span class="red-ui-palette-node-config-label" style="margin-left: 5px;">@CurrentFlowName</span>
+                <span class="red-ui-sidebar-node-config-filter-info" style="float: right; color: #888; font-size: 11px;">
+                    (@GetFlowConfigNodes().Count())
+                </span>
+            </div>
+            @if (FlowsExpanded)
+            {
+                <ul class="red-ui-palette-content red-ui-sidebar-node-config-list" style="list-style: none; margin: 0; padding: 0;">
+                    @{
+                        var flowNodes = GetFlowConfigNodes();
+                        if (flowNodes.Any())
+                        {
+                            foreach (var node in flowNodes)
+                            {
+                                <li class="red-ui-palette-node red-ui-palette-node-config @(SelectedConfigId == node.Id ? "selected" : "")"
+                                    style="padding: 5px 10px; border-bottom: 1px solid #eee; cursor: pointer;"
+                                    @onclick="() => SelectConfig(node.Id)">
+                                    <div class="red-ui-palette-node-config-label" style="display: flex; align-items: center;">
+                                        <span class="red-ui-palette-icon-container" style="width: 20px; height: 17px; border-radius: 3px; background-color: @node.Color; border: 1px solid #999; margin-right: 8px;"></span>
+                                        <span>@node.Label</span>
+                                        <span style="color: #888; margin-left: 5px; font-size: 11px;">@node.Type</span>
+                                        @if (node.UsageCount == 0)
+                                        {
+                                            <span style="color: #c00; margin-left: auto; font-size: 11px;">unused</span>
+                                        }
+                                    </div>
+                                </li>
+                            }
+                        }
+                        else
+                        {
+                            <li class="red-ui-palette-node-config-none" style="padding: 10px; color: #888; text-align: center;">
+                                none
+                            </li>
+                        }
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public List<ConfigNode> ConfigNodes { get; set; } = new();
+    [Parameter] public string CurrentFlowName { get; set; } = "Flow 1";
+    [Parameter] public string CurrentFlowId { get; set; } = "";
+    [Parameter] public string? SelectedConfigId { get; set; }
+    [Parameter] public EventCallback<string> OnConfigSelected { get; set; }
+    [Parameter] public EventCallback<string> OnConfigDoubleClick { get; set; }
+
+    private string FilterMode { get; set; } = "all";
+    private bool GlobalExpanded { get; set; } = true;
+    private bool FlowsExpanded { get; set; } = true;
+
+    private void SetFilterAll() => FilterMode = "all";
+    private void SetFilterUnused() => FilterMode = "unused";
+    private void ToggleGlobalSection() => GlobalExpanded = !GlobalExpanded;
+    private void ToggleFlowsSection() => FlowsExpanded = !FlowsExpanded;
+
+    private async Task SelectConfig(string id)
+    {
+        SelectedConfigId = id;
+        await OnConfigSelected.InvokeAsync(id);
+    }
+
+    private IEnumerable<ConfigNode> GetGlobalConfigNodes()
+    {
+        var nodes = ConfigNodes.Where(n => n.Scope == "global");
+        if (FilterMode == "unused")
+            nodes = nodes.Where(n => n.UsageCount == 0);
+        return nodes;
+    }
+
+    private IEnumerable<ConfigNode> GetFlowConfigNodes()
+    {
+        var nodes = ConfigNodes.Where(n => n.Scope == "flow" && n.FlowId == CurrentFlowId);
+        if (FilterMode == "unused")
+            nodes = nodes.Where(n => n.UsageCount == 0);
+        return nodes;
+    }
+
+    public class ConfigNode
+    {
+        public string Id { get; set; } = "";
+        public string Type { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Color { get; set; } = "#ddd";
+        public string Scope { get; set; } = "global"; // "global" or "flow"
+        public string FlowId { get; set; } = "";
+        public int UsageCount { get; set; } = 0;
+    }
+}

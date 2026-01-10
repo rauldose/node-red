@@ -4,10 +4,12 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
+using NodeRed.Blazor.Components.Shared;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.Core.Interfaces;
 using Syncfusion.Blazor.Diagram;
+using Syncfusion.Blazor.Layouts;
 using System.Collections.ObjectModel;
 
 namespace NodeRed.Blazor.Components.Pages;
@@ -26,6 +28,9 @@ public partial class Editor : IDisposable
     
     // Diagram reference
     public SfDiagramComponent? DiagramInstance { get; set; }
+    
+    // Main splitter reference (for tray pane control)
+    private SfSplitter? _mainSplitter;
 
     // Selection settings
     public DiagramSelectionSettings SelectionSettings { get; set; } = new DiagramSelectionSettings()
@@ -58,6 +63,23 @@ public partial class Editor : IDisposable
     private string SelectedNodeName = "";
     private int SelectedSidebarTab = 0;
     private bool IsPropertyTrayOpen = false;
+    private string _activeTrayTab = "properties"; // Tray tabs: properties, description, appearance
+    private string _selectedNodeDescription = ""; // Node description for editing
+    private string _selectedNodeIcon = ""; // Node icon for appearance tab
+    private bool _selectedNodeShowLabel = true; // Whether to show label
+
+    // Sidebar state
+    private bool _isSidebarClosed = false;
+    private string _activeSidebarTabId = "info";
+    // Sidebar tabs matching original Node-RED: info, help, config, context, debug
+    private List<RedUiSidebar.SidebarTab> _sidebarTabs = new()
+    {
+        new RedUiSidebar.SidebarTab { Id = "info", Name = "Info", Label = "info", IconClass = "fa fa-info", Pinned = true },
+        new RedUiSidebar.SidebarTab { Id = "help", Name = "Help", Label = "help", IconClass = "fa fa-book", Pinned = true },
+        new RedUiSidebar.SidebarTab { Id = "config", Name = "Configuration nodes", Label = "config", IconClass = "fa fa-cog", Pinned = true },
+        new RedUiSidebar.SidebarTab { Id = "context", Name = "Context Data", Label = "context", IconClass = "fa fa-database", Pinned = true },
+        new RedUiSidebar.SidebarTab { Id = "debug", Name = "Debug messages", Label = "debug", IconClass = "fa fa-bug", Pinned = true, EnableOnEdit = true }
+    };
 
     // Menu state
     private bool IsMainMenuOpen = false;
@@ -80,6 +102,9 @@ public partial class Editor : IDisposable
 
     // Node statuses (node ID -> status)
     private Dictionary<string, NodeStatus> _nodeStatuses = new();
+
+    // Help tab - selected node type from the tree view
+    private string? _helpSelectedNodeType;
 
     // Cached node definitions for performance
     private List<NodeDefinition>? _cachedNodeDefinitions;
@@ -890,6 +915,16 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
+    /// Handles main splitter resize events.
+    /// This is called when the user finishes resizing the palette or sidebar panes.
+    /// </summary>
+    private void OnMainSplitterResize(ResizeEventArgs args)
+    {
+        // The splitter handles the resize automatically
+        // This event can be used for logging or persistence if needed
+    }
+
+    /// <summary>
     /// Handles position changes - when a group is moved, move its contained nodes too.
     /// Note: async void is acceptable here as this is an event handler.
     /// </summary>
@@ -964,6 +999,42 @@ public partial class Editor : IDisposable
     {
         SaveNodeProperties();
         IsPropertyTrayOpen = false;
+    }
+
+    private void DeleteSelectionAndCloseTray()
+    {
+        DeleteSelection();
+        IsPropertyTrayOpen = false;
+    }
+
+    /// <summary>
+    /// Returns true if the tray should be visible.
+    /// </summary>
+    private bool IsTrayVisible() => IsPropertyTrayOpen && SelectedDiagramNode != null;
+
+    /// <summary>
+    /// Gets the size for the tray pane based on visibility state.
+    /// </summary>
+    private string GetTraySize() => IsTrayVisible() ? "450px" : "0px";
+
+    /// <summary>
+    /// Gets the min size for the tray pane based on visibility state.
+    /// </summary>
+    private string GetTrayMinSize() => IsTrayVisible() ? "350px" : "0px";
+
+    /// <summary>
+    /// Gets the max size for the tray pane based on visibility state.
+    /// </summary>
+    private string GetTrayMaxSize() => IsTrayVisible() ? "700px" : "0px";
+
+    /// <summary>
+    /// Gets the CSS class for the tray pane based on visibility state.
+    /// </summary>
+    private string GetTrayCssClass()
+    {
+        return IsTrayVisible() 
+            ? "red-ui-tray-pane" 
+            : "red-ui-tray-pane red-ui-tray-hidden";
     }
 
     private async Task OnFixedUserHandleClick(FixedUserHandleClickEventArgs args)
@@ -1460,6 +1531,19 @@ public partial class Editor : IDisposable
             return typeObj as string ?? "unknown";
         }
         return "unknown";
+    }
+
+    /// <summary>
+    /// Gets the node type to show help for - uses manually selected type from Help tree, 
+    /// or falls back to the currently selected diagram node's type.
+    /// </summary>
+    private string GetNodeTypeForHelp()
+    {
+        if (!string.IsNullOrEmpty(_helpSelectedNodeType))
+        {
+            return _helpSelectedNodeType;
+        }
+        return GetSelectedNodeType();
     }
 
     private string GetSelectedNodeColor()
@@ -3409,6 +3493,368 @@ public partial class Editor : IDisposable
         {
             return data.ToString() ?? "null";
         }
+    }
+
+    /// <summary>
+    /// Gets the status color for the sidebar info panel
+    /// </summary>
+    private string GetSidebarStatusColor()
+    {
+        if (SelectedDiagramNode == null) return "transparent";
+        var status = GetNodeStatus(SelectedDiagramNode.ID);
+        if (status == null) return "transparent";
+        return GetStatusColor(status.Color);
+    }
+
+    /// <summary>
+    /// Gets the current flow name
+    /// </summary>
+    private string GetCurrentFlowName()
+    {
+        return Flows.FirstOrDefault(f => f.Id == CurrentFlowId)?.Label ?? "Flow 1";
+    }
+
+    /// <summary>
+    /// Gets flows formatted for the Info sidebar outliner
+    /// </summary>
+    private List<RedUiSidebarInfo.FlowInfo> GetFlowsForOutliner()
+    {
+        return Flows.Select(f => new RedUiSidebarInfo.FlowInfo
+        {
+            Id = f.Id,
+            Label = f.Label,
+            Disabled = f.Disabled
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets global config nodes for the Info sidebar outliner
+    /// </summary>
+    private List<RedUiSidebarInfo.NodeInfo> GetGlobalConfigNodesForOutliner()
+    {
+        var configCategory = PaletteCategories.FirstOrDefault(c => c.Name == "config");
+        if (configCategory == null) return new();
+        
+        return configCategory.Nodes.Select(n => new RedUiSidebarInfo.NodeInfo
+        {
+            Id = n.Type,
+            Type = n.Type,
+            Name = n.Label,
+            Color = n.Color
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets nodes for a specific flow in the Info sidebar outliner
+    /// </summary>
+    private List<RedUiSidebarInfo.NodeInfo> GetFlowNodesForOutliner(string flowId)
+    {
+        var flow = Flows.FirstOrDefault(f => f.Id == flowId);
+        if (flow == null) return new();
+        
+        // If this is the current flow, get nodes from DiagramNodes
+        if (flowId == CurrentFlowId && DiagramNodes != null)
+        {
+            return DiagramNodes
+                .Where(n => n.ID != null)
+                .Select(n => new RedUiSidebarInfo.NodeInfo
+                {
+                    Id = n.ID!,
+                    Type = GetNodeType(n),
+                    Name = n.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content,
+                    Color = GetNodeColor(n)
+                }).ToList();
+        }
+        
+        // Otherwise, get from stored nodes
+        return flow.StoredNodes.Select(n => new RedUiSidebarInfo.NodeInfo
+        {
+            Id = n.Id,
+            Type = n.Type,
+            Name = n.LabelContent,
+            Color = n.Color
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets the node type from a diagram node
+    /// </summary>
+    private string GetNodeType(Node node)
+    {
+        if (node.AdditionalInfo != null && node.AdditionalInfo.TryGetValue("nodeType", out var typeObj))
+        {
+            return typeObj?.ToString() ?? "unknown";
+        }
+        return "unknown";
+    }
+
+    /// <summary>
+    /// Gets the node color from a diagram node
+    /// </summary>
+    private string GetNodeColor(Node node)
+    {
+        if (node.Style != null && !string.IsNullOrEmpty(node.Style.Fill))
+        {
+            return node.Style.Fill;
+        }
+        return "#ddd";
+    }
+
+    /// <summary>
+    /// Selects a node by ID from the outliner
+    /// </summary>
+    private async Task SelectNodeById(string nodeId)
+    {
+        // Find the node in the diagram and select it
+        var node = DiagramNodes?.FirstOrDefault(n => n.ID == nodeId);
+        if (node != null)
+        {
+            SelectedDiagramNode = node;
+            SelectedNodeName = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? "";
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Selects a flow by ID from the outliner
+    /// </summary>
+    private async Task SelectFlowById(string flowId)
+    {
+        if (flowId != CurrentFlowId)
+        {
+            SwitchFlow(flowId);
+        }
+    }
+
+    /// <summary>
+    /// Reveals the selected node in the workspace
+    /// </summary>
+    private void RevealSelectedNode()
+    {
+        // TODO: Pan/zoom to the selected node
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Copies the node link/path to clipboard
+    /// </summary>
+    private void CopyNodeLink()
+    {
+        // TODO: Copy node path to clipboard via JSInterop
+    }
+
+    /// <summary>
+    /// Gets help inputs formatted for the Help sidebar component
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpProperty> GetHelpInputs()
+    {
+        var nodeHelp = GetNodeHelp(GetSelectedNodeType());
+        if (nodeHelp?.Inputs == null) return new();
+        
+        return nodeHelp.Inputs.Select(i => new RedUiSidebarHelp.HelpProperty
+        {
+            Name = i.Name,
+            Type = i.Type,
+            Description = i.Description
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets help inputs for the Help tab (uses _helpSelectedNodeType)
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpProperty> GetHelpInputsForHelp()
+    {
+        var nodeHelp = GetNodeHelp(GetNodeTypeForHelp());
+        if (nodeHelp?.Inputs == null) return new();
+        
+        return nodeHelp.Inputs.Select(i => new RedUiSidebarHelp.HelpProperty
+        {
+            Name = i.Name,
+            Type = i.Type,
+            Description = i.Description
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets help outputs formatted for the Help sidebar component
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpProperty> GetHelpOutputs()
+    {
+        var nodeHelp = GetNodeHelp(GetSelectedNodeType());
+        if (nodeHelp?.Outputs == null) return new();
+        
+        return nodeHelp.Outputs.Select(o => new RedUiSidebarHelp.HelpProperty
+        {
+            Name = o.Name,
+            Type = o.Type,
+            Description = o.Description
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets help outputs for the Help tab (uses _helpSelectedNodeType)
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpProperty> GetHelpOutputsForHelp()
+    {
+        var nodeHelp = GetNodeHelp(GetNodeTypeForHelp());
+        if (nodeHelp?.Outputs == null) return new();
+        
+        return nodeHelp.Outputs.Select(o => new RedUiSidebarHelp.HelpProperty
+        {
+            Name = o.Name,
+            Type = o.Type,
+            Description = o.Description
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets help references formatted for the Help sidebar component
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpReference> GetHelpReferences()
+    {
+        var nodeHelp = GetNodeHelp(GetSelectedNodeType());
+        if (nodeHelp?.References == null) return new();
+        
+        return nodeHelp.References.Select(r => new RedUiSidebarHelp.HelpReference
+        {
+            Title = r.Title,
+            Url = r.Url
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets help references for the Help tab (uses _helpSelectedNodeType)
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpReference> GetHelpReferencesForHelp()
+    {
+        var nodeHelp = GetNodeHelp(GetNodeTypeForHelp());
+        if (nodeHelp?.References == null) return new();
+        
+        return nodeHelp.References.Select(r => new RedUiSidebarHelp.HelpReference
+        {
+            Title = r.Title,
+            Url = r.Url
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets categories for the Help sidebar tree view
+    /// </summary>
+    private List<RedUiSidebarHelp.NodeCategory> GetHelpCategories()
+    {
+        return PaletteCategories.Select(c => new RedUiSidebarHelp.NodeCategory
+        {
+            Name = c.Name,
+            Expanded = false,
+            Nodes = c.Nodes.Select(n => new RedUiSidebarHelp.NodeInfo
+            {
+                Type = n.Type,
+                Label = n.Label,
+                Color = n.Color
+            }).ToList()
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Selects a node type to show help for
+    /// </summary>
+    private void SelectNodeTypeForHelp(string nodeType)
+    {
+        _helpSelectedNodeType = nodeType;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Gets configuration nodes for the Config sidebar
+    /// </summary>
+    private List<RedUiSidebarConfig.ConfigNode> GetConfigNodes()
+    {
+        // Return config nodes from the palette categories
+        var configCategory = PaletteCategories.FirstOrDefault(c => c.Name == "config");
+        if (configCategory == null) return new();
+        
+        return configCategory.Nodes.Select(n => new RedUiSidebarConfig.ConfigNode
+        {
+            Id = n.Type,
+            Type = n.Type,
+            Label = n.Label,
+            Color = n.Color,
+            Scope = "global",
+            UsageCount = 0
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Selects a configuration node
+    /// </summary>
+    private void SelectConfigNode(string id)
+    {
+        // This would select the config node
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Gets node context data
+    /// </summary>
+    private Dictionary<string, object?> GetNodeContextData()
+    {
+        return new Dictionary<string, object?>();
+    }
+
+    /// <summary>
+    /// Gets flow context data
+    /// </summary>
+    private Dictionary<string, object?> GetFlowContextData()
+    {
+        return new Dictionary<string, object?>();
+    }
+
+    /// <summary>
+    /// Gets global context data
+    /// </summary>
+    private Dictionary<string, object?> GetGlobalContextData()
+    {
+        return new Dictionary<string, object?>();
+    }
+
+    /// <summary>
+    /// Refreshes node context data
+    /// </summary>
+    private void RefreshNodeContext()
+    {
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Refreshes flow context data
+    /// </summary>
+    private void RefreshFlowContext()
+    {
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Refreshes global context data
+    /// </summary>
+    private void RefreshGlobalContext()
+    {
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Gets debug messages formatted for the Debug sidebar component
+    /// </summary>
+    private List<RedUiSidebarDebug.DebugMessage> GetDebugMessagesForSidebar()
+    {
+        return DebugMessages.Select(m => new RedUiSidebarDebug.DebugMessage
+        {
+            NodeId = m.NodeId,
+            NodeName = m.NodeName,
+            Timestamp = m.Timestamp.DateTime,
+            Payload = m.Data,
+            Topic = "",
+            Level = "log"
+        }).ToList();
     }
 
     public void Dispose()
