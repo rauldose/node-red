@@ -73,7 +73,7 @@ public static class PropertyUtils
                         throw MessageUtils.CreateError("INVALID_EXPR", "Invalid property expression: unterminated expression");
                     }
                     // Next char is first char of an identifier
-                    if (!Regex.IsMatch(str[i + 1].ToString(), @"[a-z0-9\$\_]", RegexOptions.IgnoreCase))
+                    if (!Regex.IsMatch(str[i + 1].ToString(), @"[a-zA-Z0-9$_]"))
                     {
                         throw MessageUtils.CreateError("INVALID_EXPR", $"Invalid property expression: unexpected {str[i + 1]} at position {i + 1}");
                     }
@@ -206,7 +206,7 @@ public static class PropertyUtils
                     {
                         throw MessageUtils.CreateError("INVALID_EXPR", $"Invalid property expression: unexpected array expression at position {start}");
                     }
-                    else if (!inBox && i + 1 != length && !Regex.IsMatch(str[i + 1].ToString(), @"[\[\.]"))
+                    else if (!inBox && i + 1 != length && !Regex.IsMatch(str[i + 1].ToString(), @"[.\[]"))
                     {
                         throw MessageUtils.CreateError("INVALID_EXPR", $"Invalid property expression: unexpected {str[i + 1]} expression at position {i + 1}");
                     }
