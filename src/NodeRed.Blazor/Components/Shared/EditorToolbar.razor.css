@@ -1,0 +1,211 @@
+/* EditorToolbar component styles */
+
+.red-ui-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #8f0000;
+    color: #fff;
+    height: 40px;
+    padding: 0 10px;
+    flex-shrink: 0;
+}
+
+.red-ui-header-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    font-size: 16px;
+}
+
+.red-ui-header-logo img {
+    height: 24px;
+}
+
+.red-ui-header-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+}
+
+.red-ui-deploy-group {
+    display: flex;
+    position: relative;
+}
+
+.red-ui-deploy-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: #666;
+    color: #fff;
+    border: none;
+    border-radius: 3px 0 0 3px;
+    cursor: not-allowed;
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+.red-ui-deploy-button.active {
+    background: #8f0000;
+    border: 1px solid #fff;
+    cursor: pointer;
+    opacity: 1;
+}
+
+.red-ui-deploy-button.active:hover {
+    background: #a00;
+}
+
+.red-ui-deploy-dropdown {
+    padding: 6px 8px;
+    background: #666;
+    color: #fff;
+    border: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 0 3px 3px 0;
+    cursor: pointer;
+}
+
+.red-ui-deploy-button.active + .red-ui-deploy-dropdown {
+    background: #8f0000;
+    border: 1px solid #fff;
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.red-ui-deploy-dropdown:hover {
+    background: #a00;
+}
+
+.red-ui-deploy-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    min-width: 280px;
+    z-index: 1000;
+}
+
+.red-ui-deploy-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    color: #333;
+}
+
+.red-ui-deploy-option:hover {
+    background: #f0f0f0;
+}
+
+.red-ui-deploy-option i.fa-check {
+    visibility: hidden;
+    margin-top: 3px;
+    color: #5a8;
+}
+
+.red-ui-deploy-option.selected i.fa-check {
+    visibility: visible;
+}
+
+.red-ui-deploy-option div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.red-ui-deploy-option strong {
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.red-ui-deploy-option span {
+    font-size: 11px;
+    color: #666;
+}
+
+.red-ui-menu-button {
+    padding: 6px 10px;
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.red-ui-menu-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.red-ui-main-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    min-width: 220px;
+    z-index: 1000;
+}
+
+.red-ui-main-menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+}
+
+.red-ui-main-menu li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #333;
+}
+
+.red-ui-main-menu li:hover {
+    background: #f0f0f0;
+}
+
+.red-ui-main-menu li i.fa {
+    width: 20px;
+    color: #666;
+}
+
+.red-ui-main-menu li.separator {
+    height: 1px;
+    background: #ddd;
+    margin: 4px 8px;
+    padding: 0;
+    cursor: default;
+}
+
+.red-ui-main-menu li.separator:hover {
+    background: #ddd;
+}
+
+.red-ui-menu-shortcut {
+    font-size: 11px;
+    color: #999;
+    margin-left: auto;
+}
+
+.red-ui-menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+}

@@ -1,0 +1,151 @@
+@* Copyright OpenJS Foundation and other contributors
+   Licensed under the Apache License, Version 2.0 *@
+
+<header class="red-ui-header">
+    <span class="red-ui-header-logo">
+        <img src="images/node-red-icon-white.svg" alt="Node-RED" />
+        <span>Node-RED</span>
+    </span>
+    
+    <div class="red-ui-header-toolbar">
+        <!-- Deploy Button -->
+        <div class="red-ui-deploy-group">
+            <button class="red-ui-deploy-button @(HasUnsavedChanges ? "active" : "")"
+                    @onclick="() => OnDeploy.InvokeAsync(DeployMode)"
+                    disabled="@(!HasUnsavedChanges)">
+                <i class="fa fa-upload"></i>
+                <span>Deploy</span>
+            </button>
+            <button class="red-ui-deploy-dropdown" @onclick="ToggleDeployMenu">
+                <i class="fa fa-caret-down"></i>
+            </button>
+            @if (IsDeployMenuOpen)
+            {
+                <div class="red-ui-deploy-menu">
+                    <div class="red-ui-deploy-option @(DeployMode == "full" ? "selected" : "")"
+                         @onclick="@(() => SetDeployMode("full"))">
+                        <i class="fa fa-check"></i>
+                        <div>
+                            <strong>Full</strong>
+                            <span>Deploy all nodes</span>
+                        </div>
+                    </div>
+                    <div class="red-ui-deploy-option @(DeployMode == "flows" ? "selected" : "")"
+                         @onclick="@(() => SetDeployMode("flows"))">
+                        <i class="fa fa-check"></i>
+                        <div>
+                            <strong>Modified Flows</strong>
+                            <span>Deploy only flows that contain changes</span>
+                        </div>
+                    </div>
+                    <div class="red-ui-deploy-option @(DeployMode == "nodes" ? "selected" : "")"
+                         @onclick="@(() => SetDeployMode("nodes"))">
+                        <i class="fa fa-check"></i>
+                        <div>
+                            <strong>Modified Nodes</strong>
+                            <span>Deploy only nodes that have changed</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Main Menu Button -->
+        <button class="red-ui-menu-button" @onclick="ToggleMainMenu">
+            <i class="fa fa-bars"></i>
+        </button>
+        
+        @if (IsMainMenuOpen)
+        {
+            <div class="red-ui-main-menu">
+                <ul>
+                    <li @onclick="@(() => InvokeMenuItem("search"))">
+                        <i class="fa fa-search"></i> Search flows
+                        <span class="red-ui-menu-shortcut">Ctrl+.</span>
+                    </li>
+                    <li class="separator"></li>
+                    <li @onclick="@(() => InvokeMenuItem("import"))">
+                        <i class="fa fa-download"></i> Import
+                        <span class="red-ui-menu-shortcut">Ctrl+I</span>
+                    </li>
+                    <li @onclick="@(() => InvokeMenuItem("export"))">
+                        <i class="fa fa-upload"></i> Export
+                        <span class="red-ui-menu-shortcut">Ctrl+E</span>
+                    </li>
+                    <li class="separator"></li>
+                    <li @onclick="@(() => InvokeMenuItem("start"))">
+                        <i class="fa fa-play"></i> Start flows
+                    </li>
+                    <li @onclick="@(() => InvokeMenuItem("stop"))">
+                        <i class="fa fa-stop"></i> Stop flows
+                    </li>
+                    <li @onclick="@(() => InvokeMenuItem("restart"))">
+                        <i class="fa fa-refresh"></i> Restart flows
+                    </li>
+                    <li class="separator"></li>
+                    <li @onclick="@(() => InvokeMenuItem("palette"))">
+                        <i class="fa fa-th-large"></i> Manage palette
+                    </li>
+                    <li @onclick="@(() => InvokeMenuItem("settings"))">
+                        <i class="fa fa-cog"></i> Settings
+                    </li>
+                    <li @onclick="@(() => InvokeMenuItem("shortcuts"))">
+                        <i class="fa fa-keyboard-o"></i> Keyboard shortcuts
+                    </li>
+                </ul>
+            </div>
+        }
+    </div>
+</header>
+
+@if (IsMainMenuOpen || IsDeployMenuOpen)
+{
+    <div class="red-ui-menu-overlay" @onclick="CloseMenus"></div>
+}
+
+@code {
+    [Parameter]
+    public bool HasUnsavedChanges { get; set; }
+
+    [Parameter]
+    public string DeployMode { get; set; } = "full";
+
+    [Parameter]
+    public EventCallback<string> OnDeploy { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnMenuItemClick { get; set; }
+
+    private bool IsMainMenuOpen = false;
+    private bool IsDeployMenuOpen = false;
+
+    private void ToggleMainMenu()
+    {
+        IsMainMenuOpen = !IsMainMenuOpen;
+        IsDeployMenuOpen = false;
+    }
+
+    private void ToggleDeployMenu()
+    {
+        IsDeployMenuOpen = !IsDeployMenuOpen;
+        IsMainMenuOpen = false;
+    }
+
+    private void SetDeployMode(string mode)
+    {
+        OnMenuItemClick.InvokeAsync($"deploy-mode:{mode}");
+        IsDeployMenuOpen = false;
+    }
+
+    private void InvokeMenuItem(string item)
+    {
+        CloseMenus();
+        OnMenuItemClick.InvokeAsync(item);
+    }
+
+    private void CloseMenus()
+    {
+        IsMainMenuOpen = false;
+        IsDeployMenuOpen = false;
+    }
+}

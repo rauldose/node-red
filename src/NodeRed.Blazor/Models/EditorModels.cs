@@ -120,11 +120,11 @@ public class PaletteCategory
 public class PaletteNodeInfo
 {
     public string Type { get; set; } = "";
-    public string DisplayName { get; set; } = "";
+    public string Label { get; set; } = "";
     public string Color { get; set; } = "#ddd";
     public string IconClass { get; set; } = "";
-    public bool HasInput { get; set; } = true;
-    public bool HasOutput { get; set; } = true;
+    public string IconBackground { get; set; } = "rgba(0,0,0,0.05)";
+    public int Inputs { get; set; } = 1;
     public int Outputs { get; set; } = 1;
 }
 
@@ -133,9 +133,10 @@ public class PaletteNodeInfo
 /// </summary>
 public class SearchResult
 {
-    public string Id { get; set; } = "";
-    public string Name { get; set; } = "";
     public string Type { get; set; } = "";
+    public string Id { get; set; } = "";
+    public string Label { get; set; } = "";
+    public string Description { get; set; } = "";
     public string FlowId { get; set; } = "";
     public string FlowName { get; set; } = "";
 }
@@ -158,12 +159,14 @@ public class SubflowInfo
 {
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
-    public string Category { get; set; } = "subflows";
+    public int Inputs { get; set; }
+    public int Outputs { get; set; }
     public string Description { get; set; } = "";
-    public int InputCount { get; set; } = 1;
-    public int OutputCount { get; set; } = 1;
-    public string Color { get; set; } = "#da9";
+    public string Category { get; set; } = "subflows";
+    public string Color { get; set; } = "#DDAA99";
+    public bool Status { get; set; } = false; // Whether status output is enabled
     public List<string> NodeIds { get; set; } = new();
+    public List<(string ConnectorId, string SourceId, string SourcePort, string TargetId, string TargetPort)> Connections { get; set; } = new();
 }
 
 /// <summary>

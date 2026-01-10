@@ -1,0 +1,69 @@
+@* Copyright OpenJS Foundation and other contributors
+   Licensed under the Apache License, Version 2.0 *@
+
+@using NodeRed.Blazor.Models
+
+<div class="red-ui-workspace-footer">
+    <ul class="red-ui-tabs">
+        @foreach (var flow in Flows)
+        {
+            <li class="red-ui-tab @(flow.Id == CurrentFlowId ? "red-ui-tab-active" : "") @(flow.Disabled ? "red-ui-tab-disabled" : "")"
+                @onclick="() => OnFlowSelect(flow.Id)"
+                @ondblclick="() => OnFlowDoubleClick(flow.Id)">
+                <a href="javascript:void(0)">
+                    @if (flow.Disabled)
+                    {
+                        <i class="fa fa-ban red-ui-tab-icon-disabled"></i>
+                    }
+                    <span class="red-ui-text-bidi-aware">@flow.Label</span>
+                </a>
+                @if (Flows.Count > 1)
+                {
+                    <a class="red-ui-tab-close" href="javascript:void(0)" 
+                       @onclick:stopPropagation="true"
+                       @onclick="() => OnDeleteFlow.InvokeAsync(flow.Id)">
+                        <i class="fa fa-times"></i>
+                    </a>
+                }
+            </li>
+        }
+        <li class="red-ui-tab-button" @onclick="() => OnAddFlow.InvokeAsync()">
+            <a href="javascript:void(0)">
+                <i class="fa fa-plus"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+@code {
+    [Parameter]
+    public List<FlowTab> Flows { get; set; } = new();
+
+    [Parameter]
+    public string CurrentFlowId { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> OnSelectFlow { get; set; }
+
+    [Parameter]
+    public EventCallback OnAddFlow { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnDeleteFlow { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnEditFlow { get; set; }
+
+    private void OnFlowSelect(string flowId)
+    {
+        if (flowId != CurrentFlowId)
+        {
+            OnSelectFlow.InvokeAsync(flowId);
+        }
+    }
+
+    private void OnFlowDoubleClick(string flowId)
+    {
+        OnEditFlow.InvokeAsync(flowId);
+    }
+}

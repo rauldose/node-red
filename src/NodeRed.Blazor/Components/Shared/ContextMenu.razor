@@ -1,0 +1,220 @@
+@* Copyright OpenJS Foundation and other contributors
+   Licensed under the Apache License, Version 2.0 *@
+
+<div class="red-ui-context-menu @(IsOpen ? "visible" : "")" 
+     style="left: @(X)px; top: @(Y)px;"
+     @onclick:stopPropagation="true">
+    @if (IsNodeMenu)
+    {
+        <!-- Node Context Menu -->
+        <ul class="red-ui-menu">
+            <li @onclick="OnEdit"><i class="fa fa-pencil"></i> Edit</li>
+            <li @onclick="OnCopy"><i class="fa fa-copy"></i> Copy</li>
+            <li @onclick="OnCut"><i class="fa fa-cut"></i> Cut</li>
+            <li @onclick="OnDelete"><i class="fa fa-trash"></i> Delete</li>
+            <li class="separator"></li>
+            @if (IsDisabled)
+            {
+                <li @onclick="OnEnable"><i class="fa fa-check"></i> Enable</li>
+            }
+            else
+            {
+                <li @onclick="OnDisable"><i class="fa fa-ban"></i> Disable</li>
+            }
+            <li class="separator"></li>
+            <li class="submenu" @onmouseenter="() => OpenSubmenu = 1" @onmouseleave="() => OpenSubmenu = 0">
+                <span><i class="fa fa-object-group"></i> Group</span>
+                <i class="fa fa-caret-right"></i>
+                @if (OpenSubmenu == 1)
+                {
+                    <ul class="red-ui-submenu">
+                        <li @onclick="OnGroupSelection">Group Selection</li>
+                        @if (HasGroup)
+                        {
+                            <li @onclick="OnUngroupSelection">Ungroup</li>
+                            <li @onclick="OnRemoveFromGroup">Remove from Group</li>
+                        }
+                    </ul>
+                }
+            </li>
+            <li class="separator"></li>
+            <li @onclick="OnShowHelp"><i class="fa fa-question-circle"></i> Help</li>
+        </ul>
+    }
+    else
+    {
+        <!-- Canvas Context Menu -->
+        <ul class="red-ui-menu">
+            <li @onclick="OnPaste" class="@(CanPaste ? "" : "disabled")">
+                <i class="fa fa-paste"></i> Paste
+            </li>
+            <li @onclick="OnSelectAll"><i class="fa fa-check-square-o"></i> Select All</li>
+            <li class="separator"></li>
+            <li class="submenu" @onmouseenter="() => OpenSubmenu = 2" @onmouseleave="() => OpenSubmenu = 0">
+                <span><i class="fa fa-plus"></i> Insert</span>
+                <i class="fa fa-caret-right"></i>
+                @if (OpenSubmenu == 2)
+                {
+                    <ul class="red-ui-submenu">
+                        <li @onclick="OnAddInject">inject</li>
+                        <li @onclick="OnAddDebug">debug</li>
+                        <li @onclick="OnAddFunction">function</li>
+                        <li @onclick="OnAddChange">change</li>
+                        <li class="separator"></li>
+                        <li @onclick="OnInsertNode">More...</li>
+                    </ul>
+                }
+            </li>
+            <li @onclick="OnAddJunction"><i class="fa fa-circle-o"></i> Add Junction</li>
+            <li class="separator"></li>
+            <li @onclick="OnUndo" class="@(CanUndo ? "" : "disabled")">
+                <i class="fa fa-undo"></i> Undo
+            </li>
+            <li @onclick="OnRedo" class="@(CanRedo ? "" : "disabled")">
+                <i class="fa fa-repeat"></i> Redo
+            </li>
+            <li class="separator"></li>
+            <li @onclick="OnImport"><i class="fa fa-download"></i> Import</li>
+            <li @onclick="OnExport"><i class="fa fa-upload"></i> Export</li>
+        </ul>
+    }
+</div>
+
+@if (IsOpen)
+{
+    <div class="red-ui-context-menu-overlay" @onclick="Close"></div>
+}
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public bool IsNodeMenu { get; set; }
+
+    [Parameter]
+    public double X { get; set; }
+
+    [Parameter]
+    public double Y { get; set; }
+
+    [Parameter]
+    public bool IsDisabled { get; set; }
+
+    [Parameter]
+    public bool HasGroup { get; set; }
+
+    [Parameter]
+    public bool CanPaste { get; set; }
+
+    [Parameter]
+    public bool CanUndo { get; set; }
+
+    [Parameter]
+    public bool CanRedo { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    // Node menu actions
+    [Parameter]
+    public EventCallback OnEditClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnCopyClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnCutClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnDeleteClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnEnableClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnDisableClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnGroupSelectionClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnUngroupSelectionClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnRemoveFromGroupClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnShowHelpClick { get; set; }
+
+    // Canvas menu actions
+    [Parameter]
+    public EventCallback OnPasteClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnSelectAllClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnAddInjectClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnAddDebugClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnAddFunctionClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnAddChangeClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnInsertNodeClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnAddJunctionClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnUndoClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnRedoClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnImportClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnExportClick { get; set; }
+
+    private int OpenSubmenu = 0;
+
+    private void Close()
+    {
+        OpenSubmenu = 0;
+        OnClose.InvokeAsync();
+    }
+
+    // Node actions
+    private void OnEdit() { Close(); OnEditClick.InvokeAsync(); }
+    private void OnCopy() { Close(); OnCopyClick.InvokeAsync(); }
+    private void OnCut() { Close(); OnCutClick.InvokeAsync(); }
+    private void OnDelete() { Close(); OnDeleteClick.InvokeAsync(); }
+    private void OnEnable() { Close(); OnEnableClick.InvokeAsync(); }
+    private void OnDisable() { Close(); OnDisableClick.InvokeAsync(); }
+    private void OnGroupSelection() { Close(); OnGroupSelectionClick.InvokeAsync(); }
+    private void OnUngroupSelection() { Close(); OnUngroupSelectionClick.InvokeAsync(); }
+    private void OnRemoveFromGroup() { Close(); OnRemoveFromGroupClick.InvokeAsync(); }
+    private void OnShowHelp() { Close(); OnShowHelpClick.InvokeAsync(); }
+
+    // Canvas actions
+    private void OnPaste() { if (CanPaste) { Close(); OnPasteClick.InvokeAsync(); } }
+    private void OnSelectAll() { Close(); OnSelectAllClick.InvokeAsync(); }
+    private void OnAddInject() { Close(); OnAddInjectClick.InvokeAsync(); }
+    private void OnAddDebug() { Close(); OnAddDebugClick.InvokeAsync(); }
+    private void OnAddFunction() { Close(); OnAddFunctionClick.InvokeAsync(); }
+    private void OnAddChange() { Close(); OnAddChangeClick.InvokeAsync(); }
+    private void OnInsertNode() { Close(); OnInsertNodeClick.InvokeAsync(); }
+    private void OnAddJunction() { Close(); OnAddJunctionClick.InvokeAsync(); }
+    private void OnUndo() { if (CanUndo) { Close(); OnUndoClick.InvokeAsync(); } }
+    private void OnRedo() { if (CanRedo) { Close(); OnRedoClick.InvokeAsync(); } }
+    private void OnImport() { Close(); OnImportClick.InvokeAsync(); }
+    private void OnExport() { Close(); OnExportClick.InvokeAsync(); }
+}

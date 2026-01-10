@@ -1,0 +1,111 @@
+/* FlowTabs component styles */
+
+.red-ui-workspace-footer {
+    display: flex;
+    background: #f3f3f3;
+    border-top: 1px solid #ccc;
+    height: 35px;
+    flex-shrink: 0;
+}
+
+.red-ui-tabs {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.red-ui-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+
+.red-ui-tabs::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 2px;
+}
+
+.red-ui-tab {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-right: 1px solid #ddd;
+    cursor: pointer;
+    white-space: nowrap;
+    background: transparent;
+    min-width: 80px;
+    max-width: 200px;
+    position: relative;
+}
+
+.red-ui-tab:hover {
+    background: #e0e0e0;
+}
+
+.red-ui-tab a {
+    color: #555;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+}
+
+.red-ui-tab-active {
+    background: #fff;
+    border-bottom: 2px solid #8f0000;
+}
+
+.red-ui-tab-active a {
+    color: #333;
+    font-weight: 500;
+}
+
+.red-ui-tab-disabled {
+    opacity: 0.5;
+}
+
+.red-ui-tab-icon-disabled {
+    color: #c00;
+    font-size: 10px;
+}
+
+.red-ui-tab-close {
+    opacity: 0;
+    margin-left: 8px;
+    padding: 2px 4px;
+    color: #999;
+    font-size: 10px;
+}
+
+.red-ui-tab:hover .red-ui-tab-close {
+    opacity: 1;
+}
+
+.red-ui-tab-close:hover {
+    color: #c00;
+}
+
+.red-ui-tab-button {
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    cursor: pointer;
+}
+
+.red-ui-tab-button:hover {
+    background: #e0e0e0;
+}
+
+.red-ui-tab-button a {
+    color: #555;
+    text-decoration: none;
+}
+
+.red-ui-text-bidi-aware {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
