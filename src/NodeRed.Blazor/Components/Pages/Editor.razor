@@ -806,8 +806,7 @@
                     <ContentTemplate>
                         <RedUiSidebar Tabs="@_sidebarTabs"
                                       ActiveTabId="@_activeSidebarTabId"
-                                      ActiveTabIdChanged="@((string id) => { _activeSidebarTabId = id; })"
-                                      ShowShade="@IsPropertyTrayOpen">
+                                      ActiveTabIdChanged="@((string id) => { _activeSidebarTabId = id; })">
                             <ContentTemplate Context="tabId">
                                 @if (tabId == "info")
                                 {

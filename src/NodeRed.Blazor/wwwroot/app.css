@@ -387,6 +387,17 @@ h1:focus {
     overflow: hidden !important;
 }
 
+/* Hide the splitter bar before the hidden tray pane */
+.e-splitter .e-pane.red-ui-tray-hidden + .e-split-bar,
+.e-splitter .e-split-bar + .e-pane.red-ui-tray-hidden {
+    display: none !important;
+}
+
+/* Also hide the splitter bar that precedes the hidden tray */
+.e-splitter.e-splitter-horizontal .e-pane:has(+ .red-ui-tray-hidden) + .e-split-bar {
+    display: none !important;
+}
+
 /* Sidebar internal splitter centering */
 .red-ui-info-splitter,
 .red-ui-help-splitter {
