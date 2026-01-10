@@ -55,7 +55,7 @@
         set
         {
             _filter = value;
-            OnFilterChanged.InvokeAsync(value);
+            _ = OnFilterChanged.InvokeAsync(value);
         }
     }
 

@@ -20,7 +20,7 @@
     box-sizing: border-box;
     font-weight: bold;
     border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
-    background: var(--red-ui-palette-header-background, #f3f3f3);
+    background: var(--red-ui-tertiary-background, #f7f7f7);
     flex-shrink: 0;
 }
 
