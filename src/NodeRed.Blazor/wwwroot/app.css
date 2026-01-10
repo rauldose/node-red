@@ -626,7 +626,7 @@ h1:focus {
     position: absolute;
     top: 0;
     left: 0;
-    right: 0;
+    right: 315px; /* Leave space for sidebar */
     bottom: 0;
     z-index: 100;
     pointer-events: none;
@@ -648,7 +648,7 @@ h1:focus {
     margin: 0;
     top: 0;
     width: auto;
-    right: 0;
+    right: 0; /* Right edge of container (which is left of sidebar) */
     bottom: 0;
     background: var(--red-ui-secondary-background, #fff);
     border-left: 1px solid var(--red-ui-secondary-border-color, #ddd);
