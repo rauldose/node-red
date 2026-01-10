@@ -21,12 +21,21 @@
 
 ::deep .red-ui-info-splitter .e-split-bar {
     background: var(--red-ui-secondary-border-color, #ddd);
-    height: 1px !important;
-    min-height: 1px !important;
+    height: 7px !important;
+    min-height: 7px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
 }
 
 ::deep .red-ui-info-splitter .e-split-bar .e-resize-handler {
     display: none;
+}
+
+::deep .red-ui-info-splitter .e-split-bar .e-navigate-arrow {
+    position: relative !important;
+    left: auto !important;
+    transform: none !important;
 }
 
 /* Outliner section */
