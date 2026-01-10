@@ -58,3 +58,90 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* ============================================= */
+/* Syncfusion Splitter Styling for Node-RED     */
+/* ============================================= */
+
+/* Main splitter bar styling */
+.e-splitter .e-split-bar {
+    background-color: #f3f3f3 !important;
+    border-color: #bbb !important;
+}
+
+.e-splitter.e-splitter-horizontal .e-split-bar {
+    width: 7px !important;
+    min-width: 7px !important;
+}
+
+.e-splitter.e-splitter-vertical .e-split-bar {
+    height: 7px !important;
+    min-height: 7px !important;
+}
+
+/* Collapse/expand arrow icons - Node-RED style */
+.e-splitter .e-split-bar .e-navigate-arrow {
+    background-color: #f3f3f3 !important;
+    border: 1px solid #bbb !important;
+    border-radius: 3px !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background-color 0.2s, border-color 0.2s !important;
+}
+
+.e-splitter .e-split-bar .e-navigate-arrow:hover {
+    background-color: #ddd !important;
+    border-color: #999 !important;
+}
+
+.e-splitter .e-split-bar .e-navigate-arrow::before,
+.e-splitter .e-split-bar .e-navigate-arrow::after {
+    color: #666 !important;
+    font-size: 10px !important;
+}
+
+.e-splitter .e-split-bar .e-navigate-arrow:hover::before,
+.e-splitter .e-split-bar .e-navigate-arrow:hover::after {
+    color: #444 !important;
+}
+
+/* Horizontal splitter arrows (left/right) */
+.e-splitter.e-splitter-horizontal .e-split-bar .e-navigate-arrow {
+    margin: 2px 0 !important;
+}
+
+/* Vertical splitter arrows (up/down) */
+.e-splitter.e-splitter-vertical .e-split-bar .e-navigate-arrow {
+    margin: 0 2px !important;
+}
+
+/* Splitter bar resize cursor */
+.e-splitter.e-splitter-horizontal .e-split-bar {
+    cursor: col-resize !important;
+}
+
+.e-splitter.e-splitter-vertical .e-split-bar {
+    cursor: row-resize !important;
+}
+
+/* Custom Node-RED splitter class styles */
+.red-ui-main-splitter .e-split-bar {
+    background-color: #eee !important;
+}
+
+.red-ui-info-splitter .e-split-bar,
+.red-ui-help-splitter .e-split-bar {
+    background-color: #f0f0f0 !important;
+}
+
+/* Hide icons on the splitter bar, show on hover */
+.e-splitter .e-split-bar .e-navigate-arrow {
+    opacity: 0.7;
+}
+
+.e-splitter .e-split-bar:hover .e-navigate-arrow {
+    opacity: 1;
+}

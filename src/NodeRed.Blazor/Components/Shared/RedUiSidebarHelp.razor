@@ -1,6 +1,8 @@
+@using Syncfusion.Blazor.Layouts
+
 @*
     RedUiSidebarHelp - Blazor implementation of Node-RED's tab-help.js
-    Simple tree list matching original Node-RED styling
+    Uses Syncfusion SfSplitter for resizable panels
 *@
 
 <div class="red-ui-sidebar-help" style="height: 100%; display: flex; flex-direction: column;">
@@ -20,78 +22,40 @@
     <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
         @if (ShowTOC)
         {
-            @* TOC panel (tree) *@
-            <div class="red-ui-sidebar-help-toc" style="flex: 0 0 @(_tocHeight)px; min-height: 80px; overflow: auto; border-bottom: 1px solid #ddd; padding: 5px;">
-                <ul style="list-style: none; margin: 0; padding: 0;">
-                    @foreach (var category in GetFilteredCategories())
-                    {
-                        @RenderCategoryNode(category)
-                    }
-                </ul>
-            </div>
+            <SfSplitter Height="100%" Width="100%" Orientation="Syncfusion.Blazor.Layouts.Orientation.Vertical" CssClass="red-ui-help-splitter">
+                <SplitterPanes>
+                    @* TOC panel (tree) *@
+                    <SplitterPane Size="35%" Min="80px" Collapsible="true">
+                        <ContentTemplate>
+                            <div class="red-ui-sidebar-help-toc" style="height: 100%; overflow: auto; padding: 5px;">
+                                <ul style="list-style: none; margin: 0; padding: 0;">
+                                    @foreach (var category in GetFilteredCategories())
+                                    {
+                                        @RenderCategoryNode(category)
+                                    }
+                                </ul>
+                            </div>
+                        </ContentTemplate>
+                    </SplitterPane>
 
-            @* Resize handle *@
-            <div style="height: 5px; background: #f0f0f0; cursor: row-resize; flex-shrink: 0; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc;"></div>
+                    @* Help content panel *@
+                    <SplitterPane Min="100px">
+                        <ContentTemplate>
+                            <div class="red-ui-sidebar-help-content" style="height: 100%; overflow-y: auto; padding: 10px;">
+                                @RenderHelpContent()
+                            </div>
+                        </ContentTemplate>
+                    </SplitterPane>
+                </SplitterPanes>
+            </SfSplitter>
         }
-
-        @* Help content panel *@
-        <div class="red-ui-sidebar-help-content" style="flex: 1; overflow-y: auto; padding: 10px;">
-            <div class="red-ui-help">
-                @if (HelpContent != null)
-                {
-                    @HelpContent
-                }
-                else if (!string.IsNullOrEmpty(SelectedNodeType))
-                {
-                    <h3 style="margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px; font-size: 18px;">@SelectedNodeType</h3>
-                    @if (!string.IsNullOrEmpty(HelpSummary))
-                    {
-                        <p style="margin: 8px 0; color: #333;">@HelpSummary</p>
-                    }
-                    @if (HelpInputs?.Count > 0)
-                    {
-                        <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">Inputs</h4>
-                        <dl style="margin: 0;">
-                            @foreach (var input in HelpInputs)
-                            {
-                                <dt style="font-weight: 500; margin-top: 8px;">@input.Name <span style="font-weight: normal; color: #888;">@input.Type</span></dt>
-                                <dd style="margin: 4px 0 0 16px; color: #555;">@input.Description</dd>
-                            }
-                        </dl>
-                    }
-                    @if (HelpOutputs?.Count > 0)
-                    {
-                        <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">Outputs</h4>
-                        <dl style="margin: 0;">
-                            @foreach (var output in HelpOutputs)
-                            {
-                                <dt style="font-weight: 500; margin-top: 8px;">@output.Name <span style="font-weight: normal; color: #888;">@output.Type</span></dt>
-                                <dd style="margin: 4px 0 0 16px; color: #555;">@output.Description</dd>
-                            }
-                        </dl>
-                    }
-                    @if (!string.IsNullOrEmpty(HelpDetails))
-                    {
-                        <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">Details</h4>
-                        <p style="margin: 0; white-space: pre-wrap; color: #333;">@HelpDetails</p>
-                    }
-                    @if (HelpReferences?.Count > 0)
-                    {
-                        <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">References</h4>
-                        <ul style="margin: 0; padding-left: 20px;">
-                            @foreach (var reference in HelpReferences)
-                            {
-                                <li><a href="@reference.Url" target="_blank" style="color: #0066cc;">@reference.Title</a></li>
-                            }
-                        </ul>
-                    }
-                }
-                else
-                {
-                    <span style="color: #888;">Select a node type to view help</span>
-                }
+        else
+        {
+            @* Help content only (no TOC) *@
+            <div class="red-ui-sidebar-help-content" style="flex: 1; overflow-y: auto; padding: 10px;">
+                @RenderHelpContent()
             </div>
-        </div>
+        }
     </div>
 </div>
 
@@ -108,7 +72,6 @@
 
     private bool ShowTOC { get; set; } = true;
     private string SearchQuery { get; set; } = "";
-    private int _tocHeight = 150;
     private HashSet<string> _expandedCategories = new();
 
     private void ToggleTOC()
@@ -182,6 +145,65 @@
     {
         await OnNodeTypeSelected.InvokeAsync(nodeType);
     }
+
+    private RenderFragment RenderHelpContent() => __builder =>
+    {
+        <div class="red-ui-help">
+            @if (HelpContent != null)
+            {
+                @HelpContent
+            }
+            else if (!string.IsNullOrEmpty(SelectedNodeType))
+            {
+                <h3 style="margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px; font-size: 18px;">@SelectedNodeType</h3>
+                @if (!string.IsNullOrEmpty(HelpSummary))
+                {
+                    <p style="margin: 8px 0; color: #333;">@HelpSummary</p>
+                }
+                @if (HelpInputs?.Count > 0)
+                {
+                    <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">Inputs</h4>
+                    <dl style="margin: 0;">
+                        @foreach (var input in HelpInputs)
+                        {
+                            <dt style="font-weight: 500; margin-top: 8px;">@input.Name <span style="font-weight: normal; color: #888;">@input.Type</span></dt>
+                            <dd style="margin: 4px 0 0 16px; color: #555;">@input.Description</dd>
+                        }
+                    </dl>
+                }
+                @if (HelpOutputs?.Count > 0)
+                {
+                    <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">Outputs</h4>
+                    <dl style="margin: 0;">
+                        @foreach (var output in HelpOutputs)
+                        {
+                            <dt style="font-weight: 500; margin-top: 8px;">@output.Name <span style="font-weight: normal; color: #888;">@output.Type</span></dt>
+                            <dd style="margin: 4px 0 0 16px; color: #555;">@output.Description</dd>
+                        }
+                    </dl>
+                }
+                @if (!string.IsNullOrEmpty(HelpDetails))
+                {
+                    <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">Details</h4>
+                    <p style="margin: 0; white-space: pre-wrap; color: #333;">@HelpDetails</p>
+                }
+                @if (HelpReferences?.Count > 0)
+                {
+                    <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">References</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        @foreach (var reference in HelpReferences)
+                        {
+                            <li><a href="@reference.Url" target="_blank" style="color: #0066cc;">@reference.Title</a></li>
+                        }
+                    </ul>
+                }
+            }
+            else
+            {
+                <span style="color: #888;">Select a node type to view help</span>
+            }
+        </div>
+    };
 
     public class HelpProperty
     {
