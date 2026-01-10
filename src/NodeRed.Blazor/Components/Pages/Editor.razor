@@ -765,6 +765,73 @@
                                     <a href="javascript:void(0)" @onclick="ZoomReset"><i class="fa fa-circle-o-notch"></i></a>
                                 </span>
                             </div>
+                            
+                            @* Overlay Tray - slides in from right over the workspace *@
+                            @if (IsTrayVisible())
+                            {
+                                <div class="red-ui-tray-overlay-container">
+                                    <div class="red-ui-tray-shade" @onclick="ClosePropertyTray"></div>
+                                    <div class="red-ui-tray open" style="width: 500px;">
+                                        <div class="red-ui-tray-resize-handle"></div>
+                                        
+                                        @* Tray header *@
+                                        <div class="red-ui-tray-header editor-tray-header">
+                                            <div class="red-ui-tray-titlebar">
+                                                <ul class="red-ui-tray-breadcrumbs">
+                                                    <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
+                                                </ul>
+                                            </div>
+                                            <div class="red-ui-tray-toolbar">
+                                                <button class="red-ui-button red-ui-tray-toolbar-left" @onclick="DeleteSelectionAndCloseTray" title="Delete node">
+                                                    <i class="fa fa-trash"></i> Delete
+                                                </button>
+                                                <span style="flex: 1;"></span>
+                                                <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
+                                                <button class="red-ui-button primary" @onclick="SaveAndClosePropertyTray">Done</button>
+                                            </div>
+                                        </div>
+                                        
+                                        @* Tray tabs *@
+                                        <div class="red-ui-tray-tabs">
+                                            <ul class="red-ui-tray-tab-list">
+                                                @foreach (var tab in GetTrayTabs())
+                                                {
+                                                    <li class="@(_activeTrayTab == tab.Id ? "active" : "")" @onclick="() => _activeTrayTab = tab.Id">
+                                                        <a>@tab.Label</a>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                        
+                                        @* Tray body *@
+                                        <div class="red-ui-tray-body-wrapper">
+                                            <div class="red-ui-tray-body editor-tray-body">
+                                                <div class="red-ui-tray-content">
+                                                    @if (_activeTrayTab == "properties")
+                                                    {
+                                                        @RenderNodePropertyPanel()
+                                                    }
+                                                    else if (_activeTrayTab == "description")
+                                                    {
+                                                        @RenderNodeDescriptionPanel()
+                                                    }
+                                                    else if (_activeTrayTab == "appearance")
+                                                    {
+                                                        @RenderNodeAppearancePanel()
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        @* Tray footer *@
+                                        <div class="red-ui-tray-footer red-ui-component-footer">
+                                            <span class="red-ui-tray-footer-left">
+                                                <span class="red-ui-tray-footer-node-id">@(SelectedDiagramNode?.ID)</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
                         </div>
                     </ContentTemplate>
                 </SplitterPane>
@@ -844,73 +911,6 @@
                 </SplitterPane>
             </SplitterPanes>
         </SfSplitter>
-        
-        @* Overlay Tray - slides in from right over the workspace *@
-        @if (IsTrayVisible())
-        {
-            <div class="red-ui-tray-overlay-container">
-                <div class="red-ui-tray-shade" @onclick="ClosePropertyTray"></div>
-                <div class="red-ui-tray open" style="width: 500px;">
-                    <div class="red-ui-tray-resize-handle"></div>
-                    
-                    @* Tray header *@
-                    <div class="red-ui-tray-header editor-tray-header">
-                        <div class="red-ui-tray-titlebar">
-                            <ul class="red-ui-tray-breadcrumbs">
-                                <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
-                            </ul>
-                        </div>
-                        <div class="red-ui-tray-toolbar">
-                            <button class="red-ui-button red-ui-tray-toolbar-left" @onclick="DeleteSelectionAndCloseTray" title="Delete node">
-                                <i class="fa fa-trash"></i> Delete
-                            </button>
-                            <span style="flex: 1;"></span>
-                            <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
-                            <button class="red-ui-button primary" @onclick="SaveAndClosePropertyTray">Done</button>
-                        </div>
-                    </div>
-                    
-                    @* Tray tabs *@
-                    <div class="red-ui-tray-tabs">
-                        <ul class="red-ui-tray-tab-list">
-                            @foreach (var tab in GetTrayTabs())
-                            {
-                                <li class="@(_activeTrayTab == tab.Id ? "active" : "")" @onclick="() => _activeTrayTab = tab.Id">
-                                    <a>@tab.Label</a>
-                                </li>
-                            }
-                        </ul>
-                    </div>
-                    
-                    @* Tray body *@
-                    <div class="red-ui-tray-body-wrapper">
-                        <div class="red-ui-tray-body editor-tray-body">
-                            <div class="red-ui-tray-content">
-                                @if (_activeTrayTab == "properties")
-                                {
-                                    @RenderNodePropertyPanel()
-                                }
-                                else if (_activeTrayTab == "description")
-                                {
-                                    @RenderNodeDescriptionPanel()
-                                }
-                                else if (_activeTrayTab == "appearance")
-                                {
-                                    @RenderNodeAppearancePanel()
-                                }
-                            </div>
-                        </div>
-                    </div>
-                    
-                    @* Tray footer *@
-                    <div class="red-ui-tray-footer red-ui-component-footer">
-                        <span class="red-ui-tray-footer-left">
-                            <span class="red-ui-tray-footer-node-id">@(SelectedDiagramNode?.ID)</span>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        }
     </div>
 </div>
 
