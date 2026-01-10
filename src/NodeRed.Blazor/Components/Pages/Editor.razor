@@ -1399,6 +1399,18 @@
         border-left: 1px solid var(--red-ui-primary-border-color);
     }
 
+    /* Tray pane styling */
+    ::deep .red-ui-tray-pane {
+        background: var(--red-ui-secondary-background);
+        border-left: 1px solid var(--red-ui-primary-border-color);
+    }
+
+    /* Hide tray pane borders when hidden */
+    ::deep .red-ui-tray-pane.red-ui-tray-hidden {
+        border: none !important;
+        border-left: none !important;
+    }
+
     /* ========== PALETTE ========== */
     #red-ui-palette {
         width: 100%;

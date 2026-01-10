@@ -625,6 +625,17 @@ h1:focus {
     max-width: 0 !important;
     overflow: hidden !important;
     flex: 0 0 0px !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Hide borders on the tray pane container when hidden */
+.red-ui-tray-pane.red-ui-tray-hidden,
+.e-pane.red-ui-tray-pane.red-ui-tray-hidden {
+    border: none !important;
+    border-left: none !important;
+    border-right: none !important;
 }
 
 /* Hide the splitter bar adjacent to the hidden tray pane */
@@ -633,12 +644,14 @@ h1:focus {
     display: none !important;
     width: 0 !important;
     min-width: 0 !important;
+    border: none !important;
 }
 
 /* Also use :has selector for adjacent split-bar */
 .e-splitter.e-splitter-horizontal .e-split-bar:has(+ .red-ui-tray-hidden) {
     display: none !important;
     width: 0 !important;
+    border: none !important;
 }
 
 /* Ensure sidebar splitter bar (last one) remains visible and functional */
@@ -646,6 +659,8 @@ h1:focus {
     display: flex !important;
     width: 7px !important;
     min-width: 7px !important;
+    pointer-events: auto !important;
+    cursor: ew-resize !important;
 }
 
 /* ============================================= */
