@@ -645,6 +645,9 @@
                                     </div>
                                 }
                             </div>
+                            <div id="red-ui-palette-footer" class="red-ui-component-footer">
+                                <span class="red-ui-palette-footer-text">@GetFilteredNodeCount() nodes</span>
+                            </div>
                         </div>
                     </ContentTemplate>
                 </SplitterPane>
@@ -1271,6 +1274,7 @@
 <style>
     /* ========================================
        Node-RED Editor - Exact Replica CSS
+       Using CSS Variables from app.css
        ======================================== */
 
     * {
@@ -1283,9 +1287,9 @@
         left: 0;
         right: 0;
         bottom: 0;
-        font-family: 'Helvetica Neue', Arial, Helvetica, sans-serif;
-        font-size: 14px;
-        color: #555;
+        font-family: var(--red-ui-primary-font);
+        font-size: var(--red-ui-primary-font-size);
+        color: var(--red-ui-primary-text-color);
         overflow: hidden;
     }
 
@@ -1296,8 +1300,8 @@
         left: 0;
         right: 0;
         height: 40px;
-        background: #000;
-        border-bottom: 2px solid #C02020;
+        background: var(--red-ui-header-background);
+        border-bottom: 2px solid var(--red-ui-header-accent);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -1334,27 +1338,30 @@
         height: 100%;
         display: flex;
         align-items: center;
+        position: relative;
     }
 
     .red-ui-deploy-button-group {
         display: flex;
         height: 100%;
         margin-right: 10px;
+        position: relative;
     }
 
     .red-ui-deploy-button {
         display: flex;
         align-items: center;
-        background: #8C101C;
-        color: #eee;
+        background: var(--red-ui-deploy-button-background);
+        color: var(--red-ui-deploy-button-color);
         padding: 0 12px;
         text-decoration: none;
         cursor: pointer;
         height: 100%;
+        transition: background-color 0.15s ease-in-out;
     }
 
     .red-ui-deploy-button:hover {
-        background: #6E0A1E;
+        background: var(--red-ui-deploy-button-background-hover);
     }
 
     .red-ui-deploy-button i {
@@ -1362,7 +1369,7 @@
     }
 
     .red-ui-deploy-button-options {
-        border-left: 1px solid #6E0A1E;
+        border-left: 1px solid var(--red-ui-deploy-button-background-hover);
         padding: 0 8px;
     }
 
@@ -1370,15 +1377,16 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #eee;
+        color: var(--red-ui-header-menu-color);
         padding: 0 15px;
         height: 100%;
         text-decoration: none;
         font-size: 18px;
+        transition: background-color 0.15s ease-in-out;
     }
 
     .red-ui-header-button:hover {
-        background: #121212;
+        background: var(--red-ui-header-button-background-active);
     }
 
     /* ========== MAIN CONTAINER ========== */
@@ -1393,68 +1401,86 @@
     /* Syncfusion Splitter styling for main layout */
     ::deep .red-ui-main-splitter {
         height: 100% !important;
+        border: none !important;
     }
 
     ::deep .red-ui-main-splitter .e-split-bar {
-        background: #f3f3f3;
-        border-color: #bbb;
+        background: var(--red-ui-primary-background) !important;
+        border-left: 1px solid var(--red-ui-primary-border-color) !important;
+        border-right: 1px solid var(--red-ui-primary-border-color) !important;
     }
 
     ::deep .red-ui-main-splitter .e-split-bar .e-resize-handler {
-        background: #999;
+        background: var(--red-ui-grip-color);
     }
 
     ::deep .red-ui-main-splitter .e-split-bar:hover {
-        background: #e8e8e8;
+        background: var(--red-ui-secondary-background-hover) !important;
     }
 
     ::deep .red-ui-main-splitter .e-split-bar .e-navigate-arrow {
-        color: #666;
+        color: var(--red-ui-secondary-text-color);
     }
 
     ::deep .red-ui-main-splitter .e-split-bar .e-navigate-arrow:hover {
-        color: #333;
+        color: var(--red-ui-header-text-color);
     }
 
     /* Pane styling */
     ::deep .red-ui-palette-pane {
-        background: #f3f3f3;
+        background: var(--red-ui-primary-background);
+        border-right: 1px solid var(--red-ui-primary-border-color);
     }
 
     ::deep .red-ui-workspace-pane {
-        background: #fff;
+        background: var(--red-ui-secondary-background);
         position: relative;
     }
 
     ::deep .red-ui-sidebar-pane {
-        background: #fff;
+        background: var(--red-ui-secondary-background);
+        border-left: 1px solid var(--red-ui-primary-border-color);
     }
 
     /* ========== PALETTE ========== */
     #red-ui-palette {
         width: 100%;
         height: 100%;
-        background: #f3f3f3;
+        background: var(--red-ui-primary-background);
         display: flex;
         flex-direction: column;
         user-select: none;
+        text-align: center;
     }
 
     .red-ui-palette-search {
         position: relative;
-        background: #fff;
+        background: var(--red-ui-form-input-background);
         height: 35px;
         padding: 3px;
-        border-bottom: 1px solid #bbb;
+        border-bottom: 1px solid var(--red-ui-primary-border-color);
+        box-sizing: border-box;
     }
 
     .red-ui-palette-search input {
         width: 100%;
         height: 100%;
-        border: 1px solid #ccc;
+        border: 1px solid var(--red-ui-form-input-border-color);
         border-radius: 3px;
         padding: 5px 25px 5px 8px;
         font-size: 12px;
+        background: var(--red-ui-form-input-background);
+        color: var(--red-ui-form-text-color);
+    }
+
+    .red-ui-palette-search input:focus {
+        outline: none;
+        border-color: var(--red-ui-form-input-focus-color);
+        box-shadow: 0 0 0 1px var(--red-ui-form-input-focus-color);
+    }
+
+    .red-ui-palette-search input::placeholder {
+        color: var(--red-ui-form-placeholder-color);
     }
 
     .red-ui-palette-search i {
@@ -1462,32 +1488,36 @@
         right: 10px;
         top: 50%;
         transform: translateY(-50%);
-        color: #888;
+        color: var(--red-ui-secondary-text-color);
     }
 
     .red-ui-palette-scroll {
+        position: relative;
         flex: 1;
         overflow-y: auto;
         overflow-x: hidden;
+        padding: 0;
     }
 
     .red-ui-palette-category {
-        border-bottom: 1px solid #ddd;
+        border-bottom: 1px solid var(--red-ui-secondary-border-color);
     }
 
     .red-ui-palette-header {
         position: relative;
-        background: #f3f3f3;
-        color: #444;
+        background: var(--red-ui-palette-header-background);
+        color: var(--red-ui-palette-header-color);
         cursor: pointer;
         text-align: left;
         padding: 9px 9px 9px 30px;
         font-weight: bold;
         font-size: 12px;
+        overflow: hidden;
+        user-select: none;
     }
 
     .red-ui-palette-header:hover {
-        background: #eee;
+        background: var(--red-ui-palette-header-background) !important;
     }
 
     .red-ui-palette-header > i {
@@ -1504,18 +1534,23 @@
     }
 
     .red-ui-palette-content {
-        background: #fff;
+        background: var(--red-ui-palette-content-background);
         padding: 3px;
     }
 
     .red-ui-palette-node {
         cursor: move;
+        background: var(--red-ui-secondary-background);
         margin: 10px auto;
         height: 25px;
         border-radius: 5px;
-        border: 1px solid #999;
-        width: 122px;
+        border: 1px solid var(--red-ui-node-border);
+        background-position: 5% 50%;
+        background-repeat: no-repeat;
+        width: 120px;
+        background-size: contain;
         position: relative;
+        z-index: 4;
         display: flex;
         align-items: center;
     }
@@ -1530,18 +1565,19 @@
 
     .red-ui-palette-node:hover {
         border-color: transparent;
-        box-shadow: 0 0 0 2px #ff7f0e;
+        box-shadow: 0 0 0 2px var(--red-ui-node-selected-color);
     }
 
     .red-ui-palette-port {
         position: absolute;
-        top: 7px;
+        top: 8px;
+        left: -5px;
         box-sizing: border-box;
-        background: #d9d9d9;
+        background: var(--red-ui-node-port-background);
         border-radius: 3px;
         width: 10px;
         height: 10px;
-        border: 1px solid #999;
+        border: 1px solid var(--red-ui-node-border);
     }
 
     .red-ui-palette-port-input {
@@ -1549,39 +1585,67 @@
     }
 
     .red-ui-palette-port-output {
+        left: auto;
         right: -6px;
     }
 
     .red-ui-palette-node:hover .red-ui-palette-port {
-        background-color: #eee;
+        background-color: var(--red-ui-node-port-background-hover);
     }
 
     .red-ui-palette-icon-container {
         position: absolute;
+        text-align: center;
         top: 0;
         bottom: 0;
         left: 0;
         width: 30px;
-        border-right: 1px solid rgba(0,0,0,0.1);
+        border-right: 1px solid var(--red-ui-node-icon-background-color);
         border-radius: 4px 0 0 4px;
+        background-color: var(--red-ui-node-icon-background-color);
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
     .red-ui-palette-icon-fa {
-        color: #fff;
+        color: white;
         font-size: 14px;
     }
 
     .red-ui-palette-label {
-        color: #333;
+        color: var(--red-ui-node-label-color);
         font-size: 13px;
-        margin-left: 35px;
+        margin: 4px 0 4px 32px;
+        line-height: 20px;
         overflow: hidden;
+        text-align: center;
         text-overflow: ellipsis;
         white-space: nowrap;
         padding-right: 5px;
+    }
+
+    /* Component Footer - matches Node-RED workspace.scss */
+    .red-ui-component-footer {
+        position: relative;
+        height: 25px;
+        line-height: 25px;
+        background: var(--red-ui-tertiary-background);
+        border-top: 1px solid var(--red-ui-secondary-border-color);
+        box-sizing: border-box;
+        font-size: 12px;
+        color: var(--red-ui-secondary-text-color);
+        padding: 0 10px;
+        flex-shrink: 0;
+    }
+
+    #red-ui-palette-footer {
+        text-align: center;
+    }
+
+    .red-ui-palette-footer-text {
+        font-size: 11px;
+        color: var(--red-ui-tertiary-text-color);
     }
 
     /* ========== WORKSPACE ========== */
@@ -1590,7 +1654,7 @@
         height: 100%;
         display: flex;
         flex-direction: column;
-        background: #f3f3f3;
+        background: var(--red-ui-primary-background);
         min-width: 0;
     }
 
@@ -1599,15 +1663,15 @@
         list-style: none;
         margin: 0;
         padding: 0;
-        background: #f3f3f3;
+        background: var(--red-ui-primary-background);
         height: 35px;
         align-items: flex-end;
-        border-bottom: 1px solid #bbb;
+        border-bottom: 1px solid var(--red-ui-primary-border-color);
     }
 
     .red-ui-tab {
-        background: #f0f0f0;
-        border: 1px solid #bbb;
+        background: var(--red-ui-tab-background-inactive);
+        border: 1px solid var(--red-ui-primary-border-color);
         border-bottom: none;
         border-radius: 4px 4px 0 0;
         margin-left: 5px;
@@ -1620,21 +1684,21 @@
         align-items: center;
         padding: 8px 12px;
         text-decoration: none;
-        color: #666;
+        color: var(--red-ui-tab-text-color-inactive);
         font-size: 12px;
     }
 
     .red-ui-tab.active {
-        background: #fff;
-        border-bottom: 1px solid #fff;
+        background: var(--red-ui-tab-background-active);
+        border-bottom: 1px solid var(--red-ui-tab-background-active);
     }
 
     .red-ui-tab.active a {
-        color: #444;
+        color: var(--red-ui-tab-text-color-active);
     }
 
     .red-ui-tab:hover:not(.active) {
-        background: #e6e6e6;
+        background: var(--red-ui-tab-background-hover);
     }
 
     .red-ui-tab-close {
@@ -1651,12 +1715,12 @@
         display: flex;
         align-items: center;
         padding: 8px 12px;
-        color: #888;
+        color: var(--red-ui-secondary-text-color);
         text-decoration: none;
     }
 
     .red-ui-tab-button a:hover {
-        color: #444;
+        color: var(--red-ui-header-text-color);
     }
 
     /* Disabled flow tabs - dashed borders, italic text, disabled icon */
@@ -1668,18 +1732,18 @@
 
     .red-ui-workspace-disabled a {
         font-style: italic;
-        color: #aaa !important;
+        color: var(--red-ui-tertiary-text-color) !important;
     }
 
     .red-ui-workspace-disabled.active a {
         font-weight: normal;
-        color: #999 !important;
+        color: var(--red-ui-secondary-text-color-disabled-active) !important;
     }
 
     .red-ui-workspace-disabled-icon {
         display: inline;
         margin-right: 5px;
-        color: #aaa;
+        color: var(--red-ui-tertiary-text-color);
     }
 
     /* Subflow tab styling */
@@ -1704,8 +1768,8 @@
         display: flex;
         align-items: center;
         padding: 5px 10px;
-        background: linear-gradient(to bottom, #f7f7f7, #e8e8e8);
-        border-bottom: 1px solid #bbb;
+        background: linear-gradient(to bottom, var(--red-ui-tertiary-background), var(--red-ui-secondary-background-hover));
+        border-bottom: 1px solid var(--red-ui-primary-border-color);
         gap: 5px;
         font-size: 12px;
     }
@@ -1714,27 +1778,28 @@
         display: inline-flex;
         align-items: center;
         padding: 4px 10px;
-        background: #fff;
-        border: 1px solid #ccc;
+        background: var(--red-ui-workspace-button-background);
+        border: 1px solid var(--red-ui-form-input-border-color);
         border-radius: 3px;
-        color: #444;
+        color: var(--red-ui-header-text-color);
         text-decoration: none;
         cursor: pointer;
         gap: 5px;
+        transition: background-color 0.15s, border-color 0.15s;
     }
 
     .red-ui-toolbar-button:hover {
-        background: #e6e6e6;
-        border-color: #999;
+        background: var(--red-ui-workspace-button-background-hover);
+        border-color: var(--red-ui-node-border);
     }
 
     .red-ui-toolbar-button.active {
-        background: #ddd;
-        border-color: #999;
+        background: var(--red-ui-workspace-button-background-active);
+        border-color: var(--red-ui-node-border);
     }
 
     .red-ui-toolbar-button-danger {
-        color: #a00;
+        color: var(--red-ui-text-color-error);
     }
 
     .red-ui-toolbar-button-danger:hover {
@@ -1772,15 +1837,15 @@
         justify-content: center;
         min-width: 30px;
         padding: 0 8px;
-        background: #fff;
-        border: 1px solid #ccc;
+        background: var(--red-ui-secondary-background);
+        border: 1px solid var(--red-ui-form-input-border-color);
         border-left: none;
         border-right: none;
         font-weight: bold;
     }
 
     .red-ui-toolbar-label {
-        color: #666;
+        color: var(--red-ui-secondary-text-color);
         margin-left: 10px;
         margin-right: 5px;
     }
@@ -1789,7 +1854,7 @@
         display: inline-block;
         width: 1px;
         height: 20px;
-        background: #ccc;
+        background: var(--red-ui-tertiary-border-color);
         margin: 0 10px;
     }
 
@@ -1812,14 +1877,14 @@
 
     #red-ui-workspace-chart {
         flex: 1;
-        background: #fff;
+        background: var(--red-ui-view-background);
         position: relative;
     }
 
     #red-ui-workspace-footer {
         height: 25px;
-        background: #f7f7f7;
-        border-top: 1px solid #ddd;
+        background: var(--red-ui-tertiary-background);
+        border-top: 1px solid var(--red-ui-secondary-border-color);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -1828,17 +1893,17 @@
     }
 
     .status-running {
-        color: #5a8;
+        color: var(--red-ui-text-color-success);
     }
 
     .status-stopped {
-        color: #999;
+        color: var(--red-ui-secondary-text-color);
     }
 
     .flow-state-text {
         margin-left: 6px;
         font-size: 11px;
-        color: #666;
+        color: var(--red-ui-secondary-text-color);
     }
 
     .red-ui-footer-left {
@@ -1847,13 +1912,14 @@
     }
 
     .red-ui-footer-right a {
-        color: #888;
+        color: var(--red-ui-secondary-text-color);
         padding: 2px 6px;
         text-decoration: none;
+        transition: color 0.15s;
     }
 
     .red-ui-footer-right a:hover {
-        color: #444;
+        color: var(--red-ui-header-text-color);
     }
 
     /* ========== SIDEBAR ========== */
@@ -2360,16 +2426,21 @@
 
     /* ========== DROPDOWN MENUS ========== */
     .red-ui-menu {
+        font-family: var(--red-ui-primary-font);
+        font-size: var(--red-ui-primary-font-size);
         position: absolute;
         top: 100%;
         right: 0;
-        background: #fff;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        min-width: 200px;
+        width: 230px;
         z-index: 1000;
+        display: block;
+        float: left;
+        margin: 2px 0 0;
         padding: 5px 0;
+        list-style: none;
+        background: var(--red-ui-menuBackground);
+        border: 1px solid var(--red-ui-secondary-border-color);
+        box-shadow: 0 5px 10px var(--red-ui-shadow);
     }
 
     .red-ui-deploy-menu {
@@ -2384,21 +2455,28 @@
 
     .red-ui-menu-item {
         display: block;
-        padding: 8px 15px 8px 30px;
-        color: #444;
+        padding: 4px 12px 4px 32px;
+        clear: both;
+        font-weight: normal;
+        line-height: 20px;
+        color: var(--red-ui-menuColor);
+        white-space: normal !important;
         text-decoration: none;
         position: relative;
         cursor: pointer;
     }
 
     .red-ui-menu-item:hover {
-        background: #f0f0f0;
+        color: var(--red-ui-menuHoverColor);
+        text-decoration: none;
+        background-color: var(--red-ui-menuHoverBackground);
     }
 
     .red-ui-menu-item i {
-        position: absolute;
-        left: 10px;
-        width: 16px;
+        float: left;
+        width: 20px;
+        margin-left: -25px;
+        margin-top: 3px;
         text-align: center;
     }
 
@@ -2413,40 +2491,42 @@
     .red-ui-menu-item-desc {
         display: block;
         font-size: 11px;
-        color: #888;
+        color: var(--red-ui-header-menu-sublabel-color);
         margin-top: 2px;
         padding-left: 0;
     }
 
     .red-ui-menu-item.disabled {
-        opacity: 0.4;
+        color: var(--red-ui-menuDisabledColor);
         pointer-events: none;
         cursor: default;
     }
 
     .red-ui-menu-shortcut {
         float: right;
-        color: #888;
+        color: var(--red-ui-menuColor);
         font-size: 11px;
     }
 
     .red-ui-menu-divider {
         height: 1px;
-        background: #ddd;
-        margin: 5px 0;
+        margin: 9px 1px;
+        overflow: hidden;
+        background-color: var(--red-ui-menuDivider);
     }
 
     .red-ui-deploy-button.disabled {
-        opacity: 0.5;
+        background: var(--red-ui-deploy-button-background-disabled);
+        color: var(--red-ui-deploy-button-color-disabled);
         cursor: default;
     }
 
     .red-ui-deploy-button.deployed {
-        background: #5a0a10;
+        background: var(--red-ui-deploy-button-background-disabled);
     }
 
     .red-ui-deploy-button.deployed:hover {
-        background: #5a0a10;
+        background: var(--red-ui-deploy-button-background-disabled);
     }
 
     /* ========== DIALOGS ========== */
@@ -2503,46 +2583,48 @@
 
     .red-ui-dialog-body p {
         margin: 0 0 10px;
-        color: #666;
+        color: var(--red-ui-secondary-text-color);
     }
 
     .red-ui-dialog-textarea {
         width: 100%;
-        font-family: Menlo, Consolas, monospace;
+        font-family: var(--red-ui-monospace-font);
         font-size: 12px;
         padding: 10px;
-        border: 1px solid #ccc;
+        border: 1px solid var(--red-ui-form-input-border-color);
         border-radius: 3px;
         resize: vertical;
+        background: var(--red-ui-form-input-background);
     }
 
     .red-ui-dialog-tabs {
         display: flex;
         margin-bottom: 10px;
-        border-bottom: 1px solid #ddd;
+        border-bottom: 1px solid var(--red-ui-secondary-border-color);
     }
 
     .red-ui-dialog-tabs a {
         padding: 8px 15px;
-        color: #666;
+        color: var(--red-ui-secondary-text-color);
         text-decoration: none;
         border-bottom: 2px solid transparent;
         cursor: pointer;
+        transition: color 0.15s, border-color 0.15s;
     }
 
     .red-ui-dialog-tabs a.active {
-        color: #444;
-        border-bottom-color: #8C101C;
+        color: var(--red-ui-header-text-color);
+        border-bottom-color: var(--red-ui-deploy-button-background);
     }
 
     .red-ui-dialog-tabs a:hover:not(.active) {
-        color: #444;
+        color: var(--red-ui-header-text-color);
     }
 
     .red-ui-dialog-footer {
         padding: 10px 15px;
-        background: #f7f7f7;
-        border-top: 1px solid #ddd;
+        background: var(--red-ui-tertiary-background);
+        border-top: 1px solid var(--red-ui-secondary-border-color);
         display: flex;
         justify-content: flex-end;
         gap: 8px;
@@ -2555,16 +2637,16 @@
         align-items: center;
         gap: 5px;
         padding: 0 15px;
-        color: #888;
+        color: var(--red-ui-secondary-text-color);
         font-size: 12px;
     }
 
     .red-ui-status-indicator.running {
-        color: #5a8;
+        color: var(--red-ui-text-color-success);
     }
 
     .red-ui-status-indicator.stopped {
-        color: #a55;
+        color: var(--red-ui-text-color-error);
     }
 
     /* ========== CONTEXT MENU ========== */
@@ -2578,31 +2660,45 @@
     }
 
     .red-ui-context-menu {
+        font-family: var(--red-ui-primary-font);
+        font-size: 12px;
         position: fixed;
         z-index: 10000;
-        background: #fff;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+        background: var(--red-ui-menuBackground);
+        border: 1px solid var(--red-ui-secondary-border-color);
+        box-shadow: 0 5px 10px var(--red-ui-shadow);
         min-width: 160px;
         padding: 5px 0;
+        list-style-type: none;
+        margin: 0;
     }
 
     .red-ui-context-menu-item {
-        padding: 8px 15px;
+        display: block;
+        padding: 4px 8px 4px 16px;
+        clear: both;
+        font-weight: normal;
+        line-height: 20px;
+        color: var(--red-ui-menuColor);
+        white-space: nowrap;
+        text-decoration: none;
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 13px;
     }
 
     .red-ui-context-menu-item:hover {
-        background: #f0f0f0;
+        color: var(--red-ui-menuHoverColor);
+        text-decoration: none;
+        background-color: var(--red-ui-menuHoverBackground);
+    }
+
+    .red-ui-context-menu-item i {
+        margin-right: 8px;
+        width: 14px;
+        text-align: center;
     }
 
     .red-ui-context-menu-item-danger {
-        color: #c00;
+        color: var(--red-ui-text-color-error);
     }
 
     .red-ui-context-menu-item-danger:hover {
@@ -2611,14 +2707,15 @@
 
     .red-ui-context-menu-divider {
         height: 1px;
-        background: #ddd;
-        margin: 5px 0;
+        margin: 5px 1px;
+        overflow: hidden;
+        background-color: var(--red-ui-menuDivider);
     }
 
     .red-ui-context-menu-label {
-        padding: 5px 15px;
+        padding: 4px 8px 4px 16px;
         font-size: 11px;
-        color: #999;
+        color: var(--red-ui-tertiary-text-color);
         text-transform: uppercase;
     }
 </style>

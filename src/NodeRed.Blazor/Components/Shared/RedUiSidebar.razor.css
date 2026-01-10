@@ -122,16 +122,17 @@
     display: none;
 }
 
-/* Sidebar footer */
+/* Sidebar footer - matches component-footer mixin */
 #red-ui-sidebar-footer {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    position: relative;
     height: 25px;
-    background: var(--red-ui-primary-background, #f3f3f3);
+    line-height: 25px;
+    background: var(--red-ui-tertiary-background, #f7f7f7);
     border-top: 1px solid var(--red-ui-secondary-border-color, #dddddd);
     box-sizing: border-box;
+    flex-shrink: 0;
+    font-size: 12px;
+    padding: 0 8px;
 }
 
 /* Sidebar shade - for modal states */
@@ -141,7 +142,7 @@
     left: 0;
     right: 0;
     bottom: 25px;
-    background: rgba(160, 160, 160, 0.5);
+    background: var(--red-ui-shade-color, rgba(160, 160, 160, 0.5));
     z-index: 5;
 }
 
@@ -155,7 +156,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(160, 160, 160, 0.5);
+    background: var(--red-ui-shade-color, rgba(160, 160, 160, 0.5));
     z-index: 5;
 }
 

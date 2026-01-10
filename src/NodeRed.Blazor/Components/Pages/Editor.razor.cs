@@ -270,6 +270,14 @@ public partial class Editor : IDisposable
                node.Type.Contains(PaletteFilter, StringComparison.OrdinalIgnoreCase);
     }
 
+    private int GetFilteredNodeCount()
+    {
+        return PaletteCategories
+            .Where(c => FilterCategory(c))
+            .SelectMany(c => c.Nodes.Where(n => FilterNode(n)))
+            .Count();
+    }
+
     private void ToggleCategory(string categoryName)
     {
         var category = PaletteCategories.FirstOrDefault(c => c.Name == categoryName);

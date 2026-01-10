@@ -1,9 +1,150 @@
+/* ============================================= */
+/* Node-RED Blazor App - CSS Variables          */
+/* Matches the original Node-RED theme          */
+/* ============================================= */
+
+:root {
+    /* Fonts */
+    --red-ui-primary-font: 'Helvetica Neue', Arial, Helvetica, sans-serif;
+    --red-ui-primary-font-size: 14px;
+    --red-ui-monospace-font: Menlo, Consolas, 'DejaVu Sans Mono', Courier, monospace;
+
+    /* Backgrounds */
+    --red-ui-primary-background: #f3f3f3;
+    --red-ui-secondary-background: #fff;
+    --red-ui-secondary-background-selected: #efefef;
+    --red-ui-secondary-background-inactive: #f0f0f0;
+    --red-ui-secondary-background-hover: #e6e6e6;
+    --red-ui-secondary-background-disabled: #f9f9f9;
+    --red-ui-tertiary-background: #f7f7f7;
+
+    /* Shadow */
+    --red-ui-shadow: rgba(0, 0, 0, 0.2);
+
+    /* Text colors */
+    --red-ui-primary-text-color: #555;
+    --red-ui-secondary-text-color: #888;
+    --red-ui-secondary-text-color-focus: #666;
+    --red-ui-secondary-text-color-hover: #666;
+    --red-ui-secondary-text-color-active: #666;
+    --red-ui-secondary-text-color-selected: #666;
+    --red-ui-secondary-text-color-inactive: #666;
+    --red-ui-secondary-text-color-disabled: #bbb;
+    --red-ui-tertiary-text-color: #aaa;
+    --red-ui-header-text-color: #444;
+
+    --red-ui-text-color-error: #AD1625;
+    --red-ui-text-color-warning: #CAB200;
+    --red-ui-text-color-success: #3a3;
+    --red-ui-text-color-code: #AD1625;
+    --red-ui-text-color-link: #0088cc;
+
+    /* Border colors */
+    --red-ui-primary-border-color: #bbbbbb;
+    --red-ui-secondary-border-color: #dddddd;
+    --red-ui-tertiary-border-color: #ccc;
+
+    /* Form styles */
+    --red-ui-form-background: #fff;
+    --red-ui-form-placeholder-color: #aaa;
+    --red-ui-form-text-color: #555;
+    --red-ui-form-input-focus-color: rgba(85, 150, 230, 0.8);
+    --red-ui-form-input-border-color: #ccc;
+    --red-ui-form-input-background: #fff;
+    --red-ui-form-input-background-disabled: #f9f9f9;
+    --red-ui-form-tips-background: #ffe;
+
+    /* Tab styles */
+    --red-ui-tab-text-color-active: #444;
+    --red-ui-tab-text-color-inactive: #888;
+    --red-ui-tab-background: #fff;
+    --red-ui-tab-background-active: #fff;
+    --red-ui-tab-background-inactive: #f0f0f0;
+    --red-ui-tab-background-hover: #e6e6e6;
+
+    /* Palette styles */
+    --red-ui-palette-header-background: #f3f3f3;
+    --red-ui-palette-header-color: #444;
+    --red-ui-palette-content-background: #fff;
+
+    /* Workspace button styles */
+    --red-ui-workspace-button-background: #fff;
+    --red-ui-workspace-button-background-hover: #e6e6e6;
+    --red-ui-workspace-button-background-active: #efefef;
+    --red-ui-workspace-button-color: #888;
+    --red-ui-workspace-button-color-disabled: #bbb;
+    --red-ui-workspace-button-color-hover: #666;
+    --red-ui-workspace-button-color-active: #666;
+    --red-ui-workspace-button-color-selected: #666;
+    --red-ui-workspace-button-color-primary: #eee;
+    --red-ui-workspace-button-background-primary: #AD1625;
+    --red-ui-workspace-button-background-primary-hover: #6E0A1E;
+
+    /* Node styles */
+    --red-ui-node-label-color: #333;
+    --red-ui-node-border: #999;
+    --red-ui-node-port-background: #d9d9d9;
+    --red-ui-node-port-background-hover: #eee;
+    --red-ui-node-icon-background-color: rgba(0, 0, 0, 0.05);
+    --red-ui-node-selected-color: #ff7f0e;
+
+    /* Menu styles */
+    --red-ui-menuBackground: #fff;
+    --red-ui-menuDivider: #ddd;
+    --red-ui-menuColor: #444;
+    --red-ui-menuActiveColor: #fff;
+    --red-ui-menuActiveBackground: #5596e6;
+    --red-ui-menuDisabledColor: #bbb;
+    --red-ui-menuHoverColor: #444;
+    --red-ui-menuHoverBackground: #f0f0f0;
+    --red-ui-menuCaret: #888;
+
+    /* Header styles */
+    --red-ui-header-background: #000;
+    --red-ui-header-accent: #C02020;
+    --red-ui-header-button-background-active: #121212;
+    --red-ui-header-menu-color: #eee;
+    --red-ui-header-menu-color-disabled: #666;
+    --red-ui-header-menu-heading-color: #888;
+    --red-ui-header-menu-sublabel-color: #888;
+    --red-ui-header-menu-background: #fff;
+    --red-ui-header-menu-item-hover: #f0f0f0;
+
+    /* Deploy button */
+    --red-ui-deploy-button-color: #eee;
+    --red-ui-deploy-button-color-active: #fff;
+    --red-ui-deploy-button-color-disabled: #999;
+    --red-ui-deploy-button-background: #8C101C;
+    --red-ui-deploy-button-background-hover: #6E0A1E;
+    --red-ui-deploy-button-background-active: #6E0A1E;
+    --red-ui-deploy-button-background-disabled: #5a0a10;
+
+    /* Shade color */
+    --red-ui-shade-color: rgba(160, 160, 160, 0.5);
+
+    /* Grip/resize */
+    --red-ui-grip-color: #ccc;
+
+    /* View/canvas */
+    --red-ui-view-background: #fff;
+    --red-ui-view-grid-color: #eee;
+
+    /* Debug message colors */
+    --red-ui-debug-message-background: #fff;
+    --red-ui-debug-message-background-hover: #f0f0f0;
+    --red-ui-debug-message-text-color: #555;
+    --red-ui-debug-message-text-color-meta: #888;
+    --red-ui-debug-message-border: #ddd;
+    --red-ui-debug-message-border-hover: #bbb;
+}
+
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size);
 }
 
 a, .btn-link {
-    color: #006bb7;
+    color: var(--red-ui-text-color-link);
 }
 
 .btn-primary {
@@ -63,26 +204,66 @@ h1:focus {
 /* Syncfusion Splitter Styling for Node-RED     */
 /* ============================================= */
 
-/* Main splitter bar styling */
+/* Main splitter bar styling - matches panels.scss */
 .e-splitter .e-split-bar {
-    background-color: #f3f3f3 !important;
-    border-color: #bbb !important;
+    background-color: var(--red-ui-primary-background, #f3f3f3) !important;
+    border-color: var(--red-ui-secondary-border-color, #ddd) !important;
+    position: relative;
 }
 
 .e-splitter.e-splitter-horizontal .e-split-bar {
     width: 7px !important;
     min-width: 7px !important;
+    border-left: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-right: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-top: none !important;
+    border-bottom: none !important;
 }
 
 .e-splitter.e-splitter-vertical .e-split-bar {
     height: 7px !important;
     min-height: 7px !important;
+    border-top: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-left: none !important;
+    border-right: none !important;
+}
+
+/* Grip pattern for splitter bar using pseudo-element */
+.e-splitter .e-split-bar::before {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 40px;
+    background-image: repeating-linear-gradient(
+        180deg,
+        var(--red-ui-grip-color, #ccc) 0px,
+        var(--red-ui-grip-color, #ccc) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+}
+
+.e-splitter.e-splitter-vertical .e-split-bar::before {
+    width: 40px;
+    height: 3px;
+    background-image: repeating-linear-gradient(
+        90deg,
+        var(--red-ui-grip-color, #ccc) 0px,
+        var(--red-ui-grip-color, #ccc) 1px,
+        transparent 1px,
+        transparent 3px
+    );
 }
 
 /* Collapse/expand arrow icons - Node-RED style */
 .e-splitter .e-split-bar .e-navigate-arrow {
-    background-color: #f3f3f3 !important;
-    border: 1px solid #bbb !important;
+    background-color: var(--red-ui-primary-background, #f3f3f3) !important;
+    border: 1px solid var(--red-ui-primary-border-color, #bbb) !important;
     border-radius: 3px !important;
     width: 20px !important;
     height: 20px !important;
@@ -90,22 +271,23 @@ h1:focus {
     align-items: center !important;
     justify-content: center !important;
     transition: background-color 0.2s, border-color 0.2s !important;
+    z-index: 1;
 }
 
 .e-splitter .e-split-bar .e-navigate-arrow:hover {
-    background-color: #ddd !important;
-    border-color: #999 !important;
+    background-color: var(--red-ui-secondary-background-hover, #e6e6e6) !important;
+    border-color: var(--red-ui-node-border, #999) !important;
 }
 
 .e-splitter .e-split-bar .e-navigate-arrow::before,
 .e-splitter .e-split-bar .e-navigate-arrow::after {
-    color: #666 !important;
+    color: var(--red-ui-secondary-text-color, #888) !important;
     font-size: 10px !important;
 }
 
 .e-splitter .e-split-bar .e-navigate-arrow:hover::before,
 .e-splitter .e-split-bar .e-navigate-arrow:hover::after {
-    color: #444 !important;
+    color: var(--red-ui-header-text-color, #444) !important;
 }
 
 /* Horizontal splitter arrows (left/right) */

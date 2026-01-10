@@ -44,7 +44,7 @@
     z-index: 5;
 }
 
-/* Editor stack container */
+/* Editor stack container - matches editor.scss */
 #red-ui-editor-stack {
     position: absolute;
     margin: 0;
@@ -52,10 +52,10 @@
     bottom: 0px;
     right: 323px;
     width: 0;
-    z-index: 9;
+    z-index: 5;
 }
 
-/* Main tray container */
+/* Main tray container - matches editor.scss */
 .red-ui-tray {
     position: absolute;
     margin: 0;
@@ -64,14 +64,14 @@
     right: 0;
     bottom: 0;
     background: var(--red-ui-secondary-background, #fff);
-    border-left: 1px solid var(--red-ui-secondary-border-color, #bbbbbb);
-    border-bottom: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    border-left: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    border-bottom: 1px solid var(--red-ui-primary-border-color, #bbb);
     box-sizing: content-box;
     display: flex;
     flex-direction: column;
 }
 
-/* Tray resize handle */
+/* Tray resize handle - matches editor.scss */
 .red-ui-tray-resize-handle {
     position: absolute;
     top: 0px;
@@ -80,8 +80,27 @@
     left: -9px;
     background-color: var(--red-ui-primary-background, #f3f3f3);
     cursor: col-resize;
-    border-left: 1px solid var(--red-ui-primary-border-color, #bbbbbb);
+    border-left: 1px solid var(--red-ui-primary-border-color, #bbb);
     box-shadow: -1px 0 6px var(--red-ui-shadow, rgba(0, 0, 0, 0.1));
+}
+
+/* Grip pattern for tray resize handle */
+.red-ui-tray-resize-handle::before {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 40px;
+    background-image: repeating-linear-gradient(
+        180deg,
+        var(--red-ui-grip-color, #ccc) 0px,
+        var(--red-ui-grip-color, #ccc) 1px,
+        transparent 1px,
+        transparent 3px
+    );
 }
 
 .red-ui-tray-resize-handle.red-ui-tray-resize-maximised {
