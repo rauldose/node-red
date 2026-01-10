@@ -1008,11 +1008,31 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
+    /// Returns true if the tray should be visible.
+    /// </summary>
+    private bool IsTrayVisible() => IsPropertyTrayOpen && SelectedDiagramNode != null;
+
+    /// <summary>
+    /// Gets the size for the tray pane based on visibility state.
+    /// </summary>
+    private string GetTraySize() => IsTrayVisible() ? "450px" : "0px";
+
+    /// <summary>
+    /// Gets the min size for the tray pane based on visibility state.
+    /// </summary>
+    private string GetTrayMinSize() => IsTrayVisible() ? "350px" : "0px";
+
+    /// <summary>
+    /// Gets the max size for the tray pane based on visibility state.
+    /// </summary>
+    private string GetTrayMaxSize() => IsTrayVisible() ? "700px" : "0px";
+
+    /// <summary>
     /// Gets the CSS class for the tray pane based on visibility state.
     /// </summary>
     private string GetTrayCssClass()
     {
-        return IsPropertyTrayOpen && SelectedDiagramNode != null 
+        return IsTrayVisible() 
             ? "red-ui-tray-pane" 
             : "red-ui-tray-pane red-ui-tray-hidden";
     }

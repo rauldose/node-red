@@ -723,13 +723,13 @@
                 </SplitterPane>
 
                 <!-- Property Editor Tray Pane (always rendered, size controlled) -->
-                <SplitterPane Size="@(IsPropertyTrayOpen && SelectedDiagramNode != null ? "450px" : "0px")" 
-                              Min="@(IsPropertyTrayOpen && SelectedDiagramNode != null ? "350px" : "0px")" 
-                              Max="@(IsPropertyTrayOpen && SelectedDiagramNode != null ? "700px" : "0px")" 
-                              Resizable="@(IsPropertyTrayOpen && SelectedDiagramNode != null)"
+                <SplitterPane Size="@GetTraySize()" 
+                              Min="@GetTrayMinSize()" 
+                              Max="@GetTrayMaxSize()" 
+                              Resizable="@IsTrayVisible()"
                               CssClass="@GetTrayCssClass()">
                     <ContentTemplate>
-                        @if (IsPropertyTrayOpen && SelectedDiagramNode != null)
+                        @if (IsTrayVisible())
                         {
                             <div class="red-ui-tray-inline">
                                 @* Tray header *@
