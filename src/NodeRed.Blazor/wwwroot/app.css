@@ -627,47 +627,76 @@ h1:focus {
     flex: 0 0 0px !important;
 }
 
-/* Hide the splitter bar adjacent to the hidden tray pane using :has() */
-/* When tray is hidden, hide the split-bar that comes before it */
+/* Hide the splitter bar adjacent to the hidden tray pane */
+/* The tray pane is the 3rd pane (index 2), so hide the 2nd split-bar when tray is hidden */
+.red-ui-main-splitter:has(.red-ui-tray-hidden) > .e-split-bar:nth-of-type(2) {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+}
+
+/* Also use :has selector for adjacent split-bar */
 .e-splitter.e-splitter-horizontal .e-split-bar:has(+ .red-ui-tray-hidden) {
     display: none !important;
     width: 0 !important;
 }
 
-/* Also target by index - tray pane is index 2 (0-indexed), so hide bar index 2 when tray is hidden */
-.red-ui-main-splitter:has(.red-ui-tray-hidden) > .e-split-bar:nth-of-type(2) {
-    display: none !important;
-    width: 0 !important;
-}
-
-/* Ensure sidebar splitter bar remains visible and functional */
-.red-ui-main-splitter > .e-split-bar:nth-of-type(3),
+/* Ensure sidebar splitter bar (last one) remains visible and functional */
 .red-ui-main-splitter > .e-split-bar:last-of-type {
     display: flex !important;
+    width: 7px !important;
+    min-width: 7px !important;
 }
 
-/* Sidebar internal splitter centering */
+/* ============================================= */
+/* Sidebar internal splitter (info and help)    */
+/* ============================================= */
+
 .red-ui-info-splitter,
 .red-ui-help-splitter {
     height: 100% !important;
+    border: none !important;
 }
 
-.red-ui-info-splitter .e-split-bar,
-.red-ui-help-splitter .e-split-bar {
+/* Vertical splitter bar for sidebar info/help panels */
+.red-ui-info-splitter.e-splitter-vertical .e-split-bar,
+.red-ui-help-splitter.e-splitter-vertical .e-split-bar {
+    background: var(--red-ui-primary-background, #f3f3f3) !important;
+    border-top: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    height: 7px !important;
+    min-height: 7px !important;
+    cursor: ns-resize !important;
+    display: flex !important;
     justify-content: center !important;
+    align-items: center !important;
+    position: relative !important;
 }
 
+/* Grip pattern for sidebar vertical splitter bar */
+.red-ui-info-splitter.e-splitter-vertical .e-split-bar::before,
+.red-ui-help-splitter.e-splitter-vertical .e-split-bar::before {
+    content: '' !important;
+    display: block !important;
+    width: 40px !important;
+    height: 3px !important;
+    background-image: repeating-linear-gradient(
+        90deg,
+        var(--red-ui-grip-color, #ccc) 0px,
+        var(--red-ui-grip-color, #ccc) 1px,
+        transparent 1px,
+        transparent 3px
+    ) !important;
+}
+
+/* Hide default Syncfusion splitter controls */
 .red-ui-info-splitter .e-split-bar .e-resize-handler,
-.red-ui-help-splitter .e-split-bar .e-resize-handler {
-    margin: 0 auto !important;
-}
-
-/* Ensure splitter arrows are centered */
+.red-ui-help-splitter .e-split-bar .e-resize-handler,
 .red-ui-info-splitter .e-split-bar .e-navigate-arrow,
-.red-ui-help-splitter .e-split-bar .e-navigate-arrow {
-    position: absolute !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
+.red-ui-help-splitter .e-split-bar .e-navigate-arrow,
+.red-ui-info-splitter .e-split-bar .e-icon-bar,
+.red-ui-help-splitter .e-split-bar .e-icon-bar {
+    display: none !important;
 }
 
 /* Vertical splitter specific centering */

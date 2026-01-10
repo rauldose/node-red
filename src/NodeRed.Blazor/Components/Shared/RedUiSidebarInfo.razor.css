@@ -19,22 +19,42 @@
     overflow: hidden;
 }
 
+/* Splitter bar styling - matches Node-RED panels.scss */
 ::deep .red-ui-info-splitter .e-split-bar {
-    background: var(--red-ui-secondary-border-color, #ddd) !important;
+    background: var(--red-ui-primary-background, #f3f3f3) !important;
+    border-top: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
     height: 7px !important;
     min-height: 7px !important;
+    cursor: ns-resize !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    position: relative !important;
+}
+
+/* Grip pattern for splitter bar */
+::deep .red-ui-info-splitter .e-split-bar::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 3px;
+    background-image: repeating-linear-gradient(
+        90deg,
+        var(--red-ui-grip-color, #ccc) 0px,
+        var(--red-ui-grip-color, #ccc) 1px,
+        transparent 1px,
+        transparent 3px
+    );
 }
 
 ::deep .red-ui-info-splitter .e-split-bar .e-resize-handler {
     display: none !important;
 }
 
-/* Navigate arrows centered in the splitter bar */
+/* Hide the default navigate arrows - not needed for this simple splitter */
 ::deep .red-ui-info-splitter .e-split-bar .e-navigate-arrow {
-    position: absolute !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    top: -7px !important;
+    display: none !important;
 }
 
 /* Outliner section */

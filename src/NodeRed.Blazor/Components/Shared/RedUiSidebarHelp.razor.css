@@ -27,12 +27,42 @@
     overflow: hidden;
 }
 
+/* Splitter bar styling - matches Node-RED panels.scss */
 ::deep .red-ui-help-splitter .e-split-bar {
-    background: #f3f3f3;
+    background: var(--red-ui-primary-background, #f3f3f3) !important;
+    border-top: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    height: 7px !important;
+    min-height: 7px !important;
+    cursor: ns-resize !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    position: relative !important;
+}
+
+/* Grip pattern for splitter bar */
+::deep .red-ui-help-splitter .e-split-bar::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 3px;
+    background-image: repeating-linear-gradient(
+        90deg,
+        var(--red-ui-grip-color, #ccc) 0px,
+        var(--red-ui-grip-color, #ccc) 1px,
+        transparent 1px,
+        transparent 3px
+    );
 }
 
 ::deep .red-ui-help-splitter .e-split-bar:hover {
-    background: #e0e0e0;
+    background: var(--red-ui-secondary-background-hover, #e6e6e6) !important;
+}
+
+/* Hide the default navigate arrows */
+::deep .red-ui-help-splitter .e-split-bar .e-navigate-arrow {
+    display: none !important;
 }
 
 /* TOC section */
