@@ -9,6 +9,7 @@ using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.Core.Interfaces;
 using Syncfusion.Blazor.Diagram;
+using Syncfusion.Blazor.Layouts;
 using System.Collections.ObjectModel;
 
 namespace NodeRed.Blazor.Components.Pages;
@@ -904,6 +905,16 @@ public partial class Editor : IDisposable
             IsPropertyTrayOpen = true;
             SelectedSidebarTab = 0; // Switch to Info tab
         }
+    }
+
+    /// <summary>
+    /// Handles main splitter resize events.
+    /// This is called when the user finishes resizing the palette or sidebar panes.
+    /// </summary>
+    private void OnMainSplitterResize(ResizeEventArgs args)
+    {
+        // The splitter handles the resize automatically
+        // This event can be used for logging or persistence if needed
     }
 
     /// <summary>

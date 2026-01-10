@@ -1,59 +1,47 @@
 @*
     RedUiSidebar - Blazor implementation of Node-RED's red-ui-sidebar
     Uses Syncfusion SfTab for tab navigation with matching Node-RED styling
+    Now used inside a Syncfusion SfSplitter pane for collapse functionality
 *@
 
-@if (!IsClosed)
-{
-    <div id="red-ui-sidebar" style="width: @(SidebarWidth)px;">
-        @* Sidebar tabs using Syncfusion SfTab *@
-        <SfTab CssClass="red-ui-sidebar-tabs" OverflowMode="OverflowMode.Popup" @bind-SelectedItem="@_selectedTabIndex">
-            <TabEvents Selected="OnTabSelected"></TabEvents>
-            <TabItems>
-                @foreach (var tab in Tabs)
-                {
-                    <TabItem CssClass="@(tab.Pinned ? "red-ui-tab-pinned" : "")">
-                        <ChildContent>
-                            <TabHeader IconCss="@tab.IconClass" Text="@(tab.Pinned ? "" : tab.Label)"></TabHeader>
-                        </ChildContent>
-                        <ContentTemplate>
-                            <div class="red-ui-sidebar-tab-wrapper" style="height: 100%;">
-                                @if (ContentTemplate != null)
-                                {
-                                    @ContentTemplate(tab.Id)
-                                }
-                                @if (!tab.EnableOnEdit && ShowShade)
-                                {
-                                    <div class="red-ui-sidebar-shade"></div>
-                                }
-                            </div>
-                        </ContentTemplate>
-                    </TabItem>
-                }
-            </TabItems>
-        </SfTab>
-
-        @* Sidebar footer *@
-        <div id="red-ui-sidebar-footer" class="red-ui-component-footer">
-            @if (FooterTemplate != null)
+<div id="red-ui-sidebar">
+    @* Sidebar tabs using Syncfusion SfTab *@
+    <SfTab CssClass="red-ui-sidebar-tabs" OverflowMode="OverflowMode.Popup" @bind-SelectedItem="@_selectedTabIndex">
+        <TabEvents Selected="OnTabSelected"></TabEvents>
+        <TabItems>
+            @foreach (var tab in Tabs)
             {
-                @FooterTemplate(ActiveTabId)
+                <TabItem CssClass="@(tab.Pinned ? "red-ui-tab-pinned" : "")">
+                    <ChildContent>
+                        <TabHeader IconCss="@tab.IconClass" Text="@(tab.Pinned ? "" : tab.Label)"></TabHeader>
+                    </ChildContent>
+                    <ContentTemplate>
+                        <div class="red-ui-sidebar-tab-wrapper" style="height: 100%;">
+                            @if (ContentTemplate != null)
+                            {
+                                @ContentTemplate(tab.Id)
+                            }
+                            @if (!tab.EnableOnEdit && ShowShade)
+                            {
+                                <div class="red-ui-sidebar-shade"></div>
+                            }
+                        </div>
+                    </ContentTemplate>
+                </TabItem>
             }
-        </div>
+        </TabItems>
+    </SfTab>
 
-        @* Sidebar shade - for modal states *@
-        <div id="red-ui-sidebar-shade" class="@(ShowShade ? "" : "hide")"></div>
+    @* Sidebar footer *@
+    <div id="red-ui-sidebar-footer" class="red-ui-component-footer">
+        @if (FooterTemplate != null)
+        {
+            @FooterTemplate(ActiveTabId)
+        }
     </div>
-}
 
-@* Sidebar separator (resize handle) *@
-<div id="red-ui-sidebar-separator"
-     style="right: @(IsClosed ? 0 : SidebarWidth)px;"
-     @onmouseenter="ShowSidebarControl"
-     @onmouseleave="HideSidebarControl">
-    <div class="red-ui-sidebar-control-right @(_showControl ? "visible" : "")" @onclick="ToggleSidebar">
-        <i class="fa @(IsClosed ? "fa-chevron-left" : "fa-chevron-right")"></i>
-    </div>
+    @* Sidebar shade - for modal states *@
+    <div id="red-ui-sidebar-shade" class="@(ShowShade ? "" : "hide")"></div>
 </div>
 
 @code {
@@ -88,37 +76,12 @@
     public RenderFragment<string>? FooterTemplate { get; set; }
 
     /// <summary>
-    /// Whether the sidebar is closed/hidden
-    /// </summary>
-    [Parameter]
-    public bool IsClosed { get; set; } = false;
-
-    /// <summary>
-    /// Event callback when sidebar closed state changes
-    /// </summary>
-    [Parameter]
-    public EventCallback<bool> IsClosedChanged { get; set; }
-
-    /// <summary>
     /// Whether to show the shade overlay (when tray is open)
     /// </summary>
     [Parameter]
     public bool ShowShade { get; set; } = false;
 
-    /// <summary>
-    /// Sidebar width in pixels (default 315px like original)
-    /// </summary>
-    [Parameter]
-    public int SidebarWidth { get; set; } = 315;
-
-    /// <summary>
-    /// Event callback when sidebar width changes
-    /// </summary>
-    [Parameter]
-    public EventCallback<int> SidebarWidthChanged { get; set; }
-
     // Private state
-    private bool _showControl = false;
     private int _selectedTabIndex = 0;
 
     protected override void OnParametersSet()
@@ -129,16 +92,6 @@
         {
             _selectedTabIndex = index;
         }
-    }
-
-    private void ShowSidebarControl()
-    {
-        _showControl = true;
-    }
-
-    private void HideSidebarControl()
-    {
-        _showControl = false;
     }
 
     private async Task OnTabSelected(SelectEventArgs args)
@@ -152,12 +105,6 @@
                 await ActiveTabIdChanged.InvokeAsync(tabId);
             }
         }
-    }
-
-    private async Task ToggleSidebar()
-    {
-        IsClosed = !IsClosed;
-        await IsClosedChanged.InvokeAsync(IsClosed);
     }
 
     /// <summary>

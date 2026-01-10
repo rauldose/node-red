@@ -7,6 +7,7 @@
 @using Syncfusion.Blazor.SplitButtons
 @using Syncfusion.Blazor.Inputs
 @using Syncfusion.Blazor.Popups
+@using Syncfusion.Blazor.Layouts
 @using System.Collections.ObjectModel
 @using NodeRed.Blazor.Models
 @using NodeRed.SDK
@@ -595,213 +596,228 @@
         </div>
     }
 
-    <!-- Main Container -->
+    <!-- Main Container with Syncfusion Splitter for collapsible palette/sidebar -->
     <div id="red-ui-main-container">
-        <!-- Custom Palette (Node-RED style) -->
-        <div id="red-ui-palette">
-            <div class="red-ui-palette-search">
-                <input type="text" placeholder="filter nodes" @bind="PaletteFilter" @bind:event="oninput" />
-                <i class="fa fa-search"></i>
-            </div>
-            <div class="red-ui-palette-scroll">
-                @foreach (var category in PaletteCategories.Where(c => FilterCategory(c)))
-                {
-                    <div class="red-ui-palette-category">
-                        <div class="red-ui-palette-header" @onclick="() => ToggleCategory(category.Name)">
-                            <i class="fa fa-angle-down @(category.IsExpanded ? "expanded" : "")"></i>
-                            <span>@category.Name</span>
-                        </div>
-                        @if (category.IsExpanded)
-                        {
-                            <div class="red-ui-palette-content">
-                                @foreach (var node in category.Nodes.Where(n => FilterNode(n)))
+        <SfSplitter Height="100%" Width="100%" Orientation="Orientation.Horizontal" CssClass="red-ui-main-splitter">
+            <SplitterEvents OnResizeStop="OnMainSplitterResize"></SplitterEvents>
+            <SplitterPanes>
+                <!-- Palette Pane (collapsible) -->
+                <SplitterPane Size="180px" Min="100px" Max="300px" Collapsible="true" CssClass="red-ui-palette-pane">
+                    <ContentTemplate>
+                        <div id="red-ui-palette">
+                            <div class="red-ui-palette-search">
+                                <input type="text" placeholder="filter nodes" @bind="PaletteFilter" @bind:event="oninput" />
+                                <i class="fa fa-search"></i>
+                            </div>
+                            <div class="red-ui-palette-scroll">
+                                @foreach (var category in PaletteCategories.Where(c => FilterCategory(c)))
                                 {
-                                    <div class="red-ui-palette-node" 
-                                         style="background-color: @node.Color;"
-                                         draggable="true"
-                                         @ondragstart="() => OnPaletteDragStart(node)"
-                                         @ondragend="OnPaletteDragEnd">
-                                        @if (node.Inputs > 0)
-                                        {
-                                            <div class="red-ui-palette-port red-ui-palette-port-input"></div>
-                                        }
-                                        <div class="red-ui-palette-icon-container" style="background-color: @node.IconBackground;">
-                                            <i class="@node.IconClass red-ui-palette-icon-fa"></i>
+                                    <div class="red-ui-palette-category">
+                                        <div class="red-ui-palette-header" @onclick="() => ToggleCategory(category.Name)">
+                                            <i class="fa fa-angle-down @(category.IsExpanded ? "expanded" : "")"></i>
+                                            <span>@category.Name</span>
                                         </div>
-                                        <div class="red-ui-palette-label">@node.Label</div>
-                                        @if (node.Outputs > 0)
+                                        @if (category.IsExpanded)
                                         {
-                                            <div class="red-ui-palette-port red-ui-palette-port-output"></div>
+                                            <div class="red-ui-palette-content">
+                                                @foreach (var node in category.Nodes.Where(n => FilterNode(n)))
+                                                {
+                                                    <div class="red-ui-palette-node" 
+                                                         style="background-color: @node.Color;"
+                                                         draggable="true"
+                                                         @ondragstart="() => OnPaletteDragStart(node)"
+                                                         @ondragend="OnPaletteDragEnd">
+                                                        @if (node.Inputs > 0)
+                                                        {
+                                                            <div class="red-ui-palette-port red-ui-palette-port-input"></div>
+                                                        }
+                                                        <div class="red-ui-palette-icon-container" style="background-color: @node.IconBackground;">
+                                                            <i class="@node.IconClass red-ui-palette-icon-fa"></i>
+                                                        </div>
+                                                        <div class="red-ui-palette-label">@node.Label</div>
+                                                        @if (node.Outputs > 0)
+                                                        {
+                                                            <div class="red-ui-palette-port red-ui-palette-port-output"></div>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
                                         }
                                     </div>
                                 }
                             </div>
-                        }
-                    </div>
-                }
-            </div>
-        </div>
+                        </div>
+                    </ContentTemplate>
+                </SplitterPane>
 
-        <!-- Workspace -->
-        <div id="red-ui-workspace">
-            <ul id="red-ui-workspace-tabs">
-                @foreach (var flow in Flows)
-                {
-                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "") @(flow.Disabled ? "red-ui-workspace-disabled" : "")"
-                        @onclick="() => SwitchFlow(flow.Id)"
-                        @ondblclick="() => EditFlowProperties(flow.Id)">
-                        <a href="javascript:void(0)">
-                            @if (flow.Disabled)
-                            {
-                                <i class="fa fa-ban red-ui-workspace-disabled-icon"></i>
-                            }
-                            <span>@flow.Label</span>
-                            @if (Flows.Count > 1)
-                            {
-                                <span class="red-ui-tab-close" @onclick:stopPropagation="true" @onclick="() => DeleteFlow(flow.Id)">
-                                    <i class="fa fa-times"></i>
+                <!-- Workspace Pane (main content, flexible) -->
+                <SplitterPane CssClass="red-ui-workspace-pane">
+                    <ContentTemplate>
+                        <div id="red-ui-workspace">
+                            <ul id="red-ui-workspace-tabs">
+                                @foreach (var flow in Flows)
+                                {
+                                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "") @(flow.Disabled ? "red-ui-workspace-disabled" : "")"
+                                        @onclick="() => SwitchFlow(flow.Id)"
+                                        @ondblclick="() => EditFlowProperties(flow.Id)">
+                                        <a href="javascript:void(0)">
+                                            @if (flow.Disabled)
+                                            {
+                                                <i class="fa fa-ban red-ui-workspace-disabled-icon"></i>
+                                            }
+                                            <span>@flow.Label</span>
+                                            @if (Flows.Count > 1)
+                                            {
+                                                <span class="red-ui-tab-close" @onclick:stopPropagation="true" @onclick="() => DeleteFlow(flow.Id)">
+                                                    <i class="fa fa-times"></i>
+                                                </span>
+                                            }
+                                        </a>
+                                    </li>
+                                }
+                                <li class="red-ui-tab-button" @onclick="AddNewFlow">
+                                    <a href="javascript:void(0)"><i class="fa fa-plus"></i></a>
+                                </li>
+                            </ul>
+
+                            <div id="red-ui-workspace-chart" 
+                                 @ondrop="OnWorkspaceDrop" 
+                                 @ondragover="OnWorkspaceDragOver"
+                                 @ondragover:preventDefault="true">
+                                <SfDiagramComponent @ref="@DiagramInstance"
+                                                    Connectors="@DiagramConnectors"
+                                                    Created="OnCreated"
+                                                    SelectionChanged="@OnSelectionChanged"
+                                                    ConnectionChanging="@OnConnectionChanging"
+                                                    Click="@OnDiagramClick"
+                                                    FixedUserHandleClick="@OnFixedUserHandleClick"
+                                                    PositionChanged="@OnPositionChanged"
+                                                    Height="100%"
+                                                    Width="100%"
+                                                    Nodes="@DiagramNodes"
+                                                    NodeCreating="OnNodeCreating"
+                                                    ConnectorCreating="OnConnectorCreating"
+                                                    SelectionSettings="@SelectionSettings">
+                                    <SnapSettings Constraints="SnapConstraints.ShowLines">
+                                        <HorizontalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></HorizontalGridLines>
+                                        <VerticalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></VerticalGridLines>
+                                    </SnapSettings>
+                                    <PageSettings>
+                                        <BackgroundStyle Background="#fff" />
+                                    </PageSettings>
+                                </SfDiagramComponent>
+                            </div>
+
+                            <div id="red-ui-workspace-footer">
+                                <span class="red-ui-footer-left">
+                                    <i class="fa @(FlowRuntime.State == FlowState.Running ? "fa-circle status-running" : "fa-circle-o status-stopped")"></i>
+                                    <span class="flow-state-text">@(FlowRuntime.State == FlowState.Running ? "Running" : (HasBeenDeployed ? "Stopped" : "Not deployed"))</span>
                                 </span>
-                            }
-                        </a>
-                    </li>
-                }
-                <li class="red-ui-tab-button" @onclick="AddNewFlow">
-                    <a href="javascript:void(0)"><i class="fa fa-plus"></i></a>
-                </li>
-            </ul>
+                                <span class="red-ui-footer-right">
+                                    <a href="javascript:void(0)" @onclick="ZoomIn"><i class="fa fa-plus"></i></a>
+                                    <a href="javascript:void(0)" @onclick="ZoomOut"><i class="fa fa-minus"></i></a>
+                                    <a href="javascript:void(0)" @onclick="ZoomReset"><i class="fa fa-circle-o-notch"></i></a>
+                                </span>
+                            </div>
+                        </div>
 
-            <div id="red-ui-workspace-chart" 
-                 @ondrop="OnWorkspaceDrop" 
-                 @ondragover="OnWorkspaceDragOver"
-                 @ondragover:preventDefault="true">
-                <SfDiagramComponent @ref="@DiagramInstance"
-                                    Connectors="@DiagramConnectors"
-                                    Created="OnCreated"
-                                    SelectionChanged="@OnSelectionChanged"
-                                    ConnectionChanging="@OnConnectionChanging"
-                                    Click="@OnDiagramClick"
-                                    FixedUserHandleClick="@OnFixedUserHandleClick"
-                                    PositionChanged="@OnPositionChanged"
-                                    Height="100%"
-                                    Width="100%"
-                                    Nodes="@DiagramNodes"
-                                    NodeCreating="OnNodeCreating"
-                                    ConnectorCreating="OnConnectorCreating"
-                                    SelectionSettings="@SelectionSettings">
-                    <SnapSettings Constraints="SnapConstraints.ShowLines">
-                        <HorizontalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></HorizontalGridLines>
-                        <VerticalGridLines LineColor="#eee" LineIntervals="@GridLineIntervals"></VerticalGridLines>
-                    </SnapSettings>
-                    <PageSettings>
-                        <BackgroundStyle Background="#fff" />
-                    </PageSettings>
-                </SfDiagramComponent>
-            </div>
+                        <!-- Property Editor Tray (slides out when double-clicking a node) -->
+                        <RedUiTray IsOpen="@(IsPropertyTrayOpen && SelectedDiagramNode != null)" TrayWidth="350">
+                            <TitleTemplate>
+                                <ul class="red-ui-tray-breadcrumbs">
+                                    <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
+                                </ul>
+                            </TitleTemplate>
+                            <ToolbarTemplate>
+                                <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
+                                <button class="red-ui-button primary" @onclick="SaveAndClosePropertyTray">Done</button>
+                            </ToolbarTemplate>
+                            <ChildContent>
+                                <div class="red-ui-tray-content">
+                                    @RenderNodePropertyPanel()
+                                </div>
+                            </ChildContent>
+                        </RedUiTray>
+                    </ContentTemplate>
+                </SplitterPane>
 
-            <div id="red-ui-workspace-footer">
-                <span class="red-ui-footer-left">
-                    <i class="fa @(FlowRuntime.State == FlowState.Running ? "fa-circle status-running" : "fa-circle-o status-stopped")"></i>
-                    <span class="flow-state-text">@(FlowRuntime.State == FlowState.Running ? "Running" : (HasBeenDeployed ? "Stopped" : "Not deployed"))</span>
-                </span>
-                <span class="red-ui-footer-right">
-                    <a href="javascript:void(0)" @onclick="ZoomIn"><i class="fa fa-plus"></i></a>
-                    <a href="javascript:void(0)" @onclick="ZoomOut"><i class="fa fa-minus"></i></a>
-                    <a href="javascript:void(0)" @onclick="ZoomReset"><i class="fa fa-circle-o-notch"></i></a>
-                </span>
-            </div>
-        </div>
-
-        <!-- Property Editor Tray (slides out when double-clicking a node) -->
-        <RedUiTray IsOpen="@(IsPropertyTrayOpen && SelectedDiagramNode != null)" TrayWidth="350">
-            <TitleTemplate>
-                <ul class="red-ui-tray-breadcrumbs">
-                    <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
-                </ul>
-            </TitleTemplate>
-            <ToolbarTemplate>
-                <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
-                <button class="red-ui-button primary" @onclick="SaveAndClosePropertyTray">Done</button>
-            </ToolbarTemplate>
-            <ChildContent>
-                <div class="red-ui-tray-content">
-                    @RenderNodePropertyPanel()
-                </div>
-            </ChildContent>
-        </RedUiTray>
-
-        <!-- Sidebar - uses RedUiSidebar component matching Node-RED structure -->
-        <RedUiSidebar Tabs="@_sidebarTabs"
-                      ActiveTabId="@_activeSidebarTabId"
-                      ActiveTabIdChanged="@((string id) => { _activeSidebarTabId = id; })"
-                      IsClosed="@_isSidebarClosed" 
-                      IsClosedChanged="@((bool closed) => _isSidebarClosed = closed)"
-                      ShowShade="@IsPropertyTrayOpen">
-            <ContentTemplate Context="tabId">
-                @if (tabId == "info")
-                {
-                    <RedUiSidebarInfo 
-                        SelectedNode="@SelectedDiagramNode"
-                        NodeId="@(SelectedDiagramNode?.ID ?? "")"
-                        NodeType="@GetSelectedNodeType()"
-                        NodeName="@SelectedNodeName"
-                        NodeColor="@GetSelectedNodeColor()"
-                        NodeDescription="@GetNodeHelp(GetSelectedNodeType())?.Summary"
-                        StatusText="@GetNodeStatus(SelectedDiagramNode?.ID ?? "")?.Text"
-                        StatusColor="@GetSidebarStatusColor()"
-                        SelectedNodeId="@(SelectedDiagramNode?.ID)"
-                        SelectedFlowId="@CurrentFlowId"
-                        CurrentTip="Click and drag the left edge of this panel to change its width"
-                        Flows="@GetFlowsForOutliner()"
-                        GlobalConfigNodes="@GetGlobalConfigNodesForOutliner()"
-                        GetFlowNodesFunc="@GetFlowNodesForOutliner"
-                        OnNodeSelected="@SelectNodeById"
-                        OnFlowSelected="@SelectFlowById"
-                        OnHelpClick="@(() => { _activeSidebarTabId = "help"; StateHasChanged(); })"
-                        OnRevealClick="@RevealSelectedNode"
-                        OnCopyLinkClick="@CopyNodeLink" />
-                }
-                else if (tabId == "help")
-                {
-                    <RedUiSidebarHelp 
-                        SelectedNodeType="@GetNodeTypeForHelp()"
-                        HelpSummary="@GetNodeHelp(GetNodeTypeForHelp())?.Summary"
-                        HelpDetails="@GetNodeHelp(GetNodeTypeForHelp())?.Details"
-                        HelpInputs="@GetHelpInputsForHelp()"
-                        HelpOutputs="@GetHelpOutputsForHelp()"
-                        HelpReferences="@GetHelpReferencesForHelp()"
-                        Categories="@GetHelpCategories()"
-                        OnNodeTypeSelected="@((string type) => SelectNodeTypeForHelp(type))" />
-                }
-                else if (tabId == "config")
-                {
-                    <RedUiSidebarConfig 
-                        ConfigNodes="@GetConfigNodes()"
-                        CurrentFlowName="@GetCurrentFlowName()"
-                        CurrentFlowId="@CurrentFlowId"
-                        OnConfigSelected="@((string id) => SelectConfigNode(id))" />
-                }
-                else if (tabId == "context")
-                {
-                    <RedUiSidebarContext 
-                        SelectedNodeId="@(SelectedDiagramNode?.ID)"
-                        CurrentFlowId="@CurrentFlowId"
-                        CurrentFlowName="@GetCurrentFlowName()"
-                        NodeContextData="@GetNodeContextData()"
-                        FlowContextData="@GetFlowContextData()"
-                        GlobalContextData="@GetGlobalContextData()"
-                        OnRefreshNodeContext="@RefreshNodeContext"
-                        OnRefreshFlowContext="@RefreshFlowContext"
-                        OnRefreshGlobalContext="@RefreshGlobalContext" />
-                }
-                else if (tabId == "debug")
-                {
-                    <RedUiSidebarDebug 
-                        Messages="@GetDebugMessagesForSidebar()"
-                        OnMessageClick="@((string nodeId) => HighlightDebugNode(nodeId))"
-                        OnClearMessages="@ClearDebugMessages" />
-                }
-            </ContentTemplate>
-        </RedUiSidebar>
+                <!-- Sidebar Pane (collapsible) -->
+                <SplitterPane Size="315px" Min="200px" Max="500px" Collapsible="true" CssClass="red-ui-sidebar-pane">
+                    <ContentTemplate>
+                        <RedUiSidebar Tabs="@_sidebarTabs"
+                                      ActiveTabId="@_activeSidebarTabId"
+                                      ActiveTabIdChanged="@((string id) => { _activeSidebarTabId = id; })"
+                                      ShowShade="@IsPropertyTrayOpen">
+                            <ContentTemplate Context="tabId">
+                                @if (tabId == "info")
+                                {
+                                    <RedUiSidebarInfo 
+                                        SelectedNode="@SelectedDiagramNode"
+                                        NodeId="@(SelectedDiagramNode?.ID ?? "")"
+                                        NodeType="@GetSelectedNodeType()"
+                                        NodeName="@SelectedNodeName"
+                                        NodeColor="@GetSelectedNodeColor()"
+                                        NodeDescription="@GetNodeHelp(GetSelectedNodeType())?.Summary"
+                                        StatusText="@GetNodeStatus(SelectedDiagramNode?.ID ?? "")?.Text"
+                                        StatusColor="@GetSidebarStatusColor()"
+                                        SelectedNodeId="@(SelectedDiagramNode?.ID)"
+                                        SelectedFlowId="@CurrentFlowId"
+                                        CurrentTip="Click and drag the left edge of this panel to change its width"
+                                        Flows="@GetFlowsForOutliner()"
+                                        GlobalConfigNodes="@GetGlobalConfigNodesForOutliner()"
+                                        GetFlowNodesFunc="@GetFlowNodesForOutliner"
+                                        OnNodeSelected="@SelectNodeById"
+                                        OnFlowSelected="@SelectFlowById"
+                                        OnHelpClick="@(() => { _activeSidebarTabId = "help"; StateHasChanged(); })"
+                                        OnRevealClick="@RevealSelectedNode"
+                                        OnCopyLinkClick="@CopyNodeLink" />
+                                }
+                                else if (tabId == "help")
+                                {
+                                    <RedUiSidebarHelp 
+                                        SelectedNodeType="@GetNodeTypeForHelp()"
+                                        HelpSummary="@GetNodeHelp(GetNodeTypeForHelp())?.Summary"
+                                        HelpDetails="@GetNodeHelp(GetNodeTypeForHelp())?.Details"
+                                        HelpInputs="@GetHelpInputsForHelp()"
+                                        HelpOutputs="@GetHelpOutputsForHelp()"
+                                        HelpReferences="@GetHelpReferencesForHelp()"
+                                        Categories="@GetHelpCategories()"
+                                        OnNodeTypeSelected="@((string type) => SelectNodeTypeForHelp(type))" />
+                                }
+                                else if (tabId == "config")
+                                {
+                                    <RedUiSidebarConfig 
+                                        ConfigNodes="@GetConfigNodes()"
+                                        CurrentFlowName="@GetCurrentFlowName()"
+                                        CurrentFlowId="@CurrentFlowId"
+                                        OnConfigSelected="@((string id) => SelectConfigNode(id))" />
+                                }
+                                else if (tabId == "context")
+                                {
+                                    <RedUiSidebarContext 
+                                        SelectedNodeId="@(SelectedDiagramNode?.ID)"
+                                        CurrentFlowId="@CurrentFlowId"
+                                        CurrentFlowName="@GetCurrentFlowName()"
+                                        NodeContextData="@GetNodeContextData()"
+                                        FlowContextData="@GetFlowContextData()"
+                                        GlobalContextData="@GetGlobalContextData()"
+                                        OnRefreshNodeContext="@RefreshNodeContext"
+                                        OnRefreshFlowContext="@RefreshFlowContext"
+                                        OnRefreshGlobalContext="@RefreshGlobalContext" />
+                                }
+                                else if (tabId == "debug")
+                                {
+                                    <RedUiSidebarDebug 
+                                        Messages="@GetDebugMessagesForSidebar()"
+                                        OnMessageClick="@((string nodeId) => HighlightDebugNode(nodeId))"
+                                        OnClearMessages="@ClearDebugMessages" />
+                                }
+                            </ContentTemplate>
+                        </RedUiSidebar>
+                    </ContentTemplate>
+                </SplitterPane>
+            </SplitterPanes>
+        </SfSplitter>
     </div>
 </div>
 
@@ -1171,15 +1187,53 @@
         left: 0;
         right: 0;
         bottom: 0;
-        display: flex;
+    }
+
+    /* Syncfusion Splitter styling for main layout */
+    ::deep .red-ui-main-splitter {
+        height: 100% !important;
+    }
+
+    ::deep .red-ui-main-splitter .e-split-bar {
+        background: #f3f3f3;
+        border-color: #bbb;
+    }
+
+    ::deep .red-ui-main-splitter .e-split-bar .e-resize-handler {
+        background: #999;
+    }
+
+    ::deep .red-ui-main-splitter .e-split-bar:hover {
+        background: #e8e8e8;
+    }
+
+    ::deep .red-ui-main-splitter .e-split-bar .e-navigate-arrow {
+        color: #666;
+    }
+
+    ::deep .red-ui-main-splitter .e-split-bar .e-navigate-arrow:hover {
+        color: #333;
+    }
+
+    /* Pane styling */
+    ::deep .red-ui-palette-pane {
+        background: #f3f3f3;
+    }
+
+    ::deep .red-ui-workspace-pane {
+        background: #fff;
+        position: relative;
+    }
+
+    ::deep .red-ui-sidebar-pane {
+        background: #fff;
     }
 
     /* ========== PALETTE ========== */
     #red-ui-palette {
-        width: 180px;
-        min-width: 180px;
+        width: 100%;
+        height: 100%;
         background: #f3f3f3;
-        border-right: 1px solid #bbb;
         display: flex;
         flex-direction: column;
         user-select: none;
@@ -1331,7 +1385,8 @@
 
     /* ========== WORKSPACE ========== */
     #red-ui-workspace {
-        flex: 1;
+        width: 100%;
+        height: 100%;
         display: flex;
         flex-direction: column;
         background: #f3f3f3;
@@ -1473,14 +1528,8 @@
     }
 
     /* ========== SIDEBAR ========== */
-    #red-ui-sidebar {
-        width: 315px;
-        min-width: 315px;
-        background: #fff;
-        border-left: 1px solid #bbb;
-        display: flex;
-        flex-direction: column;
-    }
+    /* Sidebar styles are now in RedUiSidebar.razor.css */
+    /* Only keep the generic tab styles that apply when tabs are used directly */
 
     #red-ui-sidebar-tabs {
         display: flex;
