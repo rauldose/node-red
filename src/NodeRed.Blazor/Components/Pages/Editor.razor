@@ -640,6 +640,48 @@
         </div>
     }
 
+    <!-- Quick Add Node Dialog -->
+    @if (IsQuickAddDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="() => IsQuickAddDialogOpen = false">
+            <div class="red-ui-dialog" style="width: 400px;" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Add node</span>
+                    <a class="red-ui-dialog-close" @onclick="() => IsQuickAddDialogOpen = false"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <div class="form-row">
+                        <input type="text" @bind="QuickAddSearchQuery" @bind:event="oninput" 
+                               placeholder="Search nodes..." 
+                               style="width: 100%; padding: 10px; font-size: 14px;" 
+                               autofocus />
+                    </div>
+                    <div style="margin-top: 15px; max-height: 300px; overflow-y: auto;">
+                        @foreach (var nodeType in GetFilteredNodeTypes())
+                        {
+                            <div class="red-ui-palette-node-small" 
+                                 style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; align-items: center;"
+                                 @onclick="() => QuickAddNode(nodeType)">
+                                <span class="red-ui-palette-icon-small" 
+                                      style="width: 20px; height: 16px; border-radius: 3px; background-color: @GetNodeColor(nodeType); border: 1px solid #999; margin-right: 10px;"></span>
+                                <span>@nodeType</span>
+                            </div>
+                        }
+                        @if (!GetFilteredNodeTypes().Any())
+                        {
+                            <div style="padding: 20px; text-align: center; color: #888;">
+                                No matching nodes found
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="() => IsQuickAddDialogOpen = false">Cancel</button>
+                </div>
+            </div>
+        </div>
+    }
+
     <!-- Main Container with Syncfusion Splitter for collapsible palette/sidebar -->
     <div id="red-ui-main-container">
         <SfSplitter @ref="_mainSplitter" Height="100%" Width="100%" Orientation="Syncfusion.Blazor.Layouts.Orientation.Horizontal" CssClass="red-ui-main-splitter">

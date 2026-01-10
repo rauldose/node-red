@@ -3338,26 +3338,14 @@ public partial class Editor : IDisposable
             Groups.Add(newGroup);
             AllGroups[groupId] = newGroup; // Add to central registry
             
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Created group '{groupName}' containing {selectedNodes.Count} node(s).",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Success($"Created group '{groupName}' containing {selectedNodes.Count} node(s)");
             
             HasUnsavedChanges = true;
             StateHasChanged();
         }
         else
         {
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = "Please select nodes to group. Select multiple nodes by holding Ctrl while clicking.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Warning("Please select nodes to group. Hold Ctrl while clicking to select multiple nodes.");
         }
     }
 
@@ -3402,26 +3390,14 @@ public partial class Editor : IDisposable
             Groups.Remove(groupToRemove);
             AllGroups.Remove(groupToRemove.Id); // Remove from central registry
             
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Ungrouped '{groupToRemove.Name}'. {groupToRemove.NodeCount} node(s) are now independent.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Success($"Ungrouped '{groupToRemove.Name}'. {groupToRemove.NodeCount} node(s) are now independent.");
             
             HasUnsavedChanges = true;
             StateHasChanged();
         }
         else
         {
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = "No groups to ungroup.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Warning("No groups to ungroup. Select a group first.");
         }
     }
 
@@ -3558,7 +3534,7 @@ public partial class Editor : IDisposable
         // 2. Reload the node definitions
         // 3. Update the palette
         
-        // For demonstration, we'll simulate a successful installation
+        // For now, simulate installation by adding to available modules
         var newModule = new PaletteModuleInfo
         {
             Name = moduleName,
@@ -3570,24 +3546,11 @@ public partial class Editor : IDisposable
         if (!AvailableModules.Any(m => m.Name == moduleName))
         {
             AvailableModules.Add(newModule);
-            
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Module '{moduleName}' installed successfully. In production, this would integrate with npm/package manager.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Success($"Module '{moduleName}' installed successfully");
         }
         else
         {
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Module '{moduleName}' is already installed.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Warning($"Module '{moduleName}' is already installed");
         }
         
         StateHasChanged();
@@ -3604,26 +3567,12 @@ public partial class Editor : IDisposable
         if (module != null)
         {
             AvailableModules.Remove(module);
-            
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Module '{moduleName}' uninstalled successfully. In production, this would integrate with npm/package manager.",
-                Timestamp = DateTimeOffset.Now
-            });
-            
+            NotificationService.Success($"Module '{moduleName}' uninstalled successfully");
             StateHasChanged();
         }
         else
         {
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Module '{moduleName}' not found.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Warning($"Module '{moduleName}' not found");
         }
     }
 
@@ -3650,13 +3599,7 @@ public partial class Editor : IDisposable
         if (DiagramInstance != null)
         {
             // Settings would be applied here
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = "Settings updated successfully.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Success("Settings updated successfully");
         }
         IsSettingsDialogOpen = false;
     }
@@ -4107,6 +4050,31 @@ public partial class Editor : IDisposable
             return node.Style.Fill;
         }
         return "#ddd";
+    }
+
+    /// <summary>
+    /// Gets the node color by type name for quick add dialog
+    /// </summary>
+    private string GetNodeColor(string nodeType)
+    {
+        var definition = NodeRegistry.GetAllDefinitions().FirstOrDefault(d => d.Type == nodeType);
+        if (definition != null && !string.IsNullOrEmpty(definition.Color))
+        {
+            return definition.Color;
+        }
+        
+        // Default colors by category
+        return nodeType switch
+        {
+            "inject" or "debug" or "catch" or "status" or "link in" or "link out" or "link call" or "junction" or "comment" or "group" => "#d3d3d3",
+            "function" or "template" or "delay" or "trigger" or "exec" or "filter" or "sort" or "batch" => "#f2c377",
+            "switch" or "change" or "range" or "split" or "join" or "rbe" or "csv" or "html" or "json" or "xml" => "#e2d96e",
+            "http" or "websocket" or "tcp" or "udp" or "mqtt" or "mqttbroker" => "#c7e9c0",
+            "file" or "watch" => "#DEB887",
+            _ when nodeType.Contains("in") || nodeType.Contains("input") => "#c7e9c0",
+            _ when nodeType.Contains("out") || nodeType.Contains("output") => "#c7e9c0",
+            _ => "#ddd"
+        };
     }
 
     /// <summary>
@@ -4950,15 +4918,46 @@ public partial class Editor : IDisposable
         }
     }
 
+    // Quick add node dialog state
+    private bool IsQuickAddDialogOpen = false;
+    private string QuickAddSearchQuery = "";
+    private double QuickAddX = 0;
+    private double QuickAddY = 0;
+
     /// <summary>
     /// Insert node (opens quick add dialog) from context menu
     /// </summary>
     private void ContextMenuInsertNode()
     {
-        // For now, show a simple inject node as the most common action
-        // In a full implementation, this would show a quick add dialog
-        AddNodeAtPosition("inject", ContextMenuX, ContextMenuY);
+        QuickAddX = ContextMenuX;
+        QuickAddY = ContextMenuY;
+        QuickAddSearchQuery = "";
+        IsQuickAddDialogOpen = true;
         CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Gets filtered node types for quick add dialog
+    /// </summary>
+    private List<string> GetFilteredNodeTypes()
+    {
+        var allTypes = NodeRegistry.GetAllDefinitions().Select(d => d.Type).ToList();
+        if (string.IsNullOrWhiteSpace(QuickAddSearchQuery))
+            return allTypes.Take(10).ToList();
+        
+        return allTypes
+            .Where(t => t.Contains(QuickAddSearchQuery, StringComparison.OrdinalIgnoreCase))
+            .Take(10)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Adds a node from quick add dialog
+    /// </summary>
+    private void QuickAddNode(string nodeType)
+    {
+        AddNodeAtPosition(nodeType, QuickAddX, QuickAddY);
+        IsQuickAddDialogOpen = false;
     }
 
     /// <summary>
