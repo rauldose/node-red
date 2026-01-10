@@ -1,4 +1,5 @@
 using NodeRed.Blazor.Components;
+using NodeRed.Blazor.Services;
 using NodeRed.Runtime;
 using Syncfusion.Blazor;
 using Syncfusion.Licensing;
@@ -17,6 +18,15 @@ builder.Services.AddSyncfusionBlazor();
 
 // Add Node-RED runtime services
 builder.Services.AddNodeRedRuntime();
+
+// Add Editor UI services
+builder.Services.AddScoped<IClipboardService, ClipboardService>();
+builder.Services.AddScoped<IDiagramNavigationService, DiagramNavigationService>();
+builder.Services.AddSingleton<IContextDataService, ContextDataService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IDialogService, DialogService>();
+builder.Services.AddScoped<IUndoRedoService, UndoRedoService>();
+builder.Services.AddScoped<ISearchService, SearchService>();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

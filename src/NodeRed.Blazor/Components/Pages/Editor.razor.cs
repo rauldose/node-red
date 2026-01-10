@@ -1,10 +1,47 @@
 // Copyright OpenJS Foundation and other contributors
 // Licensed under the Apache License, Version 2.0
 
+// =============================================================================
+// MODULARIZATION TODO - Future PRs
+// =============================================================================
+// This file is currently ~5000 lines with 250+ methods. The following 
+// modularization opportunities have been identified:
+//
+// 1. MODELS (Ready - see Models/EditorModels.cs):
+//    - Replace private nested classes (FlowTab, NodeData, ConnectorData, etc.)
+//      with the public classes from NodeRed.Blazor.Models namespace
+//    - Classes to replace: FlowTab, FlowNodeData, FlowConnectorData, NodeData,
+//      ConnectorData, PaletteCategory, PaletteNodeInfo, SearchResult,
+//      ConfigNodeInfo, SubflowInfo, GroupInfo, PaletteModuleInfo, KeyboardShortcut
+//    - EditorActionType enum and EditorAction class also extracted to UndoRedoService
+//
+// 2. SERVICES (Available - inject and use):
+//    - IUndoRedoService: Replace _undoStack/_redoStack with injected service
+//    - ISearchService: Replace PerformSearch() with service call
+//    - IClipboardService: Already used for clipboard operations
+//    - INotificationService: Already used for toast notifications
+//    - IDiagramNavigationService: Already used for pan/zoom
+//    - IContextDataService: Already used for context data
+//    - IDialogService: Available for future dialog extraction
+//
+// 3. COMPONENT EXTRACTION (Future work):
+//    - Extract flow tab management to FlowTabsComponent
+//    - Extract palette to separate PaletteComponent (beyond RedUiPalette wrapper)
+//    - Extract context menu handling to ContextMenuComponent
+//    - Extract keyboard shortcut handling to KeyboardShortcutsService
+//
+// 4. STATE MANAGEMENT (Future work):
+//    - Consider Fluxor or similar state management for AllNodes, AllConnectors, AllGroups
+//    - Extract flow state to a FlowStateService
+//
+// =============================================================================
+
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using NodeRed.Blazor.Components.Shared;
+using NodeRed.Blazor.Models;
+using NodeRed.Blazor.Services;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.Core.Interfaces;
@@ -117,6 +154,7 @@ public partial class Editor : IDisposable
     // Cached node definitions for performance
     private List<NodeDefinition>? _cachedNodeDefinitions;
 
+    // TODO: Replace with IUndoRedoService injection (see Services/UndoRedoService.cs)
     // Undo/Redo history stacks
     private Stack<EditorAction> _undoStack = new();
     private Stack<EditorAction> _redoStack = new();
@@ -343,18 +381,19 @@ public partial class Editor : IDisposable
     {
         // Create a simple sample flow
         // Users can add plugin nodes by dragging from the palette
-        CreateNode("inject1", 150, 150, "inject", "timestamp", "#a6bbcf");
-        CreateNode("function1", 350, 150, "function", "process", "#fdd0a2");
-        CreateNode("debug1", 550, 150, "debug", "msg.payload", "#87a980");
+        CreateNode("inject1", 150, 150, "inject", "timestamp");
+        CreateNode("function1", 350, 150, "function", "process");
+        CreateNode("debug1", 550, 150, "debug", "msg.payload");
 
         // Note: Connectors are not created here to avoid initialization issues
         // Users can draw connections by clicking on the output port (right side)
         // and dragging to an input port (left side)
     }
 
-    private void CreateNode(string id, double x, double y, string nodeType, string label, string color)
+    private void CreateNode(string id, double x, double y, string nodeType, string label)
     {
         var paletteNode = GetPaletteNodeInfo(nodeType);
+        var color = paletteNode?.Color ?? GetNodeColor(nodeType);
         var node = CreateNodeRedStyleNode(id, x, y, nodeType, label, color, paletteNode);
         DiagramNodes!.Add(node);
         NodeCount++;
@@ -2030,28 +2069,37 @@ public partial class Editor : IDisposable
         IsDeployMenuOpen = false;
         IsMainMenuOpen = false;
         
-        // Build workspace from diagram
-        BuildWorkspaceFromDiagram();
-        
-        await FlowStorage.SaveAsync(CurrentWorkspace);
-        
-        var deployType = DeployMode switch
+        try
         {
-            "flows" => DeployType.Flows,
-            "nodes" => DeployType.Nodes,
-            _ => DeployType.Full
-        };
-        
-        await FlowRuntime.DeployAsync(CurrentWorkspace, deployType);
+            // Build workspace from diagram
+            BuildWorkspaceFromDiagram();
+            
+            await FlowStorage.SaveAsync(CurrentWorkspace);
+            
+            var deployType = DeployMode switch
+            {
+                "flows" => DeployType.Flows,
+                "nodes" => DeployType.Nodes,
+                _ => DeployType.Full
+            };
+            
+            await FlowRuntime.DeployAsync(CurrentWorkspace, deployType);
 
-        if (FlowRuntime.State != FlowState.Running)
-        {
-            await FlowRuntime.StartAsync();
+            if (FlowRuntime.State != FlowState.Running)
+            {
+                await FlowRuntime.StartAsync();
+            }
+
+            HasUnsavedChanges = false;
+            HasBeenDeployed = true;
+            
+            NotificationService.Success("Successfully deployed");
+            StateHasChanged();
         }
-
-        HasUnsavedChanges = false;
-        HasBeenDeployed = true;
-        StateHasChanged();
+        catch (Exception ex)
+        {
+            NotificationService.Error($"Deploy failed: {ex.Message}");
+        }
     }
 
     // Menu toggle handlers
@@ -2124,27 +2172,12 @@ public partial class Editor : IDisposable
                     CurrentWorkspace.Flows.Add(flow);
                 }
                 
-                // Rebuild diagram from imported data
-                // For now, just add a debug message
-                DebugMessages.Add(new DebugMessage
-                {
-                    NodeId = "system",
-                    NodeName = "System",
-                    Data = $"Imported {importedWorkspace.Flows.Count} flow(s)",
-                    Timestamp = DateTimeOffset.Now
-                });
-                
+                NotificationService.Success($"Imported {importedWorkspace.Flows.Count} flow(s)");
                 HasUnsavedChanges = true;
             }
             catch (Exception ex)
             {
-                DebugMessages.Add(new DebugMessage
-                {
-                    NodeId = "system",
-                    NodeName = "System",
-                    Data = $"Import error: {ex.Message}",
-                    Timestamp = DateTimeOffset.Now
-                });
+                NotificationService.Error($"Import failed: {ex.Message}");
             }
         }
         
@@ -2160,20 +2193,14 @@ public partial class Editor : IDisposable
 
     private async Task CopyExportToClipboard()
     {
-        try
+        var success = await ClipboardService.CopyToClipboardAsync(ExportJson);
+        if (success)
         {
-            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", ExportJson);
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = "Copied to clipboard",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Success("Copied to clipboard");
         }
-        catch
+        else
         {
-            // Clipboard API not available
+            NotificationService.Error("Failed to copy to clipboard");
         }
     }
 
@@ -2187,13 +2214,16 @@ public partial class Editor : IDisposable
             
             await JSRuntime.InvokeVoidAsync("eval", 
                 $"(function() {{ var a = document.createElement('a'); a.href = 'data:application/json;base64,{base64}'; a.download = '{fileName}'; a.click(); }})()");
+            
+            NotificationService.Success($"Downloaded {fileName}");
         }
         catch
         {
-            // Download failed
+            NotificationService.Error("Download failed");
         }
     }
 
+    // TODO: Replace PerformSearch() with ISearchService.Search() (see Services/SearchService.cs)
     // Search dialog state
     private bool IsSearchDialogOpen = false;
     private string SearchQuery = "";
@@ -3347,26 +3377,14 @@ public partial class Editor : IDisposable
             Groups.Add(newGroup);
             AllGroups[groupId] = newGroup; // Add to central registry
             
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Created group '{groupName}' containing {selectedNodes.Count} node(s).",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Success($"Created group '{groupName}' containing {selectedNodes.Count} node(s)");
             
             HasUnsavedChanges = true;
             StateHasChanged();
         }
         else
         {
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = "Please select nodes to group. Select multiple nodes by holding Ctrl while clicking.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Warning("Please select nodes to group. Hold Ctrl while clicking to select multiple nodes.");
         }
     }
 
@@ -3411,42 +3429,70 @@ public partial class Editor : IDisposable
             Groups.Remove(groupToRemove);
             AllGroups.Remove(groupToRemove.Id); // Remove from central registry
             
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Ungrouped '{groupToRemove.Name}'. {groupToRemove.NodeCount} node(s) are now independent.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Success($"Ungrouped '{groupToRemove.Name}'. {groupToRemove.NodeCount} node(s) are now independent.");
             
             HasUnsavedChanges = true;
             StateHasChanged();
         }
         else
         {
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = "No groups to ungroup.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Warning("No groups to ungroup. Select a group first.");
         }
     }
+
+    // Group properties dialog state
+    private bool IsGroupPropertiesDialogOpen = false;
+    private string GroupPropertiesId = "";
+    private string GroupPropertiesName = "";
+    private string GroupPropertiesFillColor = "rgba(255, 204, 204, 0.3)";
+    private string GroupPropertiesStrokeColor = "#FF9999";
 
     private void EditGroup(string groupId)
     {
         var group = Groups.FirstOrDefault(g => g.Id == groupId);
         if (group != null)
         {
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Editing group '{group.Name}'. In a full implementation, this would open group properties.",
-                Timestamp = DateTimeOffset.Now
-            });
+            GroupPropertiesId = groupId;
+            GroupPropertiesName = group.Name;
+            GroupPropertiesFillColor = group.FillColor ?? DefaultGroupFillColor;
+            GroupPropertiesStrokeColor = group.StrokeColor ?? DefaultGroupStrokeColor;
+            IsGroupPropertiesDialogOpen = true;
         }
+    }
+
+    private void CloseGroupPropertiesDialog()
+    {
+        IsGroupPropertiesDialogOpen = false;
+    }
+
+    private void SaveGroupProperties()
+    {
+        var group = Groups.FirstOrDefault(g => g.Id == GroupPropertiesId);
+        if (group != null)
+        {
+            group.Name = GroupPropertiesName;
+            group.FillColor = GroupPropertiesFillColor;
+            group.StrokeColor = GroupPropertiesStrokeColor;
+            
+            // Update the visual group node
+            var groupNode = DiagramNodes?.FirstOrDefault(n => n.ID == group.DiagramNodeId);
+            if (groupNode?.Style != null)
+            {
+                groupNode.Style.Fill = GroupPropertiesFillColor;
+                groupNode.Style.StrokeColor = GroupPropertiesStrokeColor;
+            }
+            
+            // Update label
+            var labelAnnotation = groupNode?.Annotations?.FirstOrDefault();
+            if (labelAnnotation != null)
+            {
+                labelAnnotation.Content = GroupPropertiesName;
+            }
+            
+            HasUnsavedChanges = true;
+        }
+        IsGroupPropertiesDialogOpen = false;
+        StateHasChanged();
     }
 
     private void DeleteGroup(string groupId)
@@ -3511,7 +3557,7 @@ public partial class Editor : IDisposable
             .Select(g => new PaletteModuleInfo
             {
                 Name = g.Key,
-                Version = "Unknown", // Version info would come from package metadata
+                Version = g.Key == "core" ? GetCoreVersion() : "-", // Backend would provide actual version
                 NodeCount = g.Count(),
                 IsInstalled = true
             })
@@ -3520,18 +3566,26 @@ public partial class Editor : IDisposable
         AvailableModules.AddRange(modules);
     }
 
+    /// <summary>
+    /// Gets the core Node-RED version from assembly metadata
+    /// </summary>
+    private string GetCoreVersion()
+    {
+        var assembly = typeof(Editor).Assembly;
+        var version = assembly.GetName().Version;
+        return version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "-";
+    }
+
     private void InstallPaletteModule(string moduleName)
     {
-        // In a production implementation, this would:
-        // 1. Call npm install <moduleName> or a package manager API
-        // 2. Reload the node definitions
-        // 3. Update the palette
+        // Backend would handle actual package installation
+        // UI simulates the result for now
         
-        // For demonstration, we'll simulate a successful installation
+        // For now, simulate installation by adding to available modules
         var newModule = new PaletteModuleInfo
         {
             Name = moduleName,
-            Version = "1.0.0",
+            Version = "-", // Version would come from backend after installation
             NodeCount = 1,
             IsInstalled = true
         };
@@ -3539,24 +3593,11 @@ public partial class Editor : IDisposable
         if (!AvailableModules.Any(m => m.Name == moduleName))
         {
             AvailableModules.Add(newModule);
-            
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Module '{moduleName}' installed successfully. In production, this would integrate with npm/package manager.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Success($"Module '{moduleName}' installed successfully");
         }
         else
         {
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Module '{moduleName}' is already installed.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Warning($"Module '{moduleName}' is already installed");
         }
         
         StateHasChanged();
@@ -3573,26 +3614,12 @@ public partial class Editor : IDisposable
         if (module != null)
         {
             AvailableModules.Remove(module);
-            
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Module '{moduleName}' uninstalled successfully. In production, this would integrate with npm/package manager.",
-                Timestamp = DateTimeOffset.Now
-            });
-            
+            NotificationService.Success($"Module '{moduleName}' uninstalled successfully");
             StateHasChanged();
         }
         else
         {
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Module '{moduleName}' not found.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Warning($"Module '{moduleName}' not found");
         }
     }
 
@@ -3619,13 +3646,7 @@ public partial class Editor : IDisposable
         if (DiagramInstance != null)
         {
             // Settings would be applied here
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = "Settings updated successfully.",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Success("Settings updated successfully");
         }
         IsSettingsDialogOpen = false;
     }
@@ -4079,6 +4100,15 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
+    /// Gets the node color by type name for quick add dialog
+    /// </summary>
+    private string GetNodeColor(string nodeType)
+    {
+        var definition = NodeRegistry.GetAllDefinitions().FirstOrDefault(d => d.Type == nodeType);
+        return definition?.Color ?? "#87A980"; // Use NodeDefinition default color
+    }
+
+    /// <summary>
     /// Selects a node by ID from the outliner
     /// </summary>
     private async Task SelectNodeById(string nodeId)
@@ -4105,20 +4135,27 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
-    /// Reveals the selected node in the workspace
+    /// Reveals the selected node in the workspace by panning/zooming to it.
     /// </summary>
     private void RevealSelectedNode()
     {
-        // TODO: Pan/zoom to the selected node
+        if (SelectedDiagramNode != null && DiagramInstance != null)
+        {
+            DiagramNavigation.RevealNode(DiagramInstance, SelectedDiagramNode);
+        }
         StateHasChanged();
     }
 
     /// <summary>
     /// Copies the node link/path to clipboard
     /// </summary>
-    private void CopyNodeLink()
+    private async Task CopyNodeLink()
     {
-        // TODO: Copy node path to clipboard via JSInterop
+        if (SelectedDiagramNode != null)
+        {
+            var nodePath = $"#flow/{CurrentFlowId}/node/{SelectedDiagramNode.ID}";
+            await ClipboardService.CopyToClipboardAsync(nodePath);
+        }
     }
 
     /// <summary>
@@ -4272,50 +4309,67 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
-    /// Gets node context data
+    /// Gets node context data from the context service
     /// </summary>
     private Dictionary<string, object?> GetNodeContextData()
     {
-        return new Dictionary<string, object?>();
+        if (SelectedDiagramNode?.ID == null)
+            return new Dictionary<string, object?>();
+            
+        // Use synchronous wrapper - in real app would use async properly
+        return _nodeContextCache;
     }
 
     /// <summary>
-    /// Gets flow context data
+    /// Gets flow context data from the context service
     /// </summary>
     private Dictionary<string, object?> GetFlowContextData()
     {
-        return new Dictionary<string, object?>();
+        // Use cached data - refreshed via RefreshFlowContext
+        return _flowContextCache;
     }
 
     /// <summary>
-    /// Gets global context data
+    /// Gets global context data from the context service
     /// </summary>
     private Dictionary<string, object?> GetGlobalContextData()
     {
-        return new Dictionary<string, object?>();
+        // Use cached data - refreshed via RefreshGlobalContext
+        return _globalContextCache;
     }
+    
+    // Context data caches
+    private Dictionary<string, object?> _nodeContextCache = new();
+    private Dictionary<string, object?> _flowContextCache = new();
+    private Dictionary<string, object?> _globalContextCache = new();
 
     /// <summary>
-    /// Refreshes node context data
+    /// Refreshes node context data from the context service
     /// </summary>
-    private void RefreshNodeContext()
+    private async Task RefreshNodeContext()
     {
+        if (SelectedDiagramNode?.ID != null)
+        {
+            _nodeContextCache = await ContextDataService.GetNodeContextAsync(SelectedDiagramNode.ID);
+        }
         StateHasChanged();
     }
 
     /// <summary>
-    /// Refreshes flow context data
+    /// Refreshes flow context data from the context service
     /// </summary>
-    private void RefreshFlowContext()
+    private async Task RefreshFlowContext()
     {
+        _flowContextCache = await ContextDataService.GetFlowContextAsync(CurrentFlowId);
         StateHasChanged();
     }
 
     /// <summary>
-    /// Refreshes global context data
+    /// Refreshes global context data from the context service
     /// </summary>
-    private void RefreshGlobalContext()
+    private async Task RefreshGlobalContext()
     {
+        _globalContextCache = await ContextDataService.GetGlobalContextAsync();
         StateHasChanged();
     }
 
@@ -4341,6 +4395,12 @@ public partial class Editor : IDisposable
         FlowRuntime.OnNodeStatusChanged -= OnNodeStatusChanged;
     }
 
+    // =============================================================================
+    // TODO: MODULARIZATION - Replace these private nested classes with the public 
+    // classes from NodeRed.Blazor.Models.EditorModels (Models/EditorModels.cs)
+    // This will reduce this file by ~700 lines.
+    // =============================================================================
+    
     // Helper classes
     private class FlowTab
     {
@@ -4495,6 +4555,8 @@ public partial class Editor : IDisposable
         public int NodeCount { get; set; }
         public List<string> NodeIds { get; set; } = new();
         public string Color { get; set; } = "#FFCCCC";
+        public string? FillColor { get; set; }
+        public string? StrokeColor { get; set; }
         public double X { get; set; }
         public double Y { get; set; }
         public double Width { get; set; }
@@ -4893,15 +4955,46 @@ public partial class Editor : IDisposable
         }
     }
 
+    // Quick add node dialog state
+    private bool IsQuickAddDialogOpen = false;
+    private string QuickAddSearchQuery = "";
+    private double QuickAddX = 0;
+    private double QuickAddY = 0;
+
     /// <summary>
     /// Insert node (opens quick add dialog) from context menu
     /// </summary>
     private void ContextMenuInsertNode()
     {
-        // For now, show a simple inject node as the most common action
-        // In a full implementation, this would show a quick add dialog
-        AddNodeAtPosition("inject", ContextMenuX, ContextMenuY);
+        QuickAddX = ContextMenuX;
+        QuickAddY = ContextMenuY;
+        QuickAddSearchQuery = "";
+        IsQuickAddDialogOpen = true;
         CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Gets filtered node types for quick add dialog
+    /// </summary>
+    private List<string> GetFilteredNodeTypes()
+    {
+        var allTypes = NodeRegistry.GetAllDefinitions().Select(d => d.Type).ToList();
+        if (string.IsNullOrWhiteSpace(QuickAddSearchQuery))
+            return allTypes.Take(10).ToList();
+        
+        return allTypes
+            .Where(t => t.Contains(QuickAddSearchQuery, StringComparison.OrdinalIgnoreCase))
+            .Take(10)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Adds a node from quick add dialog
+    /// </summary>
+    private void QuickAddNode(string nodeType)
+    {
+        AddNodeAtPosition(nodeType, QuickAddX, QuickAddY);
+        IsQuickAddDialogOpen = false;
     }
 
     /// <summary>

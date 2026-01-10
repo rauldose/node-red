@@ -1,0 +1,298 @@
+@using NodeRed.Blazor.Services
+@inject IDialogService DialogService
+@implements IDisposable
+
+@*
+    RedUiDialogs - Central dialog container component
+    Renders all open dialogs managed by the DialogService
+*@
+
+@foreach (var dialog in DialogService.OpenDialogs)
+{
+    <div class="red-ui-dialog-overlay" @onclick="() => OnOverlayClick(dialog)">
+        <div class="red-ui-dialog" style="@GetDialogStyle(dialog)" @onclick:stopPropagation="true">
+            <div class="red-ui-dialog-header">
+                <span>@dialog.Options.Title</span>
+                @if (dialog.Options.ShowCloseButton)
+                {
+                    <a class="red-ui-dialog-close" @onclick="() => CloseDialog(dialog, false)">
+                        <i class="fa fa-times"></i>
+                    </a>
+                }
+            </div>
+            <div class="red-ui-dialog-body">
+                @switch (dialog.DialogType)
+                {
+                    case "confirm":
+                        <p>@dialog.Parameters?.ToString()</p>
+                        break;
+
+                    case "alert":
+                        <p>@dialog.Parameters?.ToString()</p>
+                        break;
+
+                    case "import":
+                        <div class="form-row">
+                            <label>Paste nodes JSON or drag and drop a file:</label>
+                            <textarea @bind="_importJson" rows="15" 
+                                      style="width: 100%; font-family: monospace; font-size: 12px;"
+                                      placeholder="Paste your flow JSON here..."></textarea>
+                        </div>
+                        break;
+
+                    case "export":
+                        <div class="form-row">
+                            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                                <button class="red-ui-button" @onclick="() => CopyToClipboard(dialog.Parameters?.ToString() ?? string.Empty)">
+                                    <i class="fa fa-clipboard"></i> Copy to clipboard
+                                </button>
+                                <button class="red-ui-button" @onclick="() => DownloadJson(dialog.Parameters?.ToString() ?? string.Empty)">
+                                    <i class="fa fa-download"></i> Download
+                                </button>
+                            </div>
+                            <textarea readonly rows="15" 
+                                      style="width: 100%; font-family: monospace; font-size: 12px;">@dialog.Parameters?.ToString()</textarea>
+                        </div>
+                        break;
+
+                    case "flowProperties":
+                        @if (dialog.Parameters is FlowPropertiesData flowData)
+                        {
+                            <div class="form-row">
+                                <label>Name</label>
+                                <input type="text" @bind="flowData.Label" style="width: 100%; padding: 8px;" />
+                            </div>
+                            <div class="form-row" style="margin-top: 15px;">
+                                <label>Info</label>
+                                <textarea @bind="flowData.Info" rows="5" style="width: 100%; padding: 8px;"></textarea>
+                            </div>
+                            <div class="form-row" style="margin-top: 15px;">
+                                <label>
+                                    <input type="checkbox" @bind="flowData.Enabled" /> Enabled
+                                </label>
+                            </div>
+                        }
+                        break;
+
+                    case "groupProperties":
+                        @if (dialog.Parameters is GroupPropertiesData groupData)
+                        {
+                            <div class="form-row">
+                                <label>Name</label>
+                                <input type="text" @bind="groupData.Name" style="width: 100%; padding: 8px;" />
+                            </div>
+                            <div class="form-row" style="margin-top: 15px;">
+                                <label>Fill Color</label>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <input type="color" @bind="groupData.FillColor" style="width: 50px; height: 30px;" />
+                                    <input type="text" @bind="groupData.FillColor" style="flex: 1; padding: 8px;" />
+                                </div>
+                            </div>
+                            <div class="form-row" style="margin-top: 15px;">
+                                <label>Stroke Color</label>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <input type="color" @bind="groupData.StrokeColor" style="width: 50px; height: 30px;" />
+                                    <input type="text" @bind="groupData.StrokeColor" style="flex: 1; padding: 8px;" />
+                                </div>
+                            </div>
+                        }
+                        break;
+
+                    case "search":
+                        <div class="form-row">
+                            <input type="text" @bind="_searchQuery" @bind:event="oninput" 
+                                   placeholder="Search nodes, flows..." 
+                                   style="width: 100%; padding: 8px;" />
+                        </div>
+                        @if (!string.IsNullOrEmpty(_searchQuery))
+                        {
+                            <div style="margin-top: 15px; max-height: 300px; overflow-y: auto;">
+                                <p style="color: #666;">Search results will appear here...</p>
+                            </div>
+                        }
+                        break;
+
+                    case "settings":
+                        @if (dialog.Parameters is SettingsData settingsData)
+                        {
+                            <div class="form-row">
+                                <label>
+                                    <input type="checkbox" @bind="settingsData.ShowGrid" /> Show grid
+                                </label>
+                            </div>
+                            <div class="form-row" style="margin-top: 10px;">
+                                <label>
+                                    <input type="checkbox" @bind="settingsData.SnapToGrid" /> Snap to grid
+                                </label>
+                            </div>
+                            <div class="form-row" style="margin-top: 10px;">
+                                <label>Grid size</label>
+                                <input type="number" @bind="settingsData.GridSize" min="5" max="50" 
+                                       style="width: 80px; padding: 8px;" />
+                            </div>
+                        }
+                        break;
+
+                    case "keyboardShortcuts":
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid #ddd;">
+                                    <th style="text-align: left; padding: 8px;">Action</th>
+                                    <th style="text-align: left; padding: 8px;">Shortcut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var shortcut in _keyboardShortcuts)
+                                {
+                                    <tr style="border-bottom: 1px solid #eee;">
+                                        <td style="padding: 8px;">@shortcut.Description</td>
+                                        <td style="padding: 8px;"><code>@shortcut.Key</code></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        break;
+
+                    default:
+                        <p>Unknown dialog type: @dialog.DialogType</p>
+                        break;
+                }
+            </div>
+            <div class="red-ui-dialog-footer">
+                @if (dialog.Options.ShowCancelButton)
+                {
+                    <button class="red-ui-button" @onclick="() => CloseDialog(dialog, false)">
+                        @dialog.Options.CancelText
+                    </button>
+                }
+                @if (dialog.Options.ShowConfirmButton)
+                {
+                    <button class="red-ui-button red-ui-button-primary" @onclick="() => CloseDialog(dialog, true)">
+                        @dialog.Options.ConfirmText
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Inject] private IClipboardService ClipboardService { get; set; } = default!;
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+    [Inject] private INotificationService NotificationService { get; set; } = default!;
+
+    // Dialog-specific state
+    private string _importJson = "";
+    private string _searchQuery = "";
+
+    private readonly List<KeyboardShortcutItem> _keyboardShortcuts = new()
+    {
+        new() { Key = "Ctrl+Z", Description = "Undo" },
+        new() { Key = "Ctrl+Y", Description = "Redo" },
+        new() { Key = "Ctrl+X", Description = "Cut" },
+        new() { Key = "Ctrl+C", Description = "Copy" },
+        new() { Key = "Ctrl+V", Description = "Paste" },
+        new() { Key = "Delete", Description = "Delete selected" },
+        new() { Key = "Ctrl+A", Description = "Select all" },
+        new() { Key = "Ctrl+I", Description = "Import" },
+        new() { Key = "Ctrl+E", Description = "Export" },
+        new() { Key = "Ctrl+F", Description = "Search" },
+        new() { Key = "Ctrl+G", Description = "Group selected nodes" },
+        new() { Key = "Ctrl+D", Description = "Deploy" }
+    };
+
+    protected override void OnInitialized()
+    {
+        DialogService.OnChange += HandleDialogChange;
+    }
+
+    private void HandleDialogChange()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private string GetDialogStyle(DialogInstance dialog)
+    {
+        var styles = new List<string>();
+        if (!string.IsNullOrEmpty(dialog.Options.Width))
+        {
+            styles.Add($"width: {dialog.Options.Width}");
+        }
+        return string.Join("; ", styles);
+    }
+
+    private void OnOverlayClick(DialogInstance dialog)
+    {
+        if (dialog.Options.Modal)
+        {
+            // Don't close modal dialogs on overlay click
+            return;
+        }
+        CloseDialog(dialog, false);
+    }
+
+    private void CloseDialog(DialogInstance dialog, bool confirmed)
+    {
+        object? resultData = null;
+
+        // Collect data based on dialog type
+        switch (dialog.DialogType)
+        {
+            case "import":
+                resultData = _importJson;
+                _importJson = "";
+                break;
+            case "search":
+                resultData = _searchQuery;
+                _searchQuery = "";
+                break;
+            case "flowProperties":
+            case "groupProperties":
+            case "settings":
+                resultData = dialog.Parameters;
+                break;
+        }
+
+        var result = confirmed 
+            ? DialogResult.Ok(resultData) 
+            : DialogResult.Cancel();
+            
+        DialogService.Close(dialog.Id, result);
+    }
+
+    private async Task CopyToClipboard(string text)
+    {
+        await ClipboardService.CopyToClipboardAsync(text);
+        NotificationService.Success("Copied to clipboard");
+    }
+
+    private async Task DownloadJson(string json)
+    {
+        try
+        {
+            var fileName = $"flows_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+            var base64 = Convert.ToBase64String(bytes);
+            
+            await JSRuntime.InvokeVoidAsync("eval", 
+                $"(function() {{ var a = document.createElement('a'); a.href = 'data:application/json;base64,{base64}'; a.download = '{fileName}'; a.click(); }})()");
+            
+            NotificationService.Success($"Downloaded {fileName}");
+        }
+        catch
+        {
+            NotificationService.Error("Download failed");
+        }
+    }
+
+    public void Dispose()
+    {
+        DialogService.OnChange -= HandleDialogChange;
+    }
+
+    private class KeyboardShortcutItem
+    {
+        public string Key { get; set; } = "";
+        public string Description { get; set; } = "";
+    }
+}
