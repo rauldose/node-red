@@ -55,4 +55,19 @@ public class Workspace
     /// Last modified timestamp.
     /// </summary>
     public DateTimeOffset LastModified { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// Revision identifier for version conflict detection.
+    /// Changes on each save to detect concurrent modifications.
+    /// </summary>
+    public string Revision { get; set; } = Guid.NewGuid().ToString();
+
+    /// <summary>
+    /// Generates a new revision ID. Call this when saving changes.
+    /// </summary>
+    public void UpdateRevision()
+    {
+        Revision = Guid.NewGuid().ToString();
+        LastModified = DateTimeOffset.UtcNow;
+    }
 }

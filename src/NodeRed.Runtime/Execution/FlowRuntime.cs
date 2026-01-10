@@ -4,6 +4,7 @@
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.Core.Events;
+using NodeRed.Core.Exceptions;
 using NodeRed.Core.Interfaces;
 using NodeRed.Runtime.Nodes.SDK.Common;
 
@@ -19,6 +20,7 @@ public class FlowRuntime : IFlowRuntime
     private readonly Dictionary<string, object?> _globalContext = new();
     private readonly Dictionary<string, INode> _linkInNodes = new(); // Link node registry for cross-flow routing
     private readonly Dictionary<string, TaskCompletionSource<NodeMessage>> _pendingLinkCalls = new(); // For link call return mode
+    private readonly object _deployLock = new(); // Lock for deployment operations
     private Workspace? _workspace;
     private Workspace? _previousWorkspace; // For incremental deployment
 
@@ -434,5 +436,36 @@ public class FlowRuntime : IFlowRuntime
             if (status != null) return status;
         }
         return null;
+    }
+
+    /// <inheritdoc />
+    public string? GetCurrentRevision()
+    {
+        return _workspace?.Revision;
+    }
+
+    /// <inheritdoc />
+    public async Task<string> DeployWithRevisionAsync(Workspace workspace, DeployType deployType = DeployType.Full, string? expectedRevision = null)
+    {
+        lock (_deployLock)
+        {
+            // Check for version conflict
+            if (expectedRevision != null && _workspace != null)
+            {
+                var currentRevision = _workspace.Revision;
+                if (currentRevision != expectedRevision)
+                {
+                    throw new VersionConflictException(expectedRevision, currentRevision);
+                }
+            }
+        }
+
+        // Update the revision before deployment
+        workspace.UpdateRevision();
+
+        // Perform the deployment
+        await DeployAsync(workspace, deployType);
+
+        return workspace.Revision;
     }
 }
