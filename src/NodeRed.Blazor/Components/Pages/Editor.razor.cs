@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using NodeRed.Blazor.Components.Shared;
+using NodeRed.Blazor.Services;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;
 using NodeRed.Core.Interfaces;
@@ -2030,28 +2031,37 @@ public partial class Editor : IDisposable
         IsDeployMenuOpen = false;
         IsMainMenuOpen = false;
         
-        // Build workspace from diagram
-        BuildWorkspaceFromDiagram();
-        
-        await FlowStorage.SaveAsync(CurrentWorkspace);
-        
-        var deployType = DeployMode switch
+        try
         {
-            "flows" => DeployType.Flows,
-            "nodes" => DeployType.Nodes,
-            _ => DeployType.Full
-        };
-        
-        await FlowRuntime.DeployAsync(CurrentWorkspace, deployType);
+            // Build workspace from diagram
+            BuildWorkspaceFromDiagram();
+            
+            await FlowStorage.SaveAsync(CurrentWorkspace);
+            
+            var deployType = DeployMode switch
+            {
+                "flows" => DeployType.Flows,
+                "nodes" => DeployType.Nodes,
+                _ => DeployType.Full
+            };
+            
+            await FlowRuntime.DeployAsync(CurrentWorkspace, deployType);
 
-        if (FlowRuntime.State != FlowState.Running)
-        {
-            await FlowRuntime.StartAsync();
+            if (FlowRuntime.State != FlowState.Running)
+            {
+                await FlowRuntime.StartAsync();
+            }
+
+            HasUnsavedChanges = false;
+            HasBeenDeployed = true;
+            
+            NotificationService.Success("Successfully deployed");
+            StateHasChanged();
         }
-
-        HasUnsavedChanges = false;
-        HasBeenDeployed = true;
-        StateHasChanged();
+        catch (Exception ex)
+        {
+            NotificationService.Error($"Deploy failed: {ex.Message}");
+        }
     }
 
     // Menu toggle handlers
@@ -2124,27 +2134,12 @@ public partial class Editor : IDisposable
                     CurrentWorkspace.Flows.Add(flow);
                 }
                 
-                // Rebuild diagram from imported data
-                // For now, just add a debug message
-                DebugMessages.Add(new DebugMessage
-                {
-                    NodeId = "system",
-                    NodeName = "System",
-                    Data = $"Imported {importedWorkspace.Flows.Count} flow(s)",
-                    Timestamp = DateTimeOffset.Now
-                });
-                
+                NotificationService.Success($"Imported {importedWorkspace.Flows.Count} flow(s)");
                 HasUnsavedChanges = true;
             }
             catch (Exception ex)
             {
-                DebugMessages.Add(new DebugMessage
-                {
-                    NodeId = "system",
-                    NodeName = "System",
-                    Data = $"Import error: {ex.Message}",
-                    Timestamp = DateTimeOffset.Now
-                });
+                NotificationService.Error($"Import failed: {ex.Message}");
             }
         }
         
@@ -2160,20 +2155,14 @@ public partial class Editor : IDisposable
 
     private async Task CopyExportToClipboard()
     {
-        try
+        var success = await ClipboardService.CopyToClipboardAsync(ExportJson);
+        if (success)
         {
-            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", ExportJson);
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = "Copied to clipboard",
-                Timestamp = DateTimeOffset.Now
-            });
+            NotificationService.Success("Copied to clipboard");
         }
-        catch
+        else
         {
-            // Clipboard API not available
+            NotificationService.Error("Failed to copy to clipboard");
         }
     }
 
@@ -2187,10 +2176,12 @@ public partial class Editor : IDisposable
             
             await JSRuntime.InvokeVoidAsync("eval", 
                 $"(function() {{ var a = document.createElement('a'); a.href = 'data:application/json;base64,{base64}'; a.download = '{fileName}'; a.click(); }})()");
+            
+            NotificationService.Success($"Downloaded {fileName}");
         }
         catch
         {
-            // Download failed
+            NotificationService.Error("Download failed");
         }
     }
 
@@ -3434,19 +3425,59 @@ public partial class Editor : IDisposable
         }
     }
 
+    // Group properties dialog state
+    private bool IsGroupPropertiesDialogOpen = false;
+    private string GroupPropertiesId = "";
+    private string GroupPropertiesName = "";
+    private string GroupPropertiesFillColor = "rgba(255, 204, 204, 0.3)";
+    private string GroupPropertiesStrokeColor = "#FF9999";
+
     private void EditGroup(string groupId)
     {
         var group = Groups.FirstOrDefault(g => g.Id == groupId);
         if (group != null)
         {
-            DebugMessages.Add(new DebugMessage
-            {
-                NodeId = "system",
-                NodeName = "System",
-                Data = $"Editing group '{group.Name}'. In a full implementation, this would open group properties.",
-                Timestamp = DateTimeOffset.Now
-            });
+            GroupPropertiesId = groupId;
+            GroupPropertiesName = group.Name;
+            GroupPropertiesFillColor = group.FillColor ?? DefaultGroupFillColor;
+            GroupPropertiesStrokeColor = group.StrokeColor ?? DefaultGroupStrokeColor;
+            IsGroupPropertiesDialogOpen = true;
         }
+    }
+
+    private void CloseGroupPropertiesDialog()
+    {
+        IsGroupPropertiesDialogOpen = false;
+    }
+
+    private void SaveGroupProperties()
+    {
+        var group = Groups.FirstOrDefault(g => g.Id == GroupPropertiesId);
+        if (group != null)
+        {
+            group.Name = GroupPropertiesName;
+            group.FillColor = GroupPropertiesFillColor;
+            group.StrokeColor = GroupPropertiesStrokeColor;
+            
+            // Update the visual group node
+            var groupNode = DiagramNodes?.FirstOrDefault(n => n.ID == group.DiagramNodeId);
+            if (groupNode?.Style != null)
+            {
+                groupNode.Style.Fill = GroupPropertiesFillColor;
+                groupNode.Style.StrokeColor = GroupPropertiesStrokeColor;
+            }
+            
+            // Update label
+            var labelAnnotation = groupNode?.Annotations?.FirstOrDefault();
+            if (labelAnnotation != null)
+            {
+                labelAnnotation.Content = GroupPropertiesName;
+            }
+            
+            HasUnsavedChanges = true;
+        }
+        IsGroupPropertiesDialogOpen = false;
+        StateHasChanged();
     }
 
     private void DeleteGroup(string groupId)
@@ -4105,20 +4136,27 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
-    /// Reveals the selected node in the workspace
+    /// Reveals the selected node in the workspace by panning/zooming to it.
     /// </summary>
     private void RevealSelectedNode()
     {
-        // TODO: Pan/zoom to the selected node
+        if (SelectedDiagramNode != null && DiagramInstance != null)
+        {
+            DiagramNavigation.RevealNode(DiagramInstance, SelectedDiagramNode);
+        }
         StateHasChanged();
     }
 
     /// <summary>
     /// Copies the node link/path to clipboard
     /// </summary>
-    private void CopyNodeLink()
+    private async Task CopyNodeLink()
     {
-        // TODO: Copy node path to clipboard via JSInterop
+        if (SelectedDiagramNode != null)
+        {
+            var nodePath = $"#flow/{CurrentFlowId}/node/{SelectedDiagramNode.ID}";
+            await ClipboardService.CopyToClipboardAsync(nodePath);
+        }
     }
 
     /// <summary>
@@ -4272,50 +4310,67 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
-    /// Gets node context data
+    /// Gets node context data from the context service
     /// </summary>
     private Dictionary<string, object?> GetNodeContextData()
     {
-        return new Dictionary<string, object?>();
+        if (SelectedDiagramNode?.ID == null)
+            return new Dictionary<string, object?>();
+            
+        // Use synchronous wrapper - in real app would use async properly
+        return _nodeContextCache;
     }
 
     /// <summary>
-    /// Gets flow context data
+    /// Gets flow context data from the context service
     /// </summary>
     private Dictionary<string, object?> GetFlowContextData()
     {
-        return new Dictionary<string, object?>();
+        // Use cached data - refreshed via RefreshFlowContext
+        return _flowContextCache;
     }
 
     /// <summary>
-    /// Gets global context data
+    /// Gets global context data from the context service
     /// </summary>
     private Dictionary<string, object?> GetGlobalContextData()
     {
-        return new Dictionary<string, object?>();
+        // Use cached data - refreshed via RefreshGlobalContext
+        return _globalContextCache;
     }
+    
+    // Context data caches
+    private Dictionary<string, object?> _nodeContextCache = new();
+    private Dictionary<string, object?> _flowContextCache = new();
+    private Dictionary<string, object?> _globalContextCache = new();
 
     /// <summary>
-    /// Refreshes node context data
+    /// Refreshes node context data from the context service
     /// </summary>
-    private void RefreshNodeContext()
+    private async Task RefreshNodeContext()
     {
+        if (SelectedDiagramNode?.ID != null)
+        {
+            _nodeContextCache = await ContextDataService.GetNodeContextAsync(SelectedDiagramNode.ID);
+        }
         StateHasChanged();
     }
 
     /// <summary>
-    /// Refreshes flow context data
+    /// Refreshes flow context data from the context service
     /// </summary>
-    private void RefreshFlowContext()
+    private async Task RefreshFlowContext()
     {
+        _flowContextCache = await ContextDataService.GetFlowContextAsync(CurrentFlowId);
         StateHasChanged();
     }
 
     /// <summary>
-    /// Refreshes global context data
+    /// Refreshes global context data from the context service
     /// </summary>
-    private void RefreshGlobalContext()
+    private async Task RefreshGlobalContext()
     {
+        _globalContextCache = await ContextDataService.GetGlobalContextAsync();
         StateHasChanged();
     }
 
@@ -4495,6 +4550,8 @@ public partial class Editor : IDisposable
         public int NodeCount { get; set; }
         public List<string> NodeIds { get; set; } = new();
         public string Color { get; set; } = "#FFCCCC";
+        public string? FillColor { get; set; }
+        public string? StrokeColor { get; set; }
         public double X { get; set; }
         public double Y { get; set; }
         public double Width { get; set; }

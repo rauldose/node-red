@@ -10,12 +10,19 @@
 @using Syncfusion.Blazor.Layouts
 @using System.Collections.ObjectModel
 @using NodeRed.Blazor.Models
+@using NodeRed.Blazor.Services
+@using NodeRed.Blazor.Components.Shared
 @using NodeRed.SDK
 @inject INodeRegistry NodeRegistry
 @inject IFlowRuntime FlowRuntime
 @inject IFlowStorage FlowStorage
 @inject IJSRuntime JSRuntime
 @inject NodeLoader NodeLoader
+@inject IClipboardService ClipboardService
+@inject IDiagramNavigationService DiagramNavigation
+@inject IContextDataService ContextDataService
+@inject INotificationService NotificationService
+@inject IDialogService DialogService
 
 <PageTitle>Node-RED</PageTitle>
 
@@ -479,6 +486,43 @@
                 </div>
                 <div class="red-ui-dialog-footer">
                     <button class="red-ui-button" @onclick="CloseGroupsDialog">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Group Properties Dialog -->
+    @if (IsGroupPropertiesDialogOpen)
+    {
+        <div class="red-ui-dialog-overlay" @onclick="CloseGroupPropertiesDialog">
+            <div class="red-ui-dialog" @onclick:stopPropagation="true">
+                <div class="red-ui-dialog-header">
+                    <span>Edit Group</span>
+                    <a class="red-ui-dialog-close" @onclick="CloseGroupPropertiesDialog"><i class="fa fa-times"></i></a>
+                </div>
+                <div class="red-ui-dialog-body">
+                    <div class="form-row">
+                        <label>Name</label>
+                        <input type="text" @bind="GroupPropertiesName" placeholder="Group name" style="width: 100%; padding: 8px;" />
+                    </div>
+                    <div class="form-row" style="margin-top: 15px;">
+                        <label>Fill Color</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="color" @bind="GroupPropertiesFillColor" style="width: 50px; height: 30px; border: none; cursor: pointer;" />
+                            <input type="text" @bind="GroupPropertiesFillColor" placeholder="rgba(255, 204, 204, 0.3)" style="flex: 1; padding: 8px;" />
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-top: 15px;">
+                        <label>Stroke Color</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="color" @bind="GroupPropertiesStrokeColor" style="width: 50px; height: 30px; border: none; cursor: pointer;" />
+                            <input type="text" @bind="GroupPropertiesStrokeColor" placeholder="#FF9999" style="flex: 1; padding: 8px;" />
+                        </div>
+                    </div>
+                </div>
+                <div class="red-ui-dialog-footer">
+                    <button class="red-ui-button" @onclick="CloseGroupPropertiesDialog">Cancel</button>
+                    <button class="red-ui-button red-ui-button-primary" @onclick="SaveGroupProperties">Done</button>
                 </div>
             </div>
         </div>
@@ -1357,6 +1401,12 @@
         </div>
     </div>
 }
+
+<!-- Notifications/Toasts -->
+<RedUiNotifications />
+
+<!-- Dialogs -->
+<RedUiDialogs />
 
 <style>
     /* ========================================

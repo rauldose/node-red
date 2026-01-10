@@ -1,3 +1,6 @@
+@using NodeRed.Blazor.Services
+@inject IClipboardService ClipboardService
+
 @*
     RedUiSidebarDebug - Blazor implementation of Node-RED's debug sidebar
     Matches the exact structure from packages/node_modules/@node-red/nodes/core/common/21-debug.html
@@ -93,14 +96,17 @@
         await OnClearMessages.InvokeAsync();
     }
 
-    private void CopyMessage(DebugMessage msg)
+    private async Task CopyMessage(DebugMessage msg)
     {
-        // Would use JSInterop to copy to clipboard
+        var text = FormatPayload(msg.Payload);
+        await ClipboardService.CopyToClipboardAsync(text);
     }
 
-    private void CopyPath(DebugMessage msg)
+    private async Task CopyPath(DebugMessage msg)
     {
-        // Would use JSInterop to copy path to clipboard
+        // Copy the message path in Node-RED format: msg.payload, msg.topic, etc.
+        var path = $"node:{msg.NodeId}";
+        await ClipboardService.CopyToClipboardAsync(path);
     }
 
     private IEnumerable<DebugMessage> GetFilteredMessages()

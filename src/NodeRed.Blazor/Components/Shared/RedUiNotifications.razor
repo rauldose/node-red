@@ -1,0 +1,112 @@
+@using NodeRed.Blazor.Services
+@inject INotificationService NotificationService
+@implements IDisposable
+
+@*
+    RedUiNotifications - Blazor implementation of Node-RED's notifications.js
+    Displays toast notifications matching the original JS UI
+*@
+
+<div class="red-ui-notifications" style="position: fixed; top: 60px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; max-width: 400px;">
+    @foreach (var notification in NotificationService.Notifications)
+    {
+        <div class="red-ui-notification @GetNotificationClass(notification.Type)" 
+             style="@GetNotificationStyle(notification.Type)">
+            <div class="red-ui-notification-content" style="display: flex; align-items: flex-start; gap: 10px;">
+                <i class="fa @GetNotificationIcon(notification.Type)" style="margin-top: 2px;"></i>
+                <div style="flex: 1;">
+                    <div class="red-ui-notification-message">@((MarkupString)notification.Message)</div>
+                    @if (notification.Buttons != null && notification.Buttons.Any())
+                    {
+                        <div class="red-ui-notification-buttons" style="margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end;">
+                            @foreach (var button in notification.Buttons)
+                            {
+                                <button class="red-ui-button @(button.IsPrimary ? "red-ui-button-primary" : "")"
+                                        @onclick="() => OnButtonClick(notification.Id, button)">
+                                    @button.Text
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+                @if (!notification.Fixed || notification.Buttons == null || !notification.Buttons.Any())
+                {
+                    <button class="red-ui-notification-close" 
+                            @onclick="() => NotificationService.Close(notification.Id)"
+                            style="background: none; border: none; cursor: pointer; padding: 0; color: inherit; opacity: 0.7;">
+                        <i class="fa fa-times"></i>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@* Modal shade for modal notifications *@
+@if (NotificationService.Notifications.Any(n => n.Modal))
+{
+    <div class="red-ui-notification-shade" 
+         style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999;">
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        NotificationService.OnChange += HandleNotificationChange;
+    }
+
+    private void HandleNotificationChange()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnButtonClick(string notificationId, NotificationButton button)
+    {
+        button.OnClick?.Invoke();
+        NotificationService.Close(notificationId);
+    }
+
+    private string GetNotificationClass(NotificationType type)
+    {
+        return type switch
+        {
+            NotificationType.Success => "red-ui-notification-success",
+            NotificationType.Warning => "red-ui-notification-warning",
+            NotificationType.Error => "red-ui-notification-error",
+            NotificationType.Compact => "red-ui-notification-compact",
+            _ => "red-ui-notification-info"
+        };
+    }
+
+    private string GetNotificationStyle(NotificationType type)
+    {
+        var baseStyle = "padding: 12px 15px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); animation: slideIn 0.3s ease-out;";
+        
+        return type switch
+        {
+            NotificationType.Success => $"{baseStyle} background: #d4edda; border: 1px solid #c3e6cb; color: #155724;",
+            NotificationType.Warning => $"{baseStyle} background: #fff3cd; border: 1px solid #ffeeba; color: #856404;",
+            NotificationType.Error => $"{baseStyle} background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24;",
+            NotificationType.Compact => $"{baseStyle} background: #e2e3e5; border: 1px solid #d6d8db; color: #383d41; padding: 8px 12px;",
+            _ => $"{baseStyle} background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460;"
+        };
+    }
+
+    private string GetNotificationIcon(NotificationType type)
+    {
+        return type switch
+        {
+            NotificationType.Success => "fa-check-circle",
+            NotificationType.Warning => "fa-exclamation-triangle",
+            NotificationType.Error => "fa-times-circle",
+            NotificationType.Compact => "fa-info",
+            _ => "fa-info-circle"
+        };
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnChange -= HandleNotificationChange;
+    }
+}
