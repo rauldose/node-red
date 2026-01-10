@@ -20,22 +20,21 @@
 }
 
 ::deep .red-ui-info-splitter .e-split-bar {
-    background: var(--red-ui-secondary-border-color, #ddd);
+    background: var(--red-ui-secondary-border-color, #ddd) !important;
     height: 7px !important;
     min-height: 7px !important;
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
 }
 
 ::deep .red-ui-info-splitter .e-split-bar .e-resize-handler {
-    display: none;
+    display: none !important;
 }
 
+/* Navigate arrows centered in the splitter bar */
 ::deep .red-ui-info-splitter .e-split-bar .e-navigate-arrow {
-    position: relative !important;
-    left: auto !important;
-    transform: none !important;
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    top: -7px !important;
 }
 
 /* Outliner section */

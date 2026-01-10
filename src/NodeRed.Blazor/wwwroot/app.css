@@ -137,6 +137,19 @@ h1:focus {
     background-color: #f0f0f0 !important;
 }
 
+/* Center navigate arrows on vertical splitters in sidebar */
+.red-ui-info-splitter.e-splitter-vertical .e-split-bar,
+.red-ui-help-splitter.e-splitter-vertical .e-split-bar {
+    position: relative !important;
+}
+
+.red-ui-info-splitter.e-splitter-vertical .e-split-bar .e-navigate-arrow,
+.red-ui-help-splitter.e-splitter-vertical .e-split-bar .e-navigate-arrow {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+}
+
 /* Hide collapse buttons by default, show on hover */
 .e-splitter .e-split-bar .e-navigate-arrow {
     opacity: 0;
@@ -385,17 +398,26 @@ h1:focus {
     min-width: 0 !important;
     max-width: 0 !important;
     overflow: hidden !important;
+    flex: 0 0 0px !important;
 }
 
-/* Hide the splitter bar before the hidden tray pane */
-.e-splitter .e-pane.red-ui-tray-hidden + .e-split-bar,
-.e-splitter .e-split-bar + .e-pane.red-ui-tray-hidden {
+/* Hide the splitter bar adjacent to the hidden tray pane using :has() */
+/* When tray is hidden, hide the split-bar that comes before it */
+.e-splitter.e-splitter-horizontal .e-split-bar:has(+ .red-ui-tray-hidden) {
     display: none !important;
+    width: 0 !important;
 }
 
-/* Also hide the splitter bar that precedes the hidden tray */
-.e-splitter.e-splitter-horizontal .e-pane:has(+ .red-ui-tray-hidden) + .e-split-bar {
+/* Also target by index - tray pane is index 2 (0-indexed), so hide bar index 2 when tray is hidden */
+.red-ui-main-splitter:has(.red-ui-tray-hidden) > .e-split-bar:nth-of-type(2) {
     display: none !important;
+    width: 0 !important;
+}
+
+/* Ensure sidebar splitter bar remains visible and functional */
+.red-ui-main-splitter > .e-split-bar:nth-of-type(3),
+.red-ui-main-splitter > .e-split-bar:last-of-type {
+    display: flex !important;
 }
 
 /* Sidebar internal splitter centering */
