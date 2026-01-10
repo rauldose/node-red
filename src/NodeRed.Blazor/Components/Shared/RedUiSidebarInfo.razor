@@ -12,8 +12,7 @@
                 <ContentTemplate>
                     <div class="red-ui-info-outliner" style="height: 100%; overflow: auto;">
                         <SfTreeView TValue="TreeItem" CssClass="red-ui-treeview" @ref="_treeView"
-                                    ExpandedNodes="@_expandedNodes"
-                                    NodeClicked="OnNodeClicked">
+                                    ExpandedNodes="@_expandedNodes">
                             <TreeViewFieldsSettings TValue="TreeItem"
                                                     DataSource="@GetTreeData()"
                                                     Id="Id"
@@ -23,6 +22,7 @@
                                                     IconCss="IconCss"
                                                     Expanded="Expanded">
                             </TreeViewFieldsSettings>
+                            <TreeViewEvents TValue="TreeItem" NodeClicked="OnNodeClicked"></TreeViewEvents>
                             <TreeViewTemplates TValue="TreeItem">
                                 <NodeTemplate>
                                     <div class="red-ui-tree-node @(context.Id == SelectedNodeId || context.Id == SelectedFlowId ? "selected" : "")">

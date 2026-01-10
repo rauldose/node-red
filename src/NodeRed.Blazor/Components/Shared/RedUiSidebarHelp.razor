@@ -24,8 +24,7 @@
                 <SplitterPane Size="30%" Min="100px" Collapsible="true">
                     <ContentTemplate>
                         <div class="red-ui-sidebar-help-toc" style="height: 100%; overflow: auto; padding: 5px;">
-                            <SfTreeView TValue="HelpTreeItem" CssClass="red-ui-help-treeview"
-                                        NodeClicked="OnHelpNodeClicked">
+                            <SfTreeView TValue="HelpTreeItem" CssClass="red-ui-help-treeview">
                                 <TreeViewFieldsSettings TValue="HelpTreeItem"
                                                         DataSource="@GetFilteredTreeData()"
                                                         Id="Id"
@@ -34,6 +33,7 @@
                                                         HasChildren="HasChildren"
                                                         Expanded="Expanded">
                                 </TreeViewFieldsSettings>
+                                <TreeViewEvents TValue="HelpTreeItem" NodeClicked="OnHelpNodeClicked"></TreeViewEvents>
                                 <TreeViewTemplates TValue="HelpTreeItem">
                                     <NodeTemplate>
                                         <div class="red-ui-help-tree-node @(context.Id == SelectedNodeType ? "selected" : "")">
