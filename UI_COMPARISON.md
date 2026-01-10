@@ -4,7 +4,100 @@ This document provides a comprehensive comparison of the functionalities between
 
 ## Executive Summary
 
-The Blazor UI port covers the core editor functionality but is missing several advanced features present in the original JavaScript implementation. This document categorizes features by priority and provides recommendations for achieving feature parity.
+The Blazor UI port covers the core editor functionality but contains **stubs, placeholders, and hardcoded values** that need to be properly implemented to match the JavaScript implementation. This document identifies these implementation gaps to achieve 1:1 functionality.
+
+---
+
+## 🚨 CRITICAL: Implementation Gaps (Stubs/Placeholders/Hardcoded Values)
+
+This section lists specific code locations where the Blazor implementation has placeholders, stubs, or hardcoded values that need real implementation to match JS functionality.
+
+### Editor.razor.cs - Identified Stubs & TODOs
+
+| Line | Issue | JS Equivalent | Action Required |
+|------|-------|---------------|-----------------|
+| 1187 | `// TODO: Implement Bezier connectors` | `view.js:lineCurveScale = 0.75` | Implement Bezier connector segments with curvature |
+| 3245 | `// In a full implementation, groups would be tracked` | `group.js` full tracking | Implement proper group membership tracking |
+| 3446 | `EditGroup()` outputs "In a full implementation, this would open group properties" | `group.js:editGroup()` | Implement group properties dialog |
+| 3514 | `Version = "Unknown"` hardcoded | `palette-editor.js` fetches from npm | Implement module version fetching from package metadata |
+| 3523-3563 | `InstallPaletteModule()` is a stub simulation | `palette-editor.js:installPackage()` | Implement real package manager integration |
+| 3565-3597 | `UninstallPaletteModule()` is a stub simulation | `palette-editor.js:removePackage()` | Implement real package uninstall |
+| 4112 | `// TODO: Pan/zoom to the selected node` | `view.js:reveal()` | Implement scroll-to-node with animation |
+| 4121 | `// TODO: Copy node path to clipboard via JSInterop` | `clipboard.js:copyText()` | Implement JSInterop clipboard integration |
+| 4902 | `// In a full implementation, this would show a quick add dialog` | `typeSearch.js` | Implement quick add type search dialog |
+
+### RedUiSidebarDebug.razor - Stubs
+
+| Line | Issue | JS Equivalent | Action Required |
+|------|-------|---------------|-----------------|
+| 97-99 | `CopyMessage()` is empty stub | `debug.js:copyMessage()` | Implement JSInterop clipboard copy |
+| 101-104 | `CopyPath()` is empty stub | `debug.js:copyPath()` | Implement message path copy |
+
+### RedUiSidebarContext.razor - Missing API Integration
+
+| Issue | JS Equivalent | Action Required |
+|-------|---------------|-----------------|
+| Context data returns empty | `tab-context.js:$.getJSON("context/...")` | Implement context API endpoints and data fetching |
+| Auto-refresh not functional | `tab-context.js:updateEntry()` | Implement timer-based auto-refresh |
+
+### NodeRed.Runtime - TODOs
+
+| File:Line | Issue | Action Required |
+|-----------|-------|-----------------|
+| `FlowRuntime.cs:156` | `// TODO: Implement incremental deployment` | Deploy only modified nodes, not full reload |
+| `FlowExecutor.cs:147` | `// TODO: Implement catch node notification` | Implement error routing to catch nodes |
+
+---
+
+## 📋 Hardcoded Values That Need Dynamic Implementation
+
+| Location | Hardcoded Value | Should Come From |
+|----------|-----------------|------------------|
+| `Editor.razor.cs:3514` | `Version = "Unknown"` | Package.json or NuGet package metadata |
+| `Editor.razor.cs:660-678` | Fallback lists for `hasInput`/`hasOutput` | Always use palette node definitions |
+| `Editor.razor.cs:837-844` | Fallback port detection | Should error if node type not in registry |
+
+---
+
+## 🔧 Features With Partial Implementation
+
+These features have UI but incomplete backend logic:
+
+### 1. Context Sidebar (`RedUiSidebarContext.razor`)
+**Current State:** UI renders but always shows "No context data"
+**JS Implementation:** Makes API calls to `/context/node/{id}`, `/context/flow/{id}`, `/context/global`
+**Fix Required:** 
+- Create context API endpoints in .NET backend
+- Implement `IContextService` to track runtime context
+- Wire up refresh buttons to fetch real data
+
+### 2. Config Node Sidebar (`RedUiSidebarConfig.razor`)
+**Current State:** Lists config nodes but doesn't track usage
+**JS Implementation:** `tab-config.js` calculates `node.users.length` for each config node
+**Fix Required:**
+- Track config node usage across flows
+- Implement proper filtering for "unused" filter mode
+
+### 3. Palette Manager (`Editor.razor:498-550`)
+**Current State:** Shows modules but install/uninstall are simulations
+**JS Implementation:** `palette-editor.js` calls npm CLI or REST API
+**Fix Required:**
+- Implement NuGet or plugin package manager
+- Real module loading/unloading
+
+### 4. Group Editing (`EditGroup()`)
+**Current State:** Shows debug message instead of dialog
+**JS Implementation:** Opens tray with group properties
+**Fix Required:**
+- Create group properties component
+- Support group name, style (color, border), and membership editing
+
+### 5. Quick Insert Node (`ContextMenuInsertNode()`)
+**Current State:** Always adds inject node
+**JS Implementation:** Opens type search dialog
+**Fix Required:**
+- Port `typeSearch.js` functionality
+- Allow searching and selecting any node type
 
 ---
 
@@ -415,8 +508,69 @@ The Blazor UI port covers the core editor functionality but is missing several a
 
 ---
 
+## 🎯 Immediate Action Items for 1:1 Functionality
+
+These are the specific fixes needed to convert stubs/placeholders to working implementations:
+
+### Priority 1: Fix Stubs in Existing UI
+
+1. **Clipboard Operations (JSInterop)**
+   - Files: `RedUiSidebarDebug.razor`, `Editor.razor.cs:4121`
+   - Implement: `await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text)`
+
+2. **Context Data API**
+   - Files: `RedUiSidebarContext.razor`, `Editor.razor.cs:4277-4320`
+   - Implement: Create `/api/context/{scope}/{id}` endpoint in .NET backend
+   - Wire up to `IContextService` that tracks node/flow/global context at runtime
+
+3. **Reveal/Pan to Node**
+   - File: `Editor.razor.cs:4112`
+   - Implement: `DiagramInstance.ScrollToNode(nodeId)` or equivalent Syncfusion API
+
+4. **Group Properties Dialog**
+   - File: `Editor.razor.cs:3437-3450`
+   - Implement: Create `RedUiGroupProperties.razor` component with name, style options
+
+5. **Quick Add Type Search**
+   - File: `Editor.razor.cs:4902`
+   - Implement: Port `typeSearch.js` dialog to show filterable node type list
+
+### Priority 2: Replace Hardcoded Values
+
+1. **Module Version Detection**
+   - File: `Editor.razor.cs:3514`
+   - Read version from assembly metadata or .csproj for plugin nodes
+
+2. **Input/Output Port Detection**
+   - Files: `Editor.razor.cs:660-678, 837-844`
+   - Remove fallback lists; throw error if node not in registry
+
+### Priority 3: Complete Partial Implementations
+
+1. **Config Node Usage Tracking**
+   - Track `users.length` for each config node
+   - Update `RedUiSidebarConfig.razor` to show real usage counts
+
+2. **Bezier Connectors**
+   - File: `Editor.razor.cs:1187`
+   - Research Syncfusion Bezier segment configuration
+
+3. **Incremental Deploy**
+   - File: `FlowRuntime.cs:156`
+   - Track changed nodes and deploy only modified subset
+
+4. **Catch Node Routing**
+   - File: `FlowExecutor.cs:147`
+   - Route node errors to catch nodes in same flow
+
+---
+
 ## Conclusion
 
-The Blazor UI provides a solid foundation with core editor functionality. However, several critical widgets (TypedInput, EditableList, code editors) are missing and are essential for full node configuration. The priority should be implementing these components before addressing the medium and low priority features.
+The Blazor UI provides a solid foundation with core editor functionality. To achieve 1:1 feature parity with the JavaScript UI, the focus should be on:
 
-The architectural transition from JavaScript/D3/jQuery to Blazor/Syncfusion is well underway, but the custom widget gap is the primary blocker for achieving feature parity with the original Node-RED editor.
+1. **Replacing stubs** - Convert placeholder code to real implementations
+2. **Removing hardcoded values** - Use dynamic data from registries/APIs
+3. **Completing partial features** - Finish implementations that have UI but incomplete logic
+
+The custom widget gap (TypedInput, EditableList, code editors) remains a blocker for advanced node configuration, but the immediate priority should be fixing the identified stubs in existing features to ensure basic functionality matches the JS UI.
