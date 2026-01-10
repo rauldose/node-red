@@ -1,48 +1,47 @@
 @using Syncfusion.Blazor.Layouts
-@using Syncfusion.Blazor.Navigations
-@using Syncfusion.Blazor.Buttons
-@using Syncfusion.Blazor.Inputs
 
 @*
-    RedUiSidebarHelp - Blazor implementation using pure Syncfusion components
-    Uses SfTreeView for tree list and SfSplitter for resizable panels
+    RedUiSidebarHelp - Blazor implementation of Node-RED's tab-help.js
+    Uses Syncfusion SfSplitter for resizable panels
 *@
 
-<div style="height: 100%; display: flex; flex-direction: column;">
-    @* Toolbar *@
-    <div style="padding: 8px 12px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-        <SfButton IconCss="fa fa-list-ul" CssClass="@(ShowTOC ? "e-primary" : "")" OnClick="ToggleTOC" Title="@(ShowTOC ? "Hide topics" : "Show topics")"></SfButton>
-        <SfTextBox Placeholder="Search help..." @bind-Value="SearchQuery" CssClass="e-small" Width="100%"></SfTextBox>
+<div class="red-ui-sidebar-help" style="height: 100%; display: flex; flex-direction: column;">
+    @* Toolbar with toggle button and search *@
+    <div class="red-ui-sidebar-header" style="padding: 5px 10px; border-bottom: 1px solid #ddd; flex-shrink: 0; display: flex; align-items: center; gap: 8px;">
+        <button class="red-ui-button red-ui-button-small @(ShowTOC ? "selected" : "")" 
+                @onclick="ToggleTOC" 
+                title="@(ShowTOC ? "Hide topics" : "Show topics")"
+                style="padding: 4px 8px; border: 1px solid #ccc; background: @(ShowTOC ? "#ddd" : "#fff"); border-radius: 3px; cursor: pointer;">
+            <i class="fa fa-list-ul"></i>
+        </button>
+        <input type="text" placeholder="Search help..." @bind="SearchQuery" @bind:event="oninput"
+               style="flex: 1; padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px;" />
     </div>
 
     @* Content area *@
-    <div style="flex: 1; overflow: hidden;">
+    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
         @if (ShowTOC)
         {
-            <SfSplitter Height="100%" Width="100%" Orientation="Syncfusion.Blazor.Layouts.Orientation.Vertical">
+            <SfSplitter Height="100%" Width="100%" Orientation="Syncfusion.Blazor.Layouts.Orientation.Vertical" CssClass="red-ui-help-splitter">
                 <SplitterPanes>
                     @* TOC panel (tree) *@
                     <SplitterPane Size="35%" Min="80px" Collapsible="true">
                         <ContentTemplate>
-                            <SfTreeView TValue="TreeItem" @ref="_treeView" CssClass="sidebar-help-tree">
-                                <TreeViewEvents TValue="TreeItem" NodeClicked="OnNodeClicked"></TreeViewEvents>
-                                <TreeViewFieldsSettings TValue="TreeItem" 
-                                    DataSource="@GetFilteredTreeData()"
-                                    Id="Id" 
-                                    Text="Text" 
-                                    ParentID="ParentId" 
-                                    HasChildren="HasChildren"
-                                    Expanded="IsExpanded"
-                                    IconCss="IconCss">
-                                </TreeViewFieldsSettings>
-                            </SfTreeView>
+                            <div class="red-ui-sidebar-help-toc" style="height: 100%; overflow: auto; padding: 5px;">
+                                <ul style="list-style: none; margin: 0; padding: 0;">
+                                    @foreach (var category in GetFilteredCategories())
+                                    {
+                                        @RenderCategoryNode(category)
+                                    }
+                                </ul>
+                            </div>
                         </ContentTemplate>
                     </SplitterPane>
 
                     @* Help content panel *@
                     <SplitterPane Min="100px">
                         <ContentTemplate>
-                            <div style="height: 100%; overflow-y: auto; padding: 12px;">
+                            <div class="red-ui-sidebar-help-content" style="height: 100%; overflow-y: auto; padding: 10px;">
                                 @RenderHelpContent()
                             </div>
                         </ContentTemplate>
@@ -53,7 +52,7 @@
         else
         {
             @* Help content only (no TOC) *@
-            <div style="height: 100%; overflow-y: auto; padding: 12px;">
+            <div class="red-ui-sidebar-help-content" style="flex: 1; overflow-y: auto; padding: 10px;">
                 @RenderHelpContent()
             </div>
         }
@@ -71,141 +70,140 @@
     [Parameter] public List<NodeCategory> Categories { get; set; } = new();
     [Parameter] public EventCallback<string> OnNodeTypeSelected { get; set; }
 
-    private SfTreeView<TreeItem>? _treeView;
     private bool ShowTOC { get; set; } = true;
     private string SearchQuery { get; set; } = "";
+    private HashSet<string> _expandedCategories = new();
 
     private void ToggleTOC()
     {
         ShowTOC = !ShowTOC;
     }
 
-    private List<TreeItem> GetFilteredTreeData()
+    private List<NodeCategory> GetFilteredCategories()
     {
-        var items = new List<TreeItem>();
-        var filteredCategories = string.IsNullOrEmpty(SearchQuery)
-            ? Categories
-            : Categories.Select(c => new NodeCategory
-            {
-                Name = c.Name,
-                Expanded = true,
-                Nodes = c.Nodes.Where(n =>
-                    n.Type.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
-                    n.Label.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)
-                ).ToList()
-            }).Where(c => c.Nodes.Count > 0).ToList();
-
-        foreach (var category in filteredCategories)
+        if (string.IsNullOrEmpty(SearchQuery))
         {
-            var catId = $"cat-{category.Name}";
-            items.Add(new TreeItem
-            {
-                Id = catId,
-                Text = category.Name,
-                ParentId = null,
-                HasChildren = category.Nodes.Any(),
-                IsExpanded = category.Expanded || !string.IsNullOrEmpty(SearchQuery),
-                IconCss = "fa fa-folder"
-            });
-
-            foreach (var node in category.Nodes)
-            {
-                items.Add(new TreeItem
-                {
-                    Id = node.Type,
-                    Text = node.Label,
-                    ParentId = catId,
-                    HasChildren = false,
-                    Color = node.Color,
-                    IsNode = true
-                });
-            }
+            return Categories;
         }
 
-        return items;
+        return Categories.Select(c => new NodeCategory
+        {
+            Name = c.Name,
+            Expanded = true,
+            Nodes = c.Nodes.Where(n =>
+                n.Type.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                n.Label.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)
+            ).ToList()
+        }).Where(c => c.Nodes.Count > 0).ToList();
     }
 
-    private async Task OnNodeClicked(NodeClickEventArgs args)
+    private RenderFragment RenderCategoryNode(NodeCategory category) => __builder =>
     {
-        var nodeData = args.NodeData;
-        var id = nodeData.Id;
-        // Check if this is a node type (not a category) by checking the tree data
-        var treeItems = GetFilteredTreeData();
-        var treeItem = treeItems.FirstOrDefault(t => t.Id == id);
-        if (treeItem != null && !treeItem.HasChildren)
+        var categoryId = $"cat-{category.Name}";
+        var isExpanded = _expandedCategories.Contains(categoryId) || category.Expanded || !string.IsNullOrEmpty(SearchQuery);
+
+        <li style="list-style: none;">
+            <div @onclick="() => ToggleCategory(categoryId)" 
+                 style="display: flex; align-items: center; padding: 4px 8px; cursor: pointer;">
+                <i class="fa @(isExpanded ? "fa-caret-down" : "fa-caret-right")" 
+                   style="width: 12px; margin-right: 4px; color: #666; font-size: 11px;"></i>
+                <span style="font-size: 13px; font-weight: 500; color: #333;">@category.Name</span>
+            </div>
+            
+            @if (isExpanded)
+            {
+                <ul style="list-style: none; margin: 0; padding-left: 16px;">
+                    @foreach (var node in category.Nodes)
+                    {
+                        var isSelected = node.Type == SelectedNodeType;
+                        <li>
+                            <div @onclick="() => SelectNodeType(node.Type)" 
+                                 style="display: flex; align-items: center; padding: 3px 8px; cursor: pointer; @(isSelected ? "background-color: #ffebc7;" : "")">
+                                <span style="width: 15px; height: 11px; background-color: @node.Color; border: 1px solid #999; border-radius: 2px; margin-right: 6px;"></span>
+                                <span style="font-size: 12px;">@node.Label</span>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        </li>
+    };
+
+    private void ToggleCategory(string categoryId)
+    {
+        if (_expandedCategories.Contains(categoryId))
         {
-            await OnNodeTypeSelected.InvokeAsync(id);
+            _expandedCategories.Remove(categoryId);
         }
+        else
+        {
+            _expandedCategories.Add(categoryId);
+        }
+    }
+
+    private async Task SelectNodeType(string nodeType)
+    {
+        await OnNodeTypeSelected.InvokeAsync(nodeType);
     }
 
     private RenderFragment RenderHelpContent() => __builder =>
     {
-        if (HelpContent != null)
-        {
-            @HelpContent
-        }
-        else if (!string.IsNullOrEmpty(SelectedNodeType))
-        {
-            <h3 style="margin-top: 0; border-bottom: 1px solid #e0e0e0; padding-bottom: 10px;">@SelectedNodeType</h3>
-            if (!string.IsNullOrEmpty(HelpSummary))
+        <div class="red-ui-help">
+            @if (HelpContent != null)
             {
-                <p style="margin: 10px 0; color: #333;">@HelpSummary</p>
+                @HelpContent
             }
-            if (HelpInputs?.Count > 0)
+            else if (!string.IsNullOrEmpty(SelectedNodeType))
             {
-                <h4 style="margin: 16px 0 8px; color: #666;">Inputs</h4>
-                <dl style="margin: 0;">
-                    @foreach (var input in HelpInputs)
-                    {
-                        <dt style="font-weight: 500; margin-top: 8px;">@input.Name <span style="font-weight: normal; color: #888;">@input.Type</span></dt>
-                        <dd style="margin: 4px 0 0 16px; color: #555;">@input.Description</dd>
-                    }
-                </dl>
+                <h3 style="margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px; font-size: 18px;">@SelectedNodeType</h3>
+                @if (!string.IsNullOrEmpty(HelpSummary))
+                {
+                    <p style="margin: 8px 0; color: #333;">@HelpSummary</p>
+                }
+                @if (HelpInputs?.Count > 0)
+                {
+                    <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">Inputs</h4>
+                    <dl style="margin: 0;">
+                        @foreach (var input in HelpInputs)
+                        {
+                            <dt style="font-weight: 500; margin-top: 8px;">@input.Name <span style="font-weight: normal; color: #888;">@input.Type</span></dt>
+                            <dd style="margin: 4px 0 0 16px; color: #555;">@input.Description</dd>
+                        }
+                    </dl>
+                }
+                @if (HelpOutputs?.Count > 0)
+                {
+                    <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">Outputs</h4>
+                    <dl style="margin: 0;">
+                        @foreach (var output in HelpOutputs)
+                        {
+                            <dt style="font-weight: 500; margin-top: 8px;">@output.Name <span style="font-weight: normal; color: #888;">@output.Type</span></dt>
+                            <dd style="margin: 4px 0 0 16px; color: #555;">@output.Description</dd>
+                        }
+                    </dl>
+                }
+                @if (!string.IsNullOrEmpty(HelpDetails))
+                {
+                    <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">Details</h4>
+                    <p style="margin: 0; white-space: pre-wrap; color: #333;">@HelpDetails</p>
+                }
+                @if (HelpReferences?.Count > 0)
+                {
+                    <h4 style="margin: 16px 0 8px; font-size: 14px; color: #666;">References</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        @foreach (var reference in HelpReferences)
+                        {
+                            <li><a href="@reference.Url" target="_blank" style="color: #0066cc;">@reference.Title</a></li>
+                        }
+                    </ul>
+                }
             }
-            if (HelpOutputs?.Count > 0)
+            else
             {
-                <h4 style="margin: 16px 0 8px; color: #666;">Outputs</h4>
-                <dl style="margin: 0;">
-                    @foreach (var output in HelpOutputs)
-                    {
-                        <dt style="font-weight: 500; margin-top: 8px;">@output.Name <span style="font-weight: normal; color: #888;">@output.Type</span></dt>
-                        <dd style="margin: 4px 0 0 16px; color: #555;">@output.Description</dd>
-                    }
-                </dl>
+                <span style="color: #888;">Select a node type to view help</span>
             }
-            if (!string.IsNullOrEmpty(HelpDetails))
-            {
-                <h4 style="margin: 16px 0 8px; color: #666;">Details</h4>
-                <p style="margin: 0; white-space: pre-wrap; color: #333;">@HelpDetails</p>
-            }
-            if (HelpReferences?.Count > 0)
-            {
-                <h4 style="margin: 16px 0 8px; color: #666;">References</h4>
-                <ul style="margin: 0; padding-left: 20px;">
-                    @foreach (var reference in HelpReferences)
-                    {
-                        <li><a href="@reference.Url" target="_blank">@reference.Title</a></li>
-                    }
-                </ul>
-            }
-        }
-        else
-        {
-            <span style="color: #888;">Select a node type to view help</span>
-        }
+        </div>
     };
-
-    public class TreeItem
-    {
-        public string Id { get; set; } = "";
-        public string Text { get; set; } = "";
-        public string? ParentId { get; set; }
-        public bool HasChildren { get; set; } = false;
-        public bool IsExpanded { get; set; } = false;
-        public string? IconCss { get; set; }
-        public string? Color { get; set; }
-        public bool IsNode { get; set; } = false;
-    }
 
     public class HelpProperty
     {

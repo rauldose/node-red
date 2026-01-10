@@ -1,23 +1,29 @@
 @*
-    RedUiSidebar - Blazor implementation using pure Syncfusion components
-    Uses Syncfusion SfTab for tab navigation
+    RedUiSidebar - Blazor implementation of Node-RED's red-ui-sidebar
+    Uses Syncfusion SfTab for tab navigation with matching Node-RED styling
+    Now used inside a Syncfusion SfSplitter pane for collapse functionality
 *@
 
-<div style="height: 100%; display: flex; flex-direction: column;">
-    <SfTab Height="100%" OverflowMode="OverflowMode.Popup" @bind-SelectedItem="@_selectedTabIndex">
+<div id="red-ui-sidebar">
+    @* Sidebar tabs using Syncfusion SfTab *@
+    <SfTab CssClass="red-ui-sidebar-tabs" OverflowMode="OverflowMode.Popup" @bind-SelectedItem="@_selectedTabIndex">
         <TabEvents Selected="OnTabSelected"></TabEvents>
         <TabItems>
             @foreach (var tab in Tabs)
             {
-                <TabItem>
+                <TabItem CssClass="@(tab.Pinned ? "red-ui-tab-pinned" : "")">
                     <ChildContent>
                         <TabHeader IconCss="@tab.IconClass" Text="@(tab.Pinned ? "" : tab.Label)"></TabHeader>
                     </ChildContent>
                     <ContentTemplate>
-                        <div style="height: 100%; overflow: hidden;">
+                        <div class="red-ui-sidebar-tab-wrapper" style="height: 100%;">
                             @if (ContentTemplate != null)
                             {
                                 @ContentTemplate(tab.Id)
+                            }
+                            @if (!tab.EnableOnEdit && ShowShade)
+                            {
+                                <div class="red-ui-sidebar-shade"></div>
                             }
                         </div>
                     </ContentTemplate>
@@ -25,6 +31,17 @@
             }
         </TabItems>
     </SfTab>
+
+    @* Sidebar footer *@
+    <div id="red-ui-sidebar-footer" class="red-ui-component-footer">
+        @if (FooterTemplate != null)
+        {
+            @FooterTemplate(ActiveTabId)
+        }
+    </div>
+
+    @* Sidebar shade - for modal states *@
+    <div id="red-ui-sidebar-shade" class="@(ShowShade ? "" : "hide")"></div>
 </div>
 
 @code {
