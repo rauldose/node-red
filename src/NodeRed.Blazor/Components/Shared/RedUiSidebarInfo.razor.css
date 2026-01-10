@@ -1,78 +1,79 @@
 /**
  * RedUiSidebarInfo CSS - Matches the original Node-RED tab-info styles
+ * Uses Syncfusion Splitter and TreeView with custom styling
  */
 
 .red-ui-sidebar-info {
     background: var(--red-ui-secondary-background, #fff);
-}
-
-/* TreeList styles */
-.red-ui-treeList {
-    font-size: 13px;
-}
-
-.red-ui-treeList-container {
-    margin-left: 0;
-}
-
-.red-ui-treeList-children {
-    margin-left: 18px;
-}
-
-.red-ui-treeList-row {
-    padding: 4px 8px;
-    cursor: pointer;
+    height: 100%;
     display: flex;
-    align-items: center;
-    border-left: 2px solid transparent;
+    flex-direction: column;
 }
 
-.red-ui-treeList-row:hover {
+/* Syncfusion Splitter styling */
+::deep .red-ui-info-splitter {
+    border: none;
+}
+
+::deep .red-ui-info-splitter .e-pane {
+    overflow: hidden;
+}
+
+::deep .red-ui-info-splitter .e-split-bar {
+    background: #f3f3f3;
+}
+
+::deep .red-ui-info-splitter .e-split-bar:hover {
+    background: #e0e0e0;
+}
+
+/* Outliner section */
+.red-ui-info-outliner {
+    overflow: auto;
+    padding: 5px;
+}
+
+/* Syncfusion TreeView styling to match Node-RED */
+::deep .red-ui-treeview {
+    background: transparent;
+}
+
+::deep .red-ui-treeview .e-list-item {
+    padding: 2px 0;
+}
+
+::deep .red-ui-treeview .e-list-item .e-text-content {
+    padding: 3px 8px;
+}
+
+::deep .red-ui-treeview .e-list-item:hover .e-text-content {
     background: var(--red-ui-list-item-background-hover, #f0f0f0);
 }
 
-.red-ui-treeList-row.selected {
+::deep .red-ui-treeview .e-list-item.e-active .e-text-content {
     background: var(--red-ui-list-item-background-selected, #e0e0e0);
+}
+
+/* Tree node custom template */
+.red-ui-tree-node {
+    display: flex;
+    align-items: center;
+    padding: 2px 5px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+}
+
+.red-ui-tree-node.selected {
+    background: #efe7d5;
     border-left-color: var(--red-ui-node-selected-color, #ff7f0e);
 }
 
-.red-ui-treeList-icon {
-    width: 16px;
-    color: var(--red-ui-secondary-text-color, #888);
-    flex-shrink: 0;
-}
-
-.red-ui-treeList-label {
-    font-weight: 500;
-    color: var(--red-ui-primary-text-color, #444);
-}
-
-/* Outline item styles */
-.red-ui-info-outline-item {
-    display: flex;
-    align-items: center;
-}
-
-.red-ui-info-outline-item-flow {
-    font-weight: normal;
-}
-
-.red-ui-info-outline-item-label {
+.red-ui-tree-node-label {
+    font-size: 12px;
     color: var(--red-ui-primary-text-color, #444);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.red-ui-info-outline-item-empty {
-    padding: 4px 8px;
-    color: var(--red-ui-secondary-text-color, #888);
-    font-style: italic;
-}
-
-.red-ui-node-list-item {
-    display: flex;
-    align-items: center;
 }
 
 /* Properties header */

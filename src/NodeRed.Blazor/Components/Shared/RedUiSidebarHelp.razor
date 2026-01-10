@@ -1,124 +1,120 @@
 @*
     RedUiSidebarHelp - Blazor implementation of Node-RED's tab-help.js
-    Matches the exact structure from packages/node_modules/@node-red/editor-client/src/js/ui/tab-help.js
-    
-    Structure (vertical layout like original):
-    - Toolbar with toggle button and search
-    - TOC panel (tree) on TOP - 30% height when visible
-    - Help content panel on BOTTOM - remaining height
+    Uses Syncfusion SfSplitter and SfTreeView for proper functionality
 *@
 
-<div class="red-ui-sidebar-info" style="height: 100%; display: flex; flex-direction: column;">
-    @* Toolbar - matches red-ui-sidebar-header red-ui-info-toolbar *@
+<div class="red-ui-sidebar-help" style="height: 100%; display: flex; flex-direction: column;">
+    @* Toolbar with toggle button and search *@
     <div class="red-ui-sidebar-header red-ui-info-toolbar" style="padding: 5px 10px; border-bottom: 1px solid #ddd; flex-shrink: 0; display: flex; align-items: center;">
         <span class="button-group">
             <a class="red-ui-button red-ui-button-small @(ShowTOC ? "selected" : "")" href="javascript:void(0)" @onclick="ToggleTOC" title="@(ShowTOC ? "Hide topics" : "Show topics")">
                 <i class="fa fa-list-ul"></i>
             </a>
         </span>
-        <input type="text" class="red-ui-searchBox" placeholder="Search help..." @bind="SearchQuery" @bind:event="oninput" 
-               style="margin-left: 10px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px; flex: 1; max-width: 200px;" />
+        <SfTextBox Placeholder="Search help..." CssClass="red-ui-help-search" @bind-Value="@SearchQuery"
+                   Width="150px" ShowClearButton="true" Input="OnSearchInput"></SfTextBox>
     </div>
-    
-    @* Stack container - vertical layout with TOC on top and content below *@
-    <div class="red-ui-sidebar-help-stack" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
-        @* Table of Contents panel (TOP) - 30% height like original panels.ratio(0.3) *@
-        @if (ShowTOC)
-        {
-            <div class="red-ui-sidebar-help-toc" style="height: @(_tocHeightPercent)%; border-bottom: 1px solid #ddd; overflow-y: auto; flex-shrink: 0;">
-                <div class="red-ui-treeList" style="padding: 5px;">
-                    @foreach (var category in GetFilteredCategories())
-                    {
-                        <div class="red-ui-treeList-container">
-                            <div class="red-ui-treeList-row" style="padding: 5px; font-weight: bold; cursor: pointer;" @onclick="() => ToggleCategory(category.Name)">
-                                <span class="red-ui-treeList-icon">
-                                    <i class="fa @(category.Expanded ? "fa-caret-down" : "fa-caret-right")"></i>
-                                </span>
-                                <span class="red-ui-treeList-label">@category.Name</span>
-                            </div>
-                            @if (category.Expanded)
-                            {
-                                <div class="red-ui-treeList-children" style="padding-left: 18px;">
-                                    @foreach (var node in category.Nodes)
-                                    {
-                                        <div class="red-ui-treeList-row @(SelectedNodeType == node.Type ? "selected" : "")" 
-                                             style="padding: 3px 8px; cursor: pointer;"
-                                             @onclick="() => SelectNodeType(node.Type)">
-                                            <span class="red-ui-palette-icon-container" style="display: inline-block; width: 15px; height: 12px; border-radius: 2px; margin-right: 6px; background-color: @node.Color; border: 1px solid #999;"></span>
-                                            <span class="red-ui-info-outline-item-label">@node.Label</span>
+
+    @* Splitter with TOC on top and content below *@
+    <SfSplitter Orientation="Syncfusion.Blazor.Layouts.Orientation.Vertical" CssClass="red-ui-help-splitter" Height="100%">
+        <SplitterPanes>
+            @* TOC panel (tree) - visible when ShowTOC is true *@
+            @if (ShowTOC)
+            {
+                <SplitterPane Size="30%" Min="100px" Collapsible="true">
+                    <ContentTemplate>
+                        <div class="red-ui-sidebar-help-toc" style="height: 100%; overflow: auto; padding: 5px;">
+                            <SfTreeView TValue="HelpTreeItem" CssClass="red-ui-help-treeview"
+                                        NodeClicked="OnHelpNodeClicked">
+                                <TreeViewFieldsSettings TValue="HelpTreeItem"
+                                                        DataSource="@GetFilteredTreeData()"
+                                                        Id="Id"
+                                                        Text="Text"
+                                                        ParentID="ParentId"
+                                                        HasChildren="HasChildren"
+                                                        Expanded="Expanded">
+                                </TreeViewFieldsSettings>
+                                <TreeViewTemplates TValue="HelpTreeItem">
+                                    <NodeTemplate>
+                                        <div class="red-ui-help-tree-node @(context.Id == SelectedNodeType ? "selected" : "")">
+                                            @if (!string.IsNullOrEmpty(context.Color))
+                                            {
+                                                <span class="red-ui-palette-icon-container" style="background-color: @context.Color; width: 15px; height: 12px; border-radius: 2px; margin-right: 6px; display: inline-block; border: 1px solid #999;"></span>
+                                            }
+                                            <span class="red-ui-help-tree-label">@context.Text</span>
                                         </div>
-                                    }
-                                </div>
+                                    </NodeTemplate>
+                                </TreeViewTemplates>
+                            </SfTreeView>
+                        </div>
+                    </ContentTemplate>
+                </SplitterPane>
+            }
+
+            @* Help content panel *@
+            <SplitterPane Size="@(ShowTOC ? "70%" : "100%")" Min="150px">
+                <ContentTemplate>
+                    <div class="red-ui-sidebar-help-content" style="height: 100%; overflow-y: auto; padding: 10px;">
+                        <div class="red-ui-help">
+                            @if (HelpContent != null)
+                            {
+                                @HelpContent
+                            }
+                            else if (!string.IsNullOrEmpty(SelectedNodeType))
+                            {
+                                <h3 style="margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px;">@SelectedNodeType</h3>
+                                @if (!string.IsNullOrEmpty(HelpSummary))
+                                {
+                                    <p>@HelpSummary</p>
+                                }
+                                @if (HelpInputs?.Count > 0)
+                                {
+                                    <h4>Inputs</h4>
+                                    <dl class="message-properties">
+                                        @foreach (var input in HelpInputs)
+                                        {
+                                            <dt>@input.Name <span class="property-type">@input.Type</span></dt>
+                                            <dd>@input.Description</dd>
+                                        }
+                                    </dl>
+                                }
+                                @if (HelpOutputs?.Count > 0)
+                                {
+                                    <h4>Outputs</h4>
+                                    <dl class="message-properties">
+                                        @foreach (var output in HelpOutputs)
+                                        {
+                                            <dt>@output.Name <span class="property-type">@output.Type</span></dt>
+                                            <dd>@output.Description</dd>
+                                        }
+                                    </dl>
+                                }
+                                @if (!string.IsNullOrEmpty(HelpDetails))
+                                {
+                                    <h4>Details</h4>
+                                    <p style="white-space: pre-wrap;">@HelpDetails</p>
+                                }
+                                @if (HelpReferences?.Count > 0)
+                                {
+                                    <h4>References</h4>
+                                    <ul>
+                                        @foreach (var reference in HelpReferences)
+                                        {
+                                            <li><a href="@reference.Url" target="_blank">@reference.Title</a></li>
+                                        }
+                                    </ul>
+                                }
+                            }
+                            else
+                            {
+                                <span class="red-ui-help-info-none">Select a node type to view help</span>
                             }
                         </div>
-                    }
-                </div>
-            </div>
-            
-            @* Resize handle between TOC and content *@
-            <div class="red-ui-panels-separator" style="height: 6px; background: #f3f3f3; cursor: row-resize; flex-shrink: 0;"
-                 @onmousedown="StartTocResize"></div>
-        }
-        
-        @* Help content panel (BOTTOM) - remaining height *@
-        <div class="red-ui-sidebar-help-content" style="flex: 1; overflow-y: auto; padding: 10px;">
-            <div class="red-ui-help">
-                @if (HelpContent != null)
-                {
-                    @HelpContent
-                }
-                else if (!string.IsNullOrEmpty(SelectedNodeType))
-                {
-                    <h3 style="margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px;">@SelectedNodeType</h3>
-                    @if (!string.IsNullOrEmpty(HelpSummary))
-                    {
-                        <p>@HelpSummary</p>
-                    }
-                    @if (HelpInputs?.Count > 0)
-                    {
-                        <h4>Inputs</h4>
-                        <dl class="message-properties">
-                            @foreach (var input in HelpInputs)
-                            {
-                                <dt>@input.Name <span class="property-type">@input.Type</span></dt>
-                                <dd>@input.Description</dd>
-                            }
-                        </dl>
-                    }
-                    @if (HelpOutputs?.Count > 0)
-                    {
-                        <h4>Outputs</h4>
-                        <dl class="message-properties">
-                            @foreach (var output in HelpOutputs)
-                            {
-                                <dt>@output.Name <span class="property-type">@output.Type</span></dt>
-                                <dd>@output.Description</dd>
-                            }
-                        </dl>
-                    }
-                    @if (!string.IsNullOrEmpty(HelpDetails))
-                    {
-                        <h4>Details</h4>
-                        <p style="white-space: pre-wrap;">@HelpDetails</p>
-                    }
-                    @if (HelpReferences?.Count > 0)
-                    {
-                        <h4>References</h4>
-                        <ul>
-                            @foreach (var reference in HelpReferences)
-                            {
-                                <li><a href="@reference.Url" target="_blank">@reference.Title</a></li>
-                            }
-                        </ul>
-                    }
-                }
-                else
-                {
-                    <span class="red-ui-help-info-none" style="color: #888;">Select a node type to view help</span>
-                }
-            </div>
-        </div>
-    </div>
+                    </div>
+                </ContentTemplate>
+            </SplitterPane>
+        </SplitterPanes>
+    </SfSplitter>
 </div>
 
 @code {
@@ -134,45 +130,79 @@
 
     private bool ShowTOC { get; set; } = true;
     private string SearchQuery { get; set; } = "";
-    
-    // TOC panel height - default 30% like original panels.ratio(0.3)
-    private int _tocHeightPercent = 30;
 
     private void ToggleTOC() => ShowTOC = !ShowTOC;
 
-    private void ToggleCategory(string name)
+    private void OnSearchInput(InputEventArgs args)
     {
-        var category = Categories.FirstOrDefault(c => c.Name == name);
-        if (category != null)
+        SearchQuery = args.Value ?? "";
+    }
+
+    private List<HelpTreeItem> GetFilteredTreeData()
+    {
+        var items = new List<HelpTreeItem>();
+        var filteredCategories = string.IsNullOrEmpty(SearchQuery)
+            ? Categories
+            : Categories.Select(c => new NodeCategory
+            {
+                Name = c.Name,
+                Expanded = true,
+                Nodes = c.Nodes.Where(n =>
+                    n.Type.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    n.Label.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)
+                ).ToList()
+            }).Where(c => c.Nodes.Count > 0).ToList();
+
+        foreach (var category in filteredCategories)
         {
-            category.Expanded = !category.Expanded;
+            var categoryId = $"cat-{category.Name}";
+            items.Add(new HelpTreeItem
+            {
+                Id = categoryId,
+                Text = category.Name,
+                ParentId = null,
+                HasChildren = category.Nodes.Any(),
+                Expanded = category.Expanded || !string.IsNullOrEmpty(SearchQuery)
+            });
+
+            foreach (var node in category.Nodes)
+            {
+                items.Add(new HelpTreeItem
+                {
+                    Id = node.Type,
+                    Text = node.Label,
+                    ParentId = categoryId,
+                    HasChildren = false,
+                    Color = node.Color,
+                    IsNodeType = true
+                });
+            }
+        }
+
+        return items;
+    }
+
+    private async Task OnHelpNodeClicked(NodeClickEventArgs args)
+    {
+        var nodeId = args.NodeData?.Id;
+        if (nodeId == null) return;
+
+        var treeItem = GetFilteredTreeData().FirstOrDefault(t => t.Id == nodeId);
+        if (treeItem?.IsNodeType == true)
+        {
+            await OnNodeTypeSelected.InvokeAsync(treeItem.Id);
         }
     }
 
-    private async Task SelectNodeType(string nodeType)
+    public class HelpTreeItem
     {
-        await OnNodeTypeSelected.InvokeAsync(nodeType);
-    }
-    
-    private void StartTocResize()
-    {
-        // TODO: Implement drag resize via JS interop
-    }
-
-    private IEnumerable<NodeCategory> GetFilteredCategories()
-    {
-        if (string.IsNullOrEmpty(SearchQuery))
-            return Categories;
-        
-        return Categories.Select(c => new NodeCategory
-        {
-            Name = c.Name,
-            Expanded = true,
-            Nodes = c.Nodes.Where(n => 
-                n.Type.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
-                n.Label.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)
-            ).ToList()
-        }).Where(c => c.Nodes.Count > 0);
+        public string Id { get; set; } = "";
+        public string Text { get; set; } = "";
+        public string? ParentId { get; set; }
+        public bool HasChildren { get; set; } = false;
+        public bool Expanded { get; set; } = false;
+        public string? Color { get; set; }
+        public bool IsNodeType { get; set; } = false;
     }
 
     public class HelpProperty
