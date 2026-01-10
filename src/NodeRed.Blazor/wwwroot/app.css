@@ -617,50 +617,209 @@ h1:focus {
     flex: 1;
 }
 
-/* Hidden tray pane when not open */
-.red-ui-tray-hidden {
-    display: none !important;
-    width: 0 !important;
-    min-width: 0 !important;
-    max-width: 0 !important;
-    overflow: hidden !important;
-    flex: 0 0 0px !important;
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
+/* ============================================= */
+/* Overlay Tray - slides in from right          */
+/* ============================================= */
+
+.red-ui-tray-overlay-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    pointer-events: none;
 }
 
-/* Hide borders on the tray pane container when hidden */
-.red-ui-tray-pane.red-ui-tray-hidden,
-.e-pane.red-ui-tray-pane.red-ui-tray-hidden {
-    border: none !important;
-    border-left: none !important;
-    border-right: none !important;
+.red-ui-tray-shade {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(160, 160, 160, 0.5);
+    pointer-events: auto;
+    z-index: 100;
 }
 
-/* Hide the splitter bar adjacent to the hidden tray pane */
-/* The tray pane is the 3rd pane (index 2), so hide the 2nd split-bar when tray is hidden */
-.red-ui-main-splitter:has(.red-ui-tray-hidden) > .e-split-bar:nth-of-type(2) {
-    display: none !important;
-    width: 0 !important;
-    min-width: 0 !important;
-    border: none !important;
+.red-ui-tray {
+    position: absolute;
+    margin: 0;
+    top: 0;
+    width: auto;
+    right: 0;
+    bottom: 0;
+    background: var(--red-ui-secondary-background, #fff);
+    border-left: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    border-bottom: 1px solid var(--red-ui-primary-border-color, #bbb);
+    box-sizing: content-box;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    z-index: 101;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.15);
 }
 
-/* Also use :has selector for adjacent split-bar */
-.e-splitter.e-splitter-horizontal .e-split-bar:has(+ .red-ui-tray-hidden) {
-    display: none !important;
-    width: 0 !important;
-    border: none !important;
+.red-ui-tray.open {
+    right: 0;
 }
 
-/* Ensure sidebar splitter bar (last one) remains visible and functional */
-.red-ui-main-splitter > .e-split-bar:last-of-type {
-    display: flex !important;
-    width: 7px !important;
-    min-width: 7px !important;
-    pointer-events: auto !important;
-    cursor: ew-resize !important;
+.red-ui-tray-resize-handle {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    width: 7px;
+    left: -9px;
+    background-color: var(--red-ui-primary-background, #f3f3f3);
+    cursor: col-resize;
+    border-left: 1px solid var(--red-ui-primary-border-color, #bbb);
+    box-shadow: -1px 0 6px var(--red-ui-shadow, rgba(0, 0, 0, 0.1));
+}
+
+.red-ui-tray-resize-handle::before {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 40px;
+    background-image: repeating-linear-gradient(
+        180deg,
+        var(--red-ui-grip-color, #ccc) 0px,
+        var(--red-ui-grip-color, #ccc) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+}
+
+.red-ui-tray-header,
+.editor-tray-header {
+    user-select: none;
+    position: relative;
+    box-sizing: border-box;
+    font-weight: bold;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #dddddd);
+    background: var(--red-ui-palette-header-background, #f7f7f7);
+}
+
+.red-ui-tray-header:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.red-ui-tray-titlebar {
+    color: var(--red-ui-header-text-color, #444);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #dddddd);
+    padding: 8px 10px;
+}
+
+ul.red-ui-tray-breadcrumbs {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow-wrap: anywhere;
+}
+
+ul.red-ui-tray-breadcrumbs li {
+    display: inline-block;
+    padding: 0;
+    margin: 0;
+}
+
+.red-ui-tray-toolbar {
+    display: flex;
+    align-items: center;
+    text-align: right;
+    padding: 6px;
+}
+
+.red-ui-tray-toolbar button {
+    margin-left: 5px;
+}
+
+.red-ui-tray-toolbar-left {
+    margin-right: auto;
+    margin-left: 0 !important;
+}
+
+.red-ui-tray-tabs {
+    background: var(--red-ui-palette-header-background, #f7f7f7);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+}
+
+.red-ui-tray-tab-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+.red-ui-tray-tab-list li {
+    display: inline-block;
+}
+
+.red-ui-tray-tab-list li a {
+    display: block;
+    padding: 8px 16px;
+    text-decoration: none;
+    color: var(--red-ui-secondary-text-color, #666);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+}
+
+.red-ui-tray-tab-list li.active a {
+    color: var(--red-ui-header-text-color, #444);
+    border-bottom-color: var(--red-ui-deploy-button-background, #8f0000);
+    font-weight: 500;
+}
+
+.red-ui-tray-tab-list li:hover a {
+    background: var(--red-ui-secondary-background-hover, #f0f0f0);
+}
+
+.red-ui-tray-body-wrapper {
+    flex: 1;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: auto;
+}
+
+.red-ui-tray-body,
+.editor-tray-body {
+    position: relative;
+    box-sizing: border-box;
+    padding: 0.1px;
+}
+
+.red-ui-tray-content {
+    padding: 10px 20px;
+    overflow: auto;
+    position: relative;
+}
+
+.red-ui-tray-footer {
+    height: 35px;
+    font-size: 14px !important;
+    line-height: 35px;
+    vertical-align: middle;
+    background: var(--red-ui-tertiary-background, #f7f7f7);
+    border-top: 1px solid var(--red-ui-secondary-border-color, #dddddd);
+    box-sizing: border-box;
+}
+
+.red-ui-tray-footer-left {
+    margin-right: 20px;
+    float: left;
+    padding-left: 10px;
+}
+
+.red-ui-tray-footer-node-id {
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--red-ui-secondary-text-color, #888);
 }
 
 /* ============================================= */
