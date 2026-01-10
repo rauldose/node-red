@@ -1,43 +1,51 @@
 @*
     RedUiSidebarHelp - Blazor implementation of Node-RED's tab-help.js
     Matches the exact structure from packages/node_modules/@node-red/editor-client/src/js/ui/tab-help.js
+    
+    Structure (vertical layout like original):
+    - Toolbar with toggle button and search
+    - TOC panel (tree) on TOP - 30% height when visible
+    - Help content panel on BOTTOM - remaining height
 *@
 
-<div class="red-ui-sidebar-info">
-    @* Toolbar *@
-    <div class="red-ui-sidebar-header red-ui-info-toolbar" style="padding: 5px 10px; border-bottom: 1px solid #ddd;">
+<div class="red-ui-sidebar-info" style="height: 100%; display: flex; flex-direction: column;">
+    @* Toolbar - matches red-ui-sidebar-header red-ui-info-toolbar *@
+    <div class="red-ui-sidebar-header red-ui-info-toolbar" style="padding: 5px 10px; border-bottom: 1px solid #ddd; flex-shrink: 0; display: flex; align-items: center;">
         <span class="button-group">
             <a class="red-ui-button red-ui-button-small @(ShowTOC ? "selected" : "")" href="javascript:void(0)" @onclick="ToggleTOC" title="@(ShowTOC ? "Hide topics" : "Show topics")">
                 <i class="fa fa-list-ul"></i>
             </a>
         </span>
         <input type="text" class="red-ui-searchBox" placeholder="Search help..." @bind="SearchQuery" @bind:event="oninput" 
-               style="margin-left: 10px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px; width: 150px;" />
+               style="margin-left: 10px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px; flex: 1; max-width: 200px;" />
     </div>
     
-    <div class="red-ui-sidebar-help-stack" style="display: flex; height: calc(100% - 45px);">
-        @* Table of Contents panel *@
+    @* Stack container - vertical layout with TOC on top and content below *@
+    <div class="red-ui-sidebar-help-stack" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        @* Table of Contents panel (TOP) - 30% height like original panels.ratio(0.3) *@
         @if (ShowTOC)
         {
-            <div class="red-ui-sidebar-help-toc" style="width: 30%; border-right: 1px solid #ddd; overflow-y: auto;">
+            <div class="red-ui-sidebar-help-toc" style="height: @(_tocHeightPercent)%; border-bottom: 1px solid #ddd; overflow-y: auto; flex-shrink: 0;">
                 <div class="red-ui-treeList" style="padding: 5px;">
                     @foreach (var category in GetFilteredCategories())
                     {
                         <div class="red-ui-treeList-container">
-                            <div class="red-ui-treeList-label" style="padding: 5px; font-weight: bold; cursor: pointer;" @onclick="() => ToggleCategory(category.Name)">
-                                <i class="fa @(category.Expanded ? "fa-angle-down" : "fa-angle-right")" style="width: 12px; margin-right: 5px;"></i>
-                                <span>@category.Name</span>
+                            <div class="red-ui-treeList-row" style="padding: 5px; font-weight: bold; cursor: pointer;" @onclick="() => ToggleCategory(category.Name)">
+                                <span class="red-ui-treeList-icon">
+                                    <i class="fa @(category.Expanded ? "fa-caret-down" : "fa-caret-right")"></i>
+                                </span>
+                                <span class="red-ui-treeList-label">@category.Name</span>
                             </div>
                             @if (category.Expanded)
                             {
-                                <div class="red-ui-treeList-children" style="padding-left: 20px;">
+                                <div class="red-ui-treeList-children" style="padding-left: 18px;">
                                     @foreach (var node in category.Nodes)
                                     {
-                                        <div class="red-ui-treeList-label @(SelectedNodeType == node.Type ? "selected" : "")" 
-                                             style="padding: 3px 5px; cursor: pointer; @(SelectedNodeType == node.Type ? "background: #e0e0e0;" : "")"
+                                        <div class="red-ui-treeList-row @(SelectedNodeType == node.Type ? "selected" : "")" 
+                                             style="padding: 3px 8px; cursor: pointer;"
                                              @onclick="() => SelectNodeType(node.Type)">
-                                            <span class="red-ui-treeList-icon" style="display: inline-block; width: 15px; height: 12px; border-radius: 2px; margin-right: 5px; background-color: @node.Color; border: 1px solid #999;"></span>
-                                            <span>@node.Label</span>
+                                            <span class="red-ui-palette-icon-container" style="display: inline-block; width: 15px; height: 12px; border-radius: 2px; margin-right: 6px; background-color: @node.Color; border: 1px solid #999;"></span>
+                                            <span class="red-ui-info-outline-item-label">@node.Label</span>
                                         </div>
                                     }
                                 </div>
@@ -46,9 +54,13 @@
                     }
                 </div>
             </div>
+            
+            @* Resize handle between TOC and content *@
+            <div class="red-ui-panels-separator" style="height: 6px; background: #f3f3f3; cursor: row-resize; flex-shrink: 0;"
+                 @onmousedown="StartTocResize"></div>
         }
         
-        @* Help content panel *@
+        @* Help content panel (BOTTOM) - remaining height *@
         <div class="red-ui-sidebar-help-content" style="flex: 1; overflow-y: auto; padding: 10px;">
             <div class="red-ui-help">
                 @if (HelpContent != null)
@@ -122,6 +134,9 @@
 
     private bool ShowTOC { get; set; } = true;
     private string SearchQuery { get; set; } = "";
+    
+    // TOC panel height - default 30% like original panels.ratio(0.3)
+    private int _tocHeightPercent = 30;
 
     private void ToggleTOC() => ShowTOC = !ShowTOC;
 
@@ -137,6 +152,11 @@
     private async Task SelectNodeType(string nodeType)
     {
         await OnNodeTypeSelected.InvokeAsync(nodeType);
+    }
+    
+    private void StartTocResize()
+    {
+        // TODO: Implement drag resize via JS interop
     }
 
     private IEnumerable<NodeCategory> GetFilteredCategories()
