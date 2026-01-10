@@ -60,7 +60,7 @@ public class SearchService : ISearchService
                 results.Add(new SearchResult
                 {
                     Id = node.Id,
-                    Name = string.IsNullOrEmpty(node.Name) ? node.Type : node.Name,
+                    Label = string.IsNullOrEmpty(node.Name) ? node.Type : node.Name,
                     Type = node.Type,
                     FlowId = node.Z,
                     FlowName = flowLookup.TryGetValue(node.Z, out var flowName) ? flowName : "Unknown"
@@ -76,7 +76,7 @@ public class SearchService : ISearchService
                 results.Add(new SearchResult
                 {
                     Id = flow.Id,
-                    Name = flow.Label,
+                    Label = flow.Label,
                     Type = "flow",
                     FlowId = flow.Id,
                     FlowName = flow.Label
