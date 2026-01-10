@@ -729,7 +729,9 @@
                             <div id="red-ui-workspace-chart" 
                                  @ondrop="OnWorkspaceDrop" 
                                  @ondragover="OnWorkspaceDragOver"
-                                 @ondragover:preventDefault="true">
+                                 @ondragover:preventDefault="true"
+                                 @oncontextmenu="OnWorkspaceContextMenu"
+                                 @oncontextmenu:preventDefault="true">
                                 <SfDiagramComponent @ref="@DiagramInstance"
                                                     Connectors="@DiagramConnectors"
                                                     Created="OnCreated"
@@ -1204,23 +1206,95 @@
     };
 }
 
-@* Context Menus *@
+@* Context Menus - Aligned with JS Node-RED *@
 @if (IsNodeContextMenuOpen)
 {
     <div class="red-ui-context-menu-overlay" @onclick="CloseContextMenus"></div>
     <div class="red-ui-context-menu" style="left: @(ContextMenuX)px; top: @(ContextMenuY)px;">
+        @* Edit *@
         <div class="red-ui-context-menu-item" @onclick="ContextMenuEditNode">
             <i class="fa fa-edit"></i> Edit
         </div>
-        <div class="red-ui-context-menu-item" @onclick="ContextMenuCopyNode">
-            <i class="fa fa-copy"></i> Copy
-        </div>
-        <div class="red-ui-context-menu-item" @onclick="ContextMenuCutNode">
-            <i class="fa fa-cut"></i> Cut
+        @* Show Help *@
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuShowHelp">
+            <i class="fa fa-book"></i> Show Help
         </div>
         <div class="red-ui-context-menu-divider"></div>
+        @* Node submenu *@
+        <div class="red-ui-context-menu-item red-ui-context-menu-submenu" @onmouseenter="() => _openSubmenu = 1" @onmouseleave="() => _openSubmenu = 0">
+            <span>Node</span><i class="fa fa-chevron-right red-ui-context-menu-arrow"></i>
+            @if (_openSubmenu == 1)
+            {
+                <div class="red-ui-context-menu red-ui-context-submenu">
+                    <div class="red-ui-context-menu-item @(IsContextNodeDisabled() ? "" : "disabled")" @onclick="ContextMenuEnableNode">
+                        <i class="fa fa-check"></i> Enable
+                    </div>
+                    <div class="red-ui-context-menu-item @(IsContextNodeDisabled() ? "disabled" : "")" @onclick="ContextMenuDisableNode">
+                        <i class="fa fa-ban"></i> Disable
+                    </div>
+                    <div class="red-ui-context-menu-divider"></div>
+                    <div class="red-ui-context-menu-item" @onclick="ContextMenuShowLabels">
+                        <i class="fa fa-tag"></i> Show Labels
+                    </div>
+                    <div class="red-ui-context-menu-item" @onclick="ContextMenuHideLabels">
+                        <i class="fa fa-tag"></i> Hide Labels
+                    </div>
+                </div>
+            }
+        </div>
+        @* Group submenu *@
+        <div class="red-ui-context-menu-item red-ui-context-menu-submenu" @onmouseenter="() => _openSubmenu = 2" @onmouseleave="() => _openSubmenu = 0">
+            <span>Group</span><i class="fa fa-chevron-right red-ui-context-menu-arrow"></i>
+            @if (_openSubmenu == 2)
+            {
+                <div class="red-ui-context-menu red-ui-context-submenu">
+                    <div class="red-ui-context-menu-item" @onclick="ContextMenuGroupSelection">
+                        <i class="fa fa-object-group"></i> Group Selection
+                    </div>
+                    <div class="red-ui-context-menu-item @(HasContextNodeGroup() ? "" : "disabled")" @onclick="ContextMenuUngroupSelection">
+                        <i class="fa fa-object-ungroup"></i> Ungroup Selection
+                    </div>
+                    <div class="red-ui-context-menu-item @(HasContextNodeGroup() ? "" : "disabled")" @onclick="ContextMenuRemoveFromGroup">
+                        <i class="fa fa-sign-out"></i> Remove from Group
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="red-ui-context-menu-divider"></div>
+        @* Undo/Redo *@
+        <div class="red-ui-context-menu-item @(_undoStack.Count == 0 ? "disabled" : "")" @onclick="ContextMenuUndo">
+            <i class="fa fa-undo"></i> Undo <span class="red-ui-context-menu-shortcut">Ctrl+Z</span>
+        </div>
+        <div class="red-ui-context-menu-item @(_redoStack.Count == 0 ? "disabled" : "")" @onclick="ContextMenuRedo">
+            <i class="fa fa-repeat"></i> Redo <span class="red-ui-context-menu-shortcut">Ctrl+Y</span>
+        </div>
+        <div class="red-ui-context-menu-divider"></div>
+        @* Cut/Copy/Paste *@
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuCutNode">
+            <i class="fa fa-cut"></i> Cut <span class="red-ui-context-menu-shortcut">Ctrl+X</span>
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuCopyNode">
+            <i class="fa fa-copy"></i> Copy <span class="red-ui-context-menu-shortcut">Ctrl+C</span>
+        </div>
+        <div class="red-ui-context-menu-item @(string.IsNullOrEmpty(_nodeClipboard) ? "disabled" : "")" @onclick="ContextMenuPaste">
+            <i class="fa fa-paste"></i> Paste <span class="red-ui-context-menu-shortcut">Ctrl+V</span>
+        </div>
         <div class="red-ui-context-menu-item red-ui-context-menu-item-danger" @onclick="ContextMenuDeleteNode">
-            <i class="fa fa-trash"></i> Delete
+            <i class="fa fa-trash"></i> Delete <span class="red-ui-context-menu-shortcut">Delete</span>
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuDeleteReconnect">
+            <i class="fa fa-chain-broken"></i> Delete &amp; Reconnect
+        </div>
+        <div class="red-ui-context-menu-divider"></div>
+        @* Export and Subflow *@
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuExport">
+            <i class="fa fa-share-square-o"></i> Export
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuSelectionToSubflow">
+            <i class="fa fa-th-large"></i> Selection to Subflow
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuSelectAll">
+            <i class="fa fa-check-square-o"></i> Select All <span class="red-ui-context-menu-shortcut">Ctrl+A</span>
         </div>
     </div>
 }
@@ -1229,25 +1303,57 @@
 {
     <div class="red-ui-context-menu-overlay" @onclick="CloseContextMenus"></div>
     <div class="red-ui-context-menu" style="left: @(ContextMenuX)px; top: @(ContextMenuY)px;">
-        @if (!string.IsNullOrEmpty(_nodeClipboard))
-        {
-            <div class="red-ui-context-menu-item" @onclick="ContextMenuPaste">
-                <i class="fa fa-paste"></i> Paste
-            </div>
-            <div class="red-ui-context-menu-divider"></div>
-        }
-        <div class="red-ui-context-menu-label">Add node</div>
-        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddInject">
-            <i class="fa fa-play"></i> inject
+        @* Insert submenu *@
+        <div class="red-ui-context-menu-item red-ui-context-menu-submenu" @onmouseenter="() => _openSubmenu = 3" @onmouseleave="() => _openSubmenu = 0">
+            <span>Insert</span><i class="fa fa-chevron-right red-ui-context-menu-arrow"></i>
+            @if (_openSubmenu == 3)
+            {
+                <div class="red-ui-context-menu red-ui-context-submenu">
+                    <div class="red-ui-context-menu-item" @onclick="ContextMenuInsertNode">
+                        <i class="fa fa-cube"></i> Node...
+                    </div>
+                    <div class="red-ui-context-menu-item" @onclick="ContextMenuAddJunction">
+                        <i class="fa fa-circle"></i> Junction
+                    </div>
+                    <div class="red-ui-context-menu-item disabled">
+                        <i class="fa fa-link"></i> Link Nodes
+                    </div>
+                    <div class="red-ui-context-menu-divider"></div>
+                    <div class="red-ui-context-menu-item" @onclick="ContextMenuImport">
+                        <i class="fa fa-clipboard"></i> Import
+                    </div>
+                </div>
+            }
         </div>
-        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddDebug">
-            <i class="fa fa-bug"></i> debug
+        <div class="red-ui-context-menu-divider"></div>
+        @* Undo/Redo *@
+        <div class="red-ui-context-menu-item @(_undoStack.Count == 0 ? "disabled" : "")" @onclick="ContextMenuUndo">
+            <i class="fa fa-undo"></i> Undo <span class="red-ui-context-menu-shortcut">Ctrl+Z</span>
         </div>
-        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddFunction">
-            <i class="fa fa-code"></i> function
+        <div class="red-ui-context-menu-item @(_redoStack.Count == 0 ? "disabled" : "")" @onclick="ContextMenuRedo">
+            <i class="fa fa-repeat"></i> Redo <span class="red-ui-context-menu-shortcut">Ctrl+Y</span>
         </div>
-        <div class="red-ui-context-menu-item" @onclick="ContextMenuAddChange">
-            <i class="fa fa-random"></i> change
+        <div class="red-ui-context-menu-divider"></div>
+        @* Cut/Copy/Paste - disabled when no selection *@
+        <div class="red-ui-context-menu-item disabled">
+            <i class="fa fa-cut"></i> Cut <span class="red-ui-context-menu-shortcut">Ctrl+X</span>
+        </div>
+        <div class="red-ui-context-menu-item disabled">
+            <i class="fa fa-copy"></i> Copy <span class="red-ui-context-menu-shortcut">Ctrl+C</span>
+        </div>
+        <div class="red-ui-context-menu-item @(string.IsNullOrEmpty(_nodeClipboard) ? "disabled" : "")" @onclick="ContextMenuPaste">
+            <i class="fa fa-paste"></i> Paste <span class="red-ui-context-menu-shortcut">Ctrl+V</span>
+        </div>
+        <div class="red-ui-context-menu-item disabled">
+            <i class="fa fa-trash"></i> Delete <span class="red-ui-context-menu-shortcut">Delete</span>
+        </div>
+        <div class="red-ui-context-menu-divider"></div>
+        @* Export/Select All *@
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuExport">
+            <i class="fa fa-share-square-o"></i> Export
+        </div>
+        <div class="red-ui-context-menu-item" @onclick="ContextMenuSelectAll">
+            <i class="fa fa-check-square-o"></i> Select All <span class="red-ui-context-menu-shortcut">Ctrl+A</span>
         </div>
     </div>
 }
@@ -2698,5 +2804,44 @@
         font-size: 11px;
         color: var(--red-ui-tertiary-text-color);
         text-transform: uppercase;
+    }
+
+    /* Context menu submenu */
+    .red-ui-context-menu-submenu {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .red-ui-context-menu-submenu .red-ui-context-menu-arrow {
+        margin-left: 10px;
+        font-size: 10px;
+    }
+
+    .red-ui-context-submenu {
+        position: absolute;
+        left: 100%;
+        top: -5px;
+        margin-left: 0;
+    }
+
+    /* Context menu shortcut */
+    .red-ui-context-menu-shortcut {
+        float: right;
+        color: var(--red-ui-tertiary-text-color);
+        font-size: 11px;
+        margin-left: 15px;
+    }
+
+    /* Disabled menu items */
+    .red-ui-context-menu-item.disabled {
+        color: var(--red-ui-tertiary-text-color);
+        cursor: default;
+        pointer-events: none;
+    }
+
+    .red-ui-context-menu-item.disabled:hover {
+        background-color: transparent;
     }
 </style>

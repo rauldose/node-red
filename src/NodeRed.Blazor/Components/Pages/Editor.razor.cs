@@ -132,6 +132,7 @@ public partial class Editor : IDisposable
     private double ContextMenuX = 0;
     private double ContextMenuY = 0;
     private Node? ContextMenuNode = null;
+    private int _openSubmenu = 0; // 0=none, 1=node submenu, 2=group submenu, 3=insert submenu
 
     // Node counter for unique IDs
     private int NodeCount = 0;
@@ -4540,6 +4541,7 @@ public partial class Editor : IDisposable
         IsNodeContextMenuOpen = false;
         IsCanvasContextMenuOpen = false;
         ContextMenuNode = null;
+        _openSubmenu = 0;
         StateHasChanged();
     }
 
@@ -4619,6 +4621,355 @@ public partial class Editor : IDisposable
     private void ContextMenuAddChange()
     {
         AddNodeAtPosition("change", ContextMenuX, ContextMenuY);
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Handle right-click context menu on workspace
+    /// </summary>
+    private void OnWorkspaceContextMenu(MouseEventArgs e)
+    {
+        // If there's a selected node, show node context menu
+        if (SelectedDiagramNode != null)
+        {
+            ShowNodeContextMenu(SelectedDiagramNode, e.ClientX, e.ClientY);
+        }
+        else
+        {
+            // Show canvas context menu
+            ShowCanvasContextMenu(e.ClientX, e.ClientY);
+        }
+    }
+
+    /// <summary>
+    /// Show help for context menu node
+    /// </summary>
+    private void ContextMenuShowHelp()
+    {
+        if (ContextMenuNode != null)
+        {
+            var nodeType = ContextMenuNode.AdditionalInfo?.TryGetValue("nodeType", out var typeObj) == true
+                ? typeObj as string : null;
+            if (!string.IsNullOrEmpty(nodeType))
+            {
+                _helpSelectedNodeType = nodeType;
+                _activeSidebarTabId = "help";
+            }
+        }
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Check if context node is disabled
+    /// </summary>
+    private bool IsContextNodeDisabled()
+    {
+        if (ContextMenuNode?.AdditionalInfo == null) return false;
+        return ContextMenuNode.AdditionalInfo.TryGetValue("disabled", out var disabled) && disabled is true;
+    }
+
+    /// <summary>
+    /// Enable context menu node
+    /// </summary>
+    private void ContextMenuEnableNode()
+    {
+        if (ContextMenuNode != null)
+        {
+            ContextMenuNode.AdditionalInfo ??= new Dictionary<string, object?>();
+            ContextMenuNode.AdditionalInfo["disabled"] = false;
+            HasUnsavedChanges = true;
+        }
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Disable context menu node
+    /// </summary>
+    private void ContextMenuDisableNode()
+    {
+        if (ContextMenuNode != null)
+        {
+            ContextMenuNode.AdditionalInfo ??= new Dictionary<string, object?>();
+            ContextMenuNode.AdditionalInfo["disabled"] = true;
+            HasUnsavedChanges = true;
+        }
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Show labels for context menu node
+    /// </summary>
+    private void ContextMenuShowLabels()
+    {
+        if (ContextMenuNode != null)
+        {
+            // Find label annotation and make it visible
+            var labelAnnotation = ContextMenuNode.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation");
+            if (labelAnnotation != null)
+            {
+                labelAnnotation.Visibility = true;
+            }
+            HasUnsavedChanges = true;
+        }
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Hide labels for context menu node
+    /// </summary>
+    private void ContextMenuHideLabels()
+    {
+        if (ContextMenuNode != null)
+        {
+            // Find label annotation and hide it
+            var labelAnnotation = ContextMenuNode.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation");
+            if (labelAnnotation != null)
+            {
+                labelAnnotation.Visibility = false;
+            }
+            HasUnsavedChanges = true;
+        }
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Check if context node belongs to a group
+    /// </summary>
+    private bool HasContextNodeGroup()
+    {
+        if (ContextMenuNode == null) return false;
+        return Groups.Any(g => g.NodeIds.Contains(ContextMenuNode.ID));
+    }
+
+    /// <summary>
+    /// Group selection from context menu
+    /// </summary>
+    private void ContextMenuGroupSelection()
+    {
+        if (ContextMenuNode != null)
+        {
+            SelectedDiagramNode = ContextMenuNode;
+        }
+        GroupSelectedNodes();
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Ungroup selection from context menu
+    /// </summary>
+    private void ContextMenuUngroupSelection()
+    {
+        if (ContextMenuNode != null)
+        {
+            SelectedDiagramNode = ContextMenuNode;
+        }
+        UngroupSelectedNodes();
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Remove node from group via context menu
+    /// </summary>
+    private void ContextMenuRemoveFromGroup()
+    {
+        if (ContextMenuNode != null)
+        {
+            var group = Groups.FirstOrDefault(g => g.NodeIds.Contains(ContextMenuNode.ID));
+            if (group != null)
+            {
+                group.NodeIds.Remove(ContextMenuNode.ID);
+                group.NodeCount--;
+                HasUnsavedChanges = true;
+            }
+        }
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Undo from context menu
+    /// </summary>
+    private void ContextMenuUndo()
+    {
+        Undo();
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Redo from context menu
+    /// </summary>
+    private void ContextMenuRedo()
+    {
+        Redo();
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Delete and reconnect from context menu
+    /// </summary>
+    private void ContextMenuDeleteReconnect()
+    {
+        if (ContextMenuNode != null && DiagramConnectors != null)
+        {
+            // Find connectors connected to this node
+            var incomingConnectors = DiagramConnectors.Where(c => c.TargetID == ContextMenuNode.ID).ToList();
+            var outgoingConnectors = DiagramConnectors.Where(c => c.SourceID == ContextMenuNode.ID).ToList();
+
+            // If there's one incoming and one outgoing, reconnect them
+            if (incomingConnectors.Count == 1 && outgoingConnectors.Count == 1)
+            {
+                var incoming = incomingConnectors[0];
+                var outgoing = outgoingConnectors[0];
+
+                // Create a new connector that bypasses the deleted node
+                var newConnector = new Connector
+                {
+                    ID = $"connector{++ConnectorCount}",
+                    SourceID = incoming.SourceID,
+                    SourcePortID = incoming.SourcePortID,
+                    TargetID = outgoing.TargetID,
+                    TargetPortID = outgoing.TargetPortID,
+                    Type = ConnectorSegmentType.Orthogonal,
+                    Style = new ShapeStyle { StrokeColor = "#999", StrokeWidth = 2 },
+                    TargetDecorator = new DecoratorSettings { Shape = DecoratorShape.None },
+                    SourcePoint = new DiagramPoint() { X = FallbackSourcePointX, Y = FallbackSourcePointY },
+                    TargetPoint = new DiagramPoint() { X = FallbackTargetPointX, Y = FallbackTargetPointY }
+                };
+
+                // Remove old connectors
+                DiagramConnectors.Remove(incoming);
+                DiagramConnectors.Remove(outgoing);
+
+                // Add new connector
+                DiagramConnectors.Add(newConnector);
+            }
+
+            // Delete the node
+            RecordAction(new EditorAction
+            {
+                Type = EditorActionType.DeleteNode,
+                NodeId = ContextMenuNode.ID,
+                NodeData = ContextMenuNode
+            });
+            DiagramNodes!.Remove(ContextMenuNode);
+            SelectedDiagramNode = null;
+            HasUnsavedChanges = true;
+        }
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Export from context menu
+    /// </summary>
+    private void ContextMenuExport()
+    {
+        OnExportClick();
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Selection to subflow from context menu
+    /// </summary>
+    private void ContextMenuSelectionToSubflow()
+    {
+        CreateSubflowFromSelection();
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Select all nodes from context menu
+    /// </summary>
+    private async void ContextMenuSelectAll()
+    {
+        CloseContextMenus();
+        if (DiagramInstance != null && DiagramNodes != null && DiagramNodes.Count > 0)
+        {
+            var allNodes = new System.Collections.ObjectModel.ObservableCollection<IDiagramObject>();
+            foreach (var node in DiagramNodes)
+            {
+                allNodes.Add(node);
+            }
+            DiagramInstance.Select(allNodes);
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Insert node (opens quick add dialog) from context menu
+    /// </summary>
+    private void ContextMenuInsertNode()
+    {
+        // For now, show a simple inject node as the most common action
+        // In a full implementation, this would show a quick add dialog
+        AddNodeAtPosition("inject", ContextMenuX, ContextMenuY);
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Add junction from context menu
+    /// </summary>
+    private void ContextMenuAddJunction()
+    {
+        // Create a junction node (a simple pass-through node)
+        var nodeId = $"junction{++NodeCount}";
+        var node = new Node()
+        {
+            ID = nodeId,
+            OffsetX = ContextMenuX,
+            OffsetY = ContextMenuY,
+            Width = 10,
+            Height = 10,
+            Ports = new DiagramObjectCollection<PointPort>
+            {
+                new PointPort()
+                {
+                    ID = "port1",
+                    Shape = PortShapes.Circle,
+                    Offset = new DiagramPoint() { X = 0, Y = 0.5 },
+                    Visibility = PortVisibility.Visible,
+                    Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
+                    Width = 8,
+                    Height = 8,
+                    Constraints = PortConstraints.Default
+                },
+                new PointPort()
+                {
+                    ID = "port2",
+                    Shape = PortShapes.Circle,
+                    Offset = new DiagramPoint() { X = 1, Y = 0.5 },
+                    Visibility = PortVisibility.Visible,
+                    Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
+                    Width = 8,
+                    Height = 8,
+                    Constraints = PortConstraints.Default | PortConstraints.Draw
+                }
+            },
+            Style = new ShapeStyle { Fill = "#999", StrokeColor = "#666", StrokeWidth = 1 },
+            Shape = new BasicShape() { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Ellipse },
+            Constraints = DefaultNodeConstraints,
+            AdditionalInfo = new Dictionary<string, object>
+            {
+                { "nodeType", "junction" }
+            }
+        };
+        DiagramNodes?.Add(node);
+
+        RecordAction(new EditorAction
+        {
+            Type = EditorActionType.AddNode,
+            NodeId = node.ID,
+            NodeData = node
+        });
+
+        HasUnsavedChanges = true;
+        CloseContextMenus();
+    }
+
+    /// <summary>
+    /// Import from context menu
+    /// </summary>
+    private void ContextMenuImport()
+    {
+        OnImportClick();
         CloseContextMenus();
     }
 
