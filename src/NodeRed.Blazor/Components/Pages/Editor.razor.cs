@@ -81,6 +81,14 @@ public partial class Editor : IDisposable
         new RedUiSidebar.SidebarTab { Id = "debug", Name = "Debug messages", Label = "debug", IconClass = "fa fa-bug", Pinned = true, EnableOnEdit = true }
     };
 
+    // Tray tabs for node property editor
+    private List<RedUiTrayInline.TrayTab> GetTrayTabs() => new()
+    {
+        new RedUiTrayInline.TrayTab { Id = "properties", Label = "Properties", IconClass = "fa fa-cog" },
+        new RedUiTrayInline.TrayTab { Id = "description", Label = "Description", IconClass = "fa fa-file-text-o" },
+        new RedUiTrayInline.TrayTab { Id = "appearance", Label = "Appearance", IconClass = "fa fa-object-group" }
+    };
+
     // Menu state
     private bool IsMainMenuOpen = false;
     private bool IsDeployMenuOpen = false;
@@ -268,6 +276,14 @@ public partial class Editor : IDisposable
         if (string.IsNullOrWhiteSpace(PaletteFilter)) return true;
         return node.Label.Contains(PaletteFilter, StringComparison.OrdinalIgnoreCase) ||
                node.Type.Contains(PaletteFilter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private int GetFilteredNodeCount()
+    {
+        return PaletteCategories
+            .Where(c => FilterCategory(c))
+            .SelectMany(c => c.Nodes.Where(n => FilterNode(n)))
+            .Count();
     }
 
     private void ToggleCategory(string categoryName)

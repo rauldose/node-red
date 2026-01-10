@@ -1,9 +1,152 @@
+/* ============================================= */
+/* Node-RED Blazor App - CSS Variables          */
+/* Matches the original Node-RED theme          */
+/* ============================================= */
+
+:root {
+    /* Fonts */
+    --red-ui-primary-font: 'Helvetica Neue', Arial, Helvetica, sans-serif;
+    --red-ui-primary-font-size: 14px;
+    --red-ui-monospace-font: Menlo, Consolas, 'DejaVu Sans Mono', Courier, monospace;
+
+    /* Backgrounds */
+    --red-ui-primary-background: #f3f3f3;
+    --red-ui-secondary-background: #fff;
+    --red-ui-secondary-background-selected: #efefef;
+    --red-ui-secondary-background-inactive: #f0f0f0;
+    --red-ui-secondary-background-hover: #e6e6e6;
+    --red-ui-secondary-background-disabled: #f9f9f9;
+    --red-ui-tertiary-background: #f7f7f7;
+
+    /* Shadow */
+    --red-ui-shadow: rgba(0, 0, 0, 0.2);
+
+    /* Text colors */
+    --red-ui-primary-text-color: #555;
+    --red-ui-secondary-text-color: #888;
+    --red-ui-secondary-text-color-focus: #666;
+    --red-ui-secondary-text-color-hover: #666;
+    --red-ui-secondary-text-color-active: #666;
+    --red-ui-secondary-text-color-selected: #666;
+    --red-ui-secondary-text-color-inactive: #666;
+    --red-ui-secondary-text-color-disabled: #bbb;
+    --red-ui-secondary-text-color-disabled-active: #999;
+    --red-ui-secondary-text-color-disabled-inactive: #aaa;
+    --red-ui-tertiary-text-color: #aaa;
+    --red-ui-header-text-color: #444;
+
+    --red-ui-text-color-error: #AD1625;
+    --red-ui-text-color-warning: #CAB200;
+    --red-ui-text-color-success: #3a3;
+    --red-ui-text-color-code: #AD1625;
+    --red-ui-text-color-link: #0088cc;
+
+    /* Border colors */
+    --red-ui-primary-border-color: #bbbbbb;
+    --red-ui-secondary-border-color: #dddddd;
+    --red-ui-tertiary-border-color: #ccc;
+
+    /* Form styles */
+    --red-ui-form-background: #fff;
+    --red-ui-form-placeholder-color: #aaa;
+    --red-ui-form-text-color: #555;
+    --red-ui-form-input-focus-color: rgba(85, 150, 230, 0.8);
+    --red-ui-form-input-border-color: #ccc;
+    --red-ui-form-input-background: #fff;
+    --red-ui-form-input-background-disabled: #f9f9f9;
+    --red-ui-form-tips-background: #ffe;
+
+    /* Tab styles */
+    --red-ui-tab-text-color-active: #444;
+    --red-ui-tab-text-color-inactive: #888;
+    --red-ui-tab-background: #fff;
+    --red-ui-tab-background-active: #fff;
+    --red-ui-tab-background-inactive: #f0f0f0;
+    --red-ui-tab-background-hover: #e6e6e6;
+
+    /* Palette styles */
+    --red-ui-palette-header-background: #f3f3f3;
+    --red-ui-palette-header-color: #444;
+    --red-ui-palette-content-background: #fff;
+
+    /* Workspace button styles */
+    --red-ui-workspace-button-background: #fff;
+    --red-ui-workspace-button-background-hover: #e6e6e6;
+    --red-ui-workspace-button-background-active: #efefef;
+    --red-ui-workspace-button-color: #888;
+    --red-ui-workspace-button-color-disabled: #bbb;
+    --red-ui-workspace-button-color-hover: #666;
+    --red-ui-workspace-button-color-active: #666;
+    --red-ui-workspace-button-color-selected: #666;
+    --red-ui-workspace-button-color-primary: #eee;
+    --red-ui-workspace-button-background-primary: #AD1625;
+    --red-ui-workspace-button-background-primary-hover: #6E0A1E;
+
+    /* Node styles */
+    --red-ui-node-label-color: #333;
+    --red-ui-node-border: #999;
+    --red-ui-node-port-background: #d9d9d9;
+    --red-ui-node-port-background-hover: #eee;
+    --red-ui-node-icon-background-color: rgba(0, 0, 0, 0.05);
+    --red-ui-node-selected-color: #ff7f0e;
+
+    /* Menu styles */
+    --red-ui-menuBackground: #fff;
+    --red-ui-menuDivider: #ddd;
+    --red-ui-menuColor: #444;
+    --red-ui-menuActiveColor: #fff;
+    --red-ui-menuActiveBackground: #5596e6;
+    --red-ui-menuDisabledColor: #bbb;
+    --red-ui-menuHoverColor: #444;
+    --red-ui-menuHoverBackground: #f0f0f0;
+    --red-ui-menuCaret: #888;
+
+    /* Header styles */
+    --red-ui-header-background: #000;
+    --red-ui-header-accent: #C02020;
+    --red-ui-header-button-background-active: #121212;
+    --red-ui-header-menu-color: #eee;
+    --red-ui-header-menu-color-disabled: #666;
+    --red-ui-header-menu-heading-color: #888;
+    --red-ui-header-menu-sublabel-color: #888;
+    --red-ui-header-menu-background: #fff;
+    --red-ui-header-menu-item-hover: #f0f0f0;
+
+    /* Deploy button */
+    --red-ui-deploy-button-color: #eee;
+    --red-ui-deploy-button-color-active: #fff;
+    --red-ui-deploy-button-color-disabled: #999;
+    --red-ui-deploy-button-background: #8C101C;
+    --red-ui-deploy-button-background-hover: #6E0A1E;
+    --red-ui-deploy-button-background-active: #6E0A1E;
+    --red-ui-deploy-button-background-disabled: #5a0a10;
+
+    /* Shade color */
+    --red-ui-shade-color: rgba(160, 160, 160, 0.5);
+
+    /* Grip/resize */
+    --red-ui-grip-color: #ccc;
+
+    /* View/canvas */
+    --red-ui-view-background: #fff;
+    --red-ui-view-grid-color: #eee;
+
+    /* Debug message colors */
+    --red-ui-debug-message-background: #fff;
+    --red-ui-debug-message-background-hover: #f0f0f0;
+    --red-ui-debug-message-text-color: #555;
+    --red-ui-debug-message-text-color-meta: #888;
+    --red-ui-debug-message-border: #ddd;
+    --red-ui-debug-message-border-hover: #bbb;
+}
+
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size);
 }
 
 a, .btn-link {
-    color: #006bb7;
+    color: var(--red-ui-text-color-link);
 }
 
 .btn-primary {
@@ -60,29 +203,83 @@ h1:focus {
 }
 
 /* ============================================= */
+/* Workspace Container Styling                   */
+/* ============================================= */
+
+#red-ui-workspace {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* ============================================= */
 /* Syncfusion Splitter Styling for Node-RED     */
 /* ============================================= */
 
-/* Main splitter bar styling */
+/* Main splitter bar styling - matches panels.scss */
 .e-splitter .e-split-bar {
-    background-color: #f3f3f3 !important;
-    border-color: #bbb !important;
+    background-color: var(--red-ui-primary-background, #f3f3f3) !important;
+    border-color: var(--red-ui-secondary-border-color, #ddd) !important;
+    position: relative;
 }
 
 .e-splitter.e-splitter-horizontal .e-split-bar {
     width: 7px !important;
     min-width: 7px !important;
+    border-left: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-right: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-top: none !important;
+    border-bottom: none !important;
 }
 
 .e-splitter.e-splitter-vertical .e-split-bar {
     height: 7px !important;
     min-height: 7px !important;
+    width: 100% !important;
+    border-top: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-left: none !important;
+    border-right: none !important;
+}
+
+/* Grip pattern for splitter bar using pseudo-element */
+.e-splitter .e-split-bar::before {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 40px;
+    background-image: repeating-linear-gradient(
+        180deg,
+        var(--red-ui-grip-color, #ccc) 0px,
+        var(--red-ui-grip-color, #ccc) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+}
+
+.e-splitter.e-splitter-vertical .e-split-bar::before {
+    width: 40px;
+    height: 3px;
+    background-image: repeating-linear-gradient(
+        90deg,
+        var(--red-ui-grip-color, #ccc) 0px,
+        var(--red-ui-grip-color, #ccc) 1px,
+        transparent 1px,
+        transparent 3px
+    );
 }
 
 /* Collapse/expand arrow icons - Node-RED style */
 .e-splitter .e-split-bar .e-navigate-arrow {
-    background-color: #f3f3f3 !important;
-    border: 1px solid #bbb !important;
+    background-color: var(--red-ui-primary-background, #f3f3f3) !important;
+    border: 1px solid var(--red-ui-primary-border-color, #bbb) !important;
     border-radius: 3px !important;
     width: 20px !important;
     height: 20px !important;
@@ -90,22 +287,23 @@ h1:focus {
     align-items: center !important;
     justify-content: center !important;
     transition: background-color 0.2s, border-color 0.2s !important;
+    z-index: 1;
 }
 
 .e-splitter .e-split-bar .e-navigate-arrow:hover {
-    background-color: #ddd !important;
-    border-color: #999 !important;
+    background-color: var(--red-ui-secondary-background-hover, #e6e6e6) !important;
+    border-color: var(--red-ui-node-border, #999) !important;
 }
 
 .e-splitter .e-split-bar .e-navigate-arrow::before,
 .e-splitter .e-split-bar .e-navigate-arrow::after {
-    color: #666 !important;
+    color: var(--red-ui-secondary-text-color, #888) !important;
     font-size: 10px !important;
 }
 
 .e-splitter .e-split-bar .e-navigate-arrow:hover::before,
 .e-splitter .e-split-bar .e-navigate-arrow:hover::after {
-    color: #444 !important;
+    color: var(--red-ui-header-text-color, #444) !important;
 }
 
 /* Horizontal splitter arrows (left/right) */
@@ -172,66 +370,108 @@ h1:focus {
 
 /* ============================================= */
 /* Inline Tray Pane Styling                     */
+/* Matches editor.scss tray styles              */
 /* ============================================= */
 
 .red-ui-tray-pane {
-    background: #fff;
+    background: var(--red-ui-secondary-background, #fff);
+    position: relative;
 }
 
 .red-ui-tray-inline {
     height: 100%;
     display: flex;
     flex-direction: column;
-    background: #fff;
-    border-left: 1px solid #bbb;
+    background: var(--red-ui-secondary-background, #fff);
+    border-left: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    box-sizing: content-box;
 }
 
+/* Tray header - matches .red-ui-tray-header */
 .red-ui-tray-inline .red-ui-tray-header {
-    background: #f7f7f7;
-    border-bottom: 1px solid #ddd;
-}
-
-.red-ui-tray-inline .red-ui-tray-titlebar {
-    padding: 8px 10px;
-    border-bottom: 1px solid #eee;
+    user-select: none;
+    position: relative;
+    box-sizing: border-box;
     font-weight: bold;
-    color: #444;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    background: var(--red-ui-palette-header-background, #f7f7f7);
+    flex-shrink: 0;
 }
 
+.red-ui-tray-inline .red-ui-tray-header:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* Tray titlebar - matches .red-ui-tray-titlebar */
+.red-ui-tray-inline .red-ui-tray-titlebar {
+    color: var(--red-ui-header-text-color, #444);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    padding: 8px 10px;
+}
+
+/* Tray toolbar - matches .red-ui-tray-toolbar */
 .red-ui-tray-inline .red-ui-tray-toolbar {
-    padding: 6px 10px;
     text-align: right;
+    padding: 6px 10px;
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
     gap: 5px;
 }
 
+.red-ui-tray-inline .red-ui-tray-toolbar button {
+    margin-left: 5px;
+}
+
+/* Tray body - matches .red-ui-tray-body-wrapper and .red-ui-tray-body */
 .red-ui-tray-inline .red-ui-tray-body-wrapper {
     flex: 1;
+    width: 100%;
+    box-sizing: border-box;
     overflow: auto;
 }
 
 .red-ui-tray-inline .red-ui-tray-body {
-    padding: 0.1px;
+    position: relative;
+    box-sizing: border-box;
+    padding: 0.1px; /* prevent margin collapsing */
 }
 
 .red-ui-tray-inline .red-ui-tray-content {
     padding: 10px 20px;
+    overflow: auto;
+    position: relative;
 }
 
+/* Tray breadcrumbs - matches .red-ui-tray-breadcrumbs */
 .red-ui-tray-inline ul.red-ui-tray-breadcrumbs {
-    list-style: none;
+    list-style-type: none;
     margin: 0;
     padding: 0;
+    overflow-wrap: anywhere;
 }
 
 .red-ui-tray-inline ul.red-ui-tray-breadcrumbs li {
     display: inline-block;
+    padding: 0;
+    margin: 0;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li:not(:last-child) {
+    color: var(--red-ui-workspace-button-color, #888);
+    font-weight: normal;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li:not(:last-child):after {
+    display: inline-block;
+    content: '>';
+    margin: 0 5px;
 }
 
 .red-ui-tray-inline ul.red-ui-tray-breadcrumbs li i {
     margin-right: 5px;
-    color: #888;
+    color: var(--red-ui-secondary-text-color, #888);
 }
 
 /* Tray toolbar with left/right buttons */
@@ -391,57 +631,261 @@ h1:focus {
     flex: 1;
 }
 
-/* Hidden tray pane when not open */
-.red-ui-tray-hidden {
-    display: none !important;
-    width: 0 !important;
-    min-width: 0 !important;
-    max-width: 0 !important;
-    overflow: hidden !important;
-    flex: 0 0 0px !important;
+/* ============================================= */
+/* Overlay Tray - slides in from right          */
+/* ============================================= */
+
+.red-ui-tray-overlay-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0; /* Fill the entire workspace pane */
+    bottom: 0;
+    z-index: 100;
+    pointer-events: none;
 }
 
-/* Hide the splitter bar adjacent to the hidden tray pane using :has() */
-/* When tray is hidden, hide the split-bar that comes before it */
-.e-splitter.e-splitter-horizontal .e-split-bar:has(+ .red-ui-tray-hidden) {
-    display: none !important;
-    width: 0 !important;
+.red-ui-tray-shade {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(160, 160, 160, 0.5);
+    pointer-events: auto;
+    z-index: 100;
 }
 
-/* Also target by index - tray pane is index 2 (0-indexed), so hide bar index 2 when tray is hidden */
-.red-ui-main-splitter:has(.red-ui-tray-hidden) > .e-split-bar:nth-of-type(2) {
-    display: none !important;
-    width: 0 !important;
+.red-ui-tray {
+    position: absolute;
+    margin: 0;
+    top: 0;
+    width: auto;
+    right: 0; /* Right edge of workspace pane */
+    bottom: 0;
+    background: var(--red-ui-secondary-background, #fff);
+    border-left: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    border-bottom: 1px solid var(--red-ui-primary-border-color, #bbb);
+    box-sizing: content-box;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    z-index: 101;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.15);
 }
 
-/* Ensure sidebar splitter bar remains visible and functional */
-.red-ui-main-splitter > .e-split-bar:nth-of-type(3),
-.red-ui-main-splitter > .e-split-bar:last-of-type {
-    display: flex !important;
+.red-ui-tray.open {
+    right: 0;
 }
 
-/* Sidebar internal splitter centering */
+.red-ui-tray-resize-handle {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    width: 7px;
+    left: -9px;
+    background-color: var(--red-ui-primary-background, #f3f3f3);
+    cursor: col-resize;
+    border-left: 1px solid var(--red-ui-primary-border-color, #bbb);
+    box-shadow: -1px 0 6px var(--red-ui-shadow, rgba(0, 0, 0, 0.1));
+}
+
+.red-ui-tray-resize-handle::before {
+    content: '';
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 40px;
+    background-image: repeating-linear-gradient(
+        180deg,
+        var(--red-ui-grip-color, #ccc) 0px,
+        var(--red-ui-grip-color, #ccc) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+}
+
+.red-ui-tray-header,
+.editor-tray-header {
+    user-select: none;
+    position: relative;
+    box-sizing: border-box;
+    font-weight: bold;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #dddddd);
+    background: var(--red-ui-palette-header-background, #f7f7f7);
+}
+
+.red-ui-tray-header:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.red-ui-tray-titlebar {
+    color: var(--red-ui-header-text-color, #444);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #dddddd);
+    padding: 8px 10px;
+}
+
+ul.red-ui-tray-breadcrumbs {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow-wrap: anywhere;
+}
+
+ul.red-ui-tray-breadcrumbs li {
+    display: inline-block;
+    padding: 0;
+    margin: 0;
+}
+
+.red-ui-tray-toolbar {
+    display: flex;
+    align-items: center;
+    text-align: right;
+    padding: 6px;
+}
+
+.red-ui-tray-toolbar button {
+    margin-left: 5px;
+}
+
+.red-ui-tray-toolbar-left {
+    margin-right: auto;
+    margin-left: 0 !important;
+}
+
+.red-ui-tray-tabs {
+    background: var(--red-ui-palette-header-background, #f7f7f7);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+}
+
+.red-ui-tray-tab-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+.red-ui-tray-tab-list li {
+    display: inline-block;
+}
+
+.red-ui-tray-tab-list li a {
+    display: block;
+    padding: 8px 16px;
+    text-decoration: none;
+    color: var(--red-ui-secondary-text-color, #666);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+}
+
+.red-ui-tray-tab-list li.active a {
+    color: var(--red-ui-header-text-color, #444);
+    border-bottom-color: var(--red-ui-deploy-button-background, #8f0000);
+    font-weight: 500;
+}
+
+.red-ui-tray-tab-list li:hover a {
+    background: var(--red-ui-secondary-background-hover, #f0f0f0);
+}
+
+.red-ui-tray-body-wrapper {
+    flex: 1;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: auto;
+}
+
+.red-ui-tray-body,
+.editor-tray-body {
+    position: relative;
+    box-sizing: border-box;
+    padding: 0.1px;
+}
+
+.red-ui-tray-content {
+    padding: 10px 20px;
+    overflow: auto;
+    position: relative;
+}
+
+.red-ui-tray-footer {
+    height: 35px;
+    font-size: 14px !important;
+    line-height: 35px;
+    vertical-align: middle;
+    background: var(--red-ui-tertiary-background, #f7f7f7);
+    border-top: 1px solid var(--red-ui-secondary-border-color, #dddddd);
+    box-sizing: border-box;
+}
+
+.red-ui-tray-footer-left {
+    margin-right: 20px;
+    float: left;
+    padding-left: 10px;
+}
+
+.red-ui-tray-footer-node-id {
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+/* ============================================= */
+/* Sidebar internal splitter (info and help)    */
+/* ============================================= */
+
 .red-ui-info-splitter,
 .red-ui-help-splitter {
     height: 100% !important;
+    border: none !important;
 }
 
-.red-ui-info-splitter .e-split-bar,
-.red-ui-help-splitter .e-split-bar {
+/* Vertical splitter bar for sidebar info/help panels */
+.red-ui-info-splitter.e-splitter-vertical .e-split-bar,
+.red-ui-help-splitter.e-splitter-vertical .e-split-bar {
+    background: var(--red-ui-primary-background, #f3f3f3) !important;
+    border-top: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
+    height: 7px !important;
+    min-height: 7px !important;
+    width: 100% !important;
+    cursor: ns-resize !important;
+    display: flex !important;
     justify-content: center !important;
+    align-items: center !important;
+    position: relative !important;
 }
 
+/* Grip pattern for sidebar vertical splitter bar */
+.red-ui-info-splitter.e-splitter-vertical .e-split-bar::before,
+.red-ui-help-splitter.e-splitter-vertical .e-split-bar::before {
+    content: '' !important;
+    display: block !important;
+    width: 40px !important;
+    height: 3px !important;
+    background-image: repeating-linear-gradient(
+        90deg,
+        var(--red-ui-grip-color, #ccc) 0px,
+        var(--red-ui-grip-color, #ccc) 1px,
+        transparent 1px,
+        transparent 3px
+    ) !important;
+}
+
+/* Hide default Syncfusion splitter controls */
 .red-ui-info-splitter .e-split-bar .e-resize-handler,
-.red-ui-help-splitter .e-split-bar .e-resize-handler {
-    margin: 0 auto !important;
-}
-
-/* Ensure splitter arrows are centered */
+.red-ui-help-splitter .e-split-bar .e-resize-handler,
 .red-ui-info-splitter .e-split-bar .e-navigate-arrow,
-.red-ui-help-splitter .e-split-bar .e-navigate-arrow {
-    position: absolute !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
+.red-ui-help-splitter .e-split-bar .e-navigate-arrow,
+.red-ui-info-splitter .e-split-bar .e-icon-bar,
+.red-ui-help-splitter .e-split-bar .e-icon-bar {
+    display: none !important;
 }
 
 /* Vertical splitter specific centering */
