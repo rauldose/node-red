@@ -377,3 +377,55 @@ h1:focus {
 .red-ui-editor-node-label-row input {
     flex: 1;
 }
+
+/* Hidden tray pane when not open */
+.red-ui-tray-hidden {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Sidebar internal splitter centering */
+.red-ui-info-splitter,
+.red-ui-help-splitter {
+    height: 100% !important;
+}
+
+.red-ui-info-splitter .e-split-bar,
+.red-ui-help-splitter .e-split-bar {
+    justify-content: center !important;
+}
+
+.red-ui-info-splitter .e-split-bar .e-resize-handler,
+.red-ui-help-splitter .e-split-bar .e-resize-handler {
+    margin: 0 auto !important;
+}
+
+/* Ensure splitter arrows are centered */
+.red-ui-info-splitter .e-split-bar .e-navigate-arrow,
+.red-ui-help-splitter .e-split-bar .e-navigate-arrow {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+}
+
+/* Vertical splitter specific centering */
+.e-splitter.e-splitter-vertical .e-split-bar {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+.e-splitter.e-splitter-vertical .e-split-bar .e-icon-bar {
+    display: none !important;
+}
+
+/* Horizontal splitter specific centering */
+.e-splitter.e-splitter-horizontal .e-split-bar {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex-direction: column !important;
+}

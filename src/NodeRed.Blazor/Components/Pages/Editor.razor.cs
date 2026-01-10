@@ -28,6 +28,9 @@ public partial class Editor : IDisposable
     
     // Diagram reference
     public SfDiagramComponent? DiagramInstance { get; set; }
+    
+    // Main splitter reference (for tray pane control)
+    private SfSplitter? _mainSplitter;
 
     // Selection settings
     public DiagramSelectionSettings SelectionSettings { get; set; } = new DiagramSelectionSettings()
@@ -1002,6 +1005,16 @@ public partial class Editor : IDisposable
     {
         DeleteSelection();
         IsPropertyTrayOpen = false;
+    }
+
+    /// <summary>
+    /// Gets the CSS class for the tray pane based on visibility state.
+    /// </summary>
+    private string GetTrayCssClass()
+    {
+        return IsPropertyTrayOpen && SelectedDiagramNode != null 
+            ? "red-ui-tray-pane" 
+            : "red-ui-tray-pane red-ui-tray-hidden";
     }
 
     private async Task OnFixedUserHandleClick(FixedUserHandleClickEventArgs args)

@@ -598,7 +598,7 @@
 
     <!-- Main Container with Syncfusion Splitter for collapsible palette/sidebar -->
     <div id="red-ui-main-container">
-        <SfSplitter Height="100%" Width="100%" Orientation="Syncfusion.Blazor.Layouts.Orientation.Horizontal" CssClass="red-ui-main-splitter">
+        <SfSplitter @ref="_mainSplitter" Height="100%" Width="100%" Orientation="Syncfusion.Blazor.Layouts.Orientation.Horizontal" CssClass="red-ui-main-splitter">
             <SplitterPanes>
                 <!-- Palette Pane (collapsible) -->
                 <SplitterPane Size="180px" Min="100px" Max="300px" Collapsible="true" CssClass="red-ui-palette-pane">
@@ -722,11 +722,15 @@
                     </ContentTemplate>
                 </SplitterPane>
 
-                <!-- Property Editor Tray Pane (appears when double-clicking a node) -->
-                @if (IsPropertyTrayOpen && SelectedDiagramNode != null)
-                {
-                    <SplitterPane Size="450px" Min="350px" Max="700px" CssClass="red-ui-tray-pane">
-                        <ContentTemplate>
+                <!-- Property Editor Tray Pane (always rendered, size controlled) -->
+                <SplitterPane Size="@(IsPropertyTrayOpen && SelectedDiagramNode != null ? "450px" : "0px")" 
+                              Min="@(IsPropertyTrayOpen && SelectedDiagramNode != null ? "350px" : "0px")" 
+                              Max="@(IsPropertyTrayOpen && SelectedDiagramNode != null ? "700px" : "0px")" 
+                              Resizable="@(IsPropertyTrayOpen && SelectedDiagramNode != null)"
+                              CssClass="@GetTrayCssClass()">
+                    <ContentTemplate>
+                        @if (IsPropertyTrayOpen && SelectedDiagramNode != null)
+                        {
                             <div class="red-ui-tray-inline">
                                 @* Tray header *@
                                 <div class="red-ui-tray-header editor-tray-header">
@@ -793,9 +797,9 @@
                                     </span>
                                 </div>
                             </div>
-                        </ContentTemplate>
-                    </SplitterPane>
-                }
+                        }
+                    </ContentTemplate>
+                </SplitterPane>
 
                 <!-- Sidebar Pane (collapsible) -->
                 <SplitterPane Size="315px" Min="200px" Max="500px" Collapsible="true" CssClass="red-ui-sidebar-pane">
