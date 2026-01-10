@@ -1,146 +1,116 @@
 @*
     RedUiSidebarInfo - Blazor implementation of Node-RED's tab-info.js
-    Uses Syncfusion SfSplitter and SfTreeView for proper functionality
+    Simple tree list matching original Node-RED styling
 *@
 
 <div class="red-ui-sidebar-info" style="height: 100%; display: flex; flex-direction: column;">
-    @* Split panel using Syncfusion Splitter *@
-    <SfSplitter Orientation="Syncfusion.Blazor.Layouts.Orientation.Vertical" CssClass="red-ui-info-splitter" Height="100%">
-        <SplitterPanes>
-            @* Outliner panel (tree view of flows) *@
-            <SplitterPane Size="60%" Min="100px" Collapsible="true">
-                <ContentTemplate>
-                    <div class="red-ui-info-outliner" style="height: 100%; overflow: auto;">
-                        <SfTreeView TValue="TreeItem" CssClass="red-ui-treeview" @ref="_treeView">
-                            <TreeViewFieldsSettings TValue="TreeItem"
-                                                    DataSource="@GetTreeData()"
-                                                    Id="Id"
-                                                    Text="Text"
-                                                    ParentID="ParentId"
-                                                    HasChildren="HasChildren"
-                                                    Expanded="Expanded">
-                            </TreeViewFieldsSettings>
-                            <TreeViewEvents TValue="TreeItem" NodeClicked="OnNodeClicked" NodeExpanding="OnNodeExpanding"></TreeViewEvents>
-                            <TreeViewTemplates TValue="TreeItem">
-                                <NodeTemplate>
-                                    <div class="red-ui-tree-node @(GetNodeSelectionClass(context))">
-                                        @if (context.IsNode && !string.IsNullOrEmpty(context.Color))
-                                        {
-                                            <span class="red-ui-node-icon-container" style="background-color: @context.Color;">
-                                                @if (!string.IsNullOrEmpty(context.IconCss))
-                                                {
-                                                    <i class="@context.IconCss red-ui-node-icon"></i>
-                                                }
-                                            </span>
-                                        }
-                                        else if (!string.IsNullOrEmpty(context.IconCss))
-                                        {
-                                            <i class="@context.IconCss red-ui-tree-icon"></i>
-                                        }
-                                        <span class="red-ui-tree-node-label">@context.Text</span>
-                                    </div>
-                                </NodeTemplate>
-                            </TreeViewTemplates>
-                        </SfTreeView>
-                    </div>
-                </ContentTemplate>
-            </SplitterPane>
+    @* Split panel using simple divs *@
+    <div class="red-ui-info-split-container" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        @* Outliner panel (tree view of flows) *@
+        <div class="red-ui-info-outliner" style="flex: 0 0 @(_outlinerHeight)px; min-height: 100px; overflow: auto; border-bottom: 1px solid #ddd;">
+            <ul class="red-ui-treeview-list" style="list-style: none; margin: 0; padding: 0;">
+                @foreach (var item in GetTreeData().Where(t => t.ParentId == null))
+                {
+                    @RenderTreeNode(item)
+                }
+            </ul>
+        </div>
 
-            @* Properties panel *@
-            <SplitterPane Size="40%" Min="100px">
-                <ContentTemplate>
-                    <div class="red-ui-info-properties" style="height: 100%; overflow: hidden; display: flex; flex-direction: column;">
-                        @* Header with node type icon and name *@
-                        <div class="red-ui-palette-header red-ui-info-header">
-                            @if (SelectedNode != null)
-                            {
-                                <span class="red-ui-info-header-icon" style="background-color: @NodeColor;"></span>
-                                <span class="red-ui-info-header-label">@NodeType</span>
+        @* Resize handle *@
+        <div class="red-ui-splitter-handle" 
+             style="height: 5px; background: #f0f0f0; cursor: row-resize; flex-shrink: 0; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc;">
+        </div>
 
-                                @* Action buttons *@
-                                <button type="button" class="red-ui-button red-ui-button-small red-ui-info-header-button"
-                                        title="Show node help" @onclick="OnHelpClick">
-                                    <i class="fa fa-book"></i>
-                                </button>
-                                <button type="button" class="red-ui-button red-ui-button-small red-ui-info-header-button"
-                                        title="Copy node path" @onclick="OnCopyLinkClick">
-                                    <i class="fa fa-link"></i>
-                                </button>
-                                <button type="button" class="red-ui-button red-ui-button-small red-ui-info-header-button"
-                                        title="Reveal in workspace" @onclick="OnRevealClick">
-                                    <i class="fa fa-search"></i>
-                                </button>
-                            }
-                            else
+        @* Properties panel *@
+        <div class="red-ui-info-properties" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+            @* Header with node type icon and name *@
+            <div class="red-ui-palette-header red-ui-info-header" style="display: flex; align-items: center; padding: 5px 10px; background: #f3f3f3; border-bottom: 1px solid #ddd;">
+                @if (SelectedNode != null)
+                {
+                    <span class="red-ui-info-header-icon" style="width: 20px; height: 16px; background-color: @NodeColor; border: 1px solid #999; border-radius: 2px; margin-right: 8px;"></span>
+                    <span class="red-ui-info-header-label" style="flex: 1; font-weight: 500;">@NodeType</span>
+
+                    @* Action buttons *@
+                    <button type="button" class="red-ui-button red-ui-button-small red-ui-info-header-button"
+                            title="Show node help" @onclick="OnHelpClick" style="margin-left: 4px; padding: 2px 6px; border: 1px solid #ccc; background: #fff; border-radius: 3px; cursor: pointer;">
+                        <i class="fa fa-book"></i>
+                    </button>
+                    <button type="button" class="red-ui-button red-ui-button-small red-ui-info-header-button"
+                            title="Copy node path" @onclick="OnCopyLinkClick" style="margin-left: 4px; padding: 2px 6px; border: 1px solid #ccc; background: #fff; border-radius: 3px; cursor: pointer;">
+                        <i class="fa fa-link"></i>
+                    </button>
+                    <button type="button" class="red-ui-button red-ui-button-small red-ui-info-header-button"
+                            title="Reveal in workspace" @onclick="OnRevealClick" style="margin-left: 4px; padding: 2px 6px; border: 1px solid #ccc; background: #fff; border-radius: 3px; cursor: pointer;">
+                        <i class="fa fa-search"></i>
+                    </button>
+                }
+                else
+                {
+                    <span class="red-ui-info-header-none" style="color: #888;">No selection</span>
+                }
+            </div>
+
+            @* Properties content *@
+            <div class="red-ui-info-properties-content" style="flex: 1; overflow-y: auto; padding: 10px;">
+                @if (SelectedNode != null)
+                {
+                    <table class="red-ui-info-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tbody>
+                            <tr>
+                                <td style="padding: 4px 8px; background: #f9f9f9; width: 80px; color: #666;">node</td>
+                                <td style="padding: 4px 8px;">@NodeId</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 4px 8px; background: #f9f9f9; color: #666;">type</td>
+                                <td style="padding: 4px 8px;">@NodeType</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 4px 8px; background: #f9f9f9; color: #666;">name</td>
+                                <td style="padding: 4px 8px;">@(NodeName ?? "(none)")</td>
+                            </tr>
+                            @if (!string.IsNullOrEmpty(StatusText))
                             {
-                                <span class="red-ui-info-header-none">No selection</span>
+                                <tr>
+                                    <td style="padding: 4px 8px; background: #f9f9f9; color: #666;">status</td>
+                                    <td style="padding: 4px 8px;">
+                                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: @StatusColor; margin-right: 4px;"></span>
+                                        <span>@StatusText</span>
+                                    </td>
+                                </tr>
                             }
+                        </tbody>
+                    </table>
+
+                    @* Node description/info *@
+                    @if (!string.IsNullOrEmpty(NodeDescription))
+                    {
+                        <div style="margin-top: 10px; padding: 8px; background: #f9f9f9; border-radius: 3px;">
+                            <p style="margin: 0;">@NodeDescription</p>
                         </div>
-
-                        @* Properties content *@
-                        <div class="red-ui-info-properties-content" style="flex: 1; overflow-y: auto; padding: 10px;">
-                            @if (SelectedNode != null)
-                            {
-                                <table class="red-ui-info-table">
-                                    <tbody>
-                                        <tr>
-                                            <td>node</td>
-                                            <td>@NodeId</td>
-                                        </tr>
-                                        <tr>
-                                            <td>type</td>
-                                            <td>@NodeType</td>
-                                        </tr>
-                                        <tr>
-                                            <td>name</td>
-                                            <td>@(NodeName ?? "(none)")</td>
-                                        </tr>
-                                        @if (!string.IsNullOrEmpty(StatusText))
-                                        {
-                                            <tr>
-                                                <td>status</td>
-                                                <td>
-                                                    <span class="red-ui-flow-node-status" style="background-color: @StatusColor;"></span>
-                                                    <span>@StatusText</span>
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-
-                                @* Node description/info *@
-                                @if (!string.IsNullOrEmpty(NodeDescription))
-                                {
-                                    <div class="red-ui-info-section">
-                                        <p>@NodeDescription</p>
-                                    </div>
-                                }
-                            }
-                            else
-                            {
-                                <div class="red-ui-help-info-none">
-                                    Select a node or flow to view info
-                                </div>
-                            }
-                        </div>
+                    }
+                }
+                else
+                {
+                    <div style="color: #888; text-align: center; padding: 20px;">
+                        Select a node or flow to view info
                     </div>
-                </ContentTemplate>
-            </SplitterPane>
-        </SplitterPanes>
-    </SfSplitter>
+                }
+            </div>
+        </div>
+    </div>
 
     @* Tips box at bottom *@
     @if (_showTips)
     {
-        <div class="red-ui-help-tips">
-            <div class="red-ui-help-tip">
-                <i class="fa fa-lightbulb-o"></i> @_displayTip
+        <div class="red-ui-help-tips" style="padding: 8px 10px; background: #fffce8; border-top: 1px solid #ddd; display: flex; align-items: center; font-size: 12px;">
+            <div style="flex: 1;">
+                <i class="fa fa-lightbulb-o" style="color: #c90; margin-right: 6px;"></i> @_displayTip
             </div>
-            <div class="red-ui-help-tips-buttons">
-                <a href="javascript:void(0)" class="red-ui-footer-button" @onclick="NextTip" title="Next tip">
+            <div style="display: flex; gap: 4px;">
+                <a href="javascript:void(0)" @onclick="NextTip" title="Next tip" style="color: #666; text-decoration: none; padding: 2px 6px;">
                     <i class="fa fa-refresh"></i>
                 </a>
-                <a href="javascript:void(0)" class="red-ui-footer-button" @onclick="HideTips" title="Hide tips">
+                <a href="javascript:void(0)" @onclick="HideTips" title="Hide tips" style="color: #666; text-decoration: none; padding: 2px 6px;">
                     <i class="fa fa-times"></i>
                 </a>
             </div>
@@ -169,8 +139,10 @@
     [Parameter] public EventCallback OnHelpClick { get; set; }
     [Parameter] public Func<string, List<NodeInfo>>? GetFlowNodesFunc { get; set; }
 
-    // TreeView reference and state
-    private SfTreeView<TreeItem>? _treeView;
+    // Splitter state
+    private int _outlinerHeight = 200;
+
+    // Tree state
     private HashSet<string> _expandedNodeIds = new() { "flows" };
     private string? _selectedTreeNodeId;
 
@@ -203,13 +175,89 @@
         }
     }
 
-    private string GetNodeSelectionClass(TreeItem context)
+    private RenderFragment RenderTreeNode(TreeItem item) => __builder =>
     {
-        if (_selectedTreeNodeId == context.Id)
+        var isExpanded = _expandedNodeIds.Contains(item.Id);
+        var isSelected = _selectedTreeNodeId == item.Id;
+        var children = GetTreeData().Where(t => t.ParentId == item.Id).ToList();
+        var hasChildren = children.Any() || item.HasChildren;
+
+        <li style="list-style: none;">
+            <div class="red-ui-treeview-item @(isSelected ? "selected" : "")" 
+                 @onclick="() => OnTreeItemClick(item)"
+                 style="display: flex; align-items: center; padding: 4px 8px; cursor: pointer; @(isSelected ? "background-color: #ffebc7;" : "")">
+                @* Expand/collapse icon *@
+                @if (hasChildren)
+                {
+                    <i class="fa @(isExpanded ? "fa-caret-down" : "fa-caret-right")" 
+                       style="width: 12px; margin-right: 4px; color: #666; font-size: 11px;"></i>
+                }
+                else
+                {
+                    <span style="width: 12px; margin-right: 4px;"></span>
+                }
+                
+                @* Node icon - only for actual nodes, not categories *@
+                @if (item.IsNode && !string.IsNullOrEmpty(item.Color))
+                {
+                    <span style="width: 20px; height: 14px; background-color: @item.Color; border: 1px solid #999; border-radius: 2px; margin-right: 6px;"></span>
+                }
+                else if (!string.IsNullOrEmpty(item.IconCss))
+                {
+                    <i class="@item.IconCss" style="width: 14px; margin-right: 6px; color: #666; font-size: 12px;"></i>
+                }
+                
+                @* Label *@
+                <span style="font-size: 13px;">@item.Text</span>
+            </div>
+            
+            @* Children *@
+            @if (hasChildren && isExpanded)
+            {
+                <ul style="list-style: none; margin: 0; padding-left: 16px;">
+                    @foreach (var child in children)
+                    {
+                        @RenderTreeNode(child)
+                    }
+                </ul>
+            }
+        </li>
+    };
+
+    private async Task OnTreeItemClick(TreeItem item)
+    {
+        // Update selection
+        _selectedTreeNodeId = item.Id;
+
+        if (item.IsFlow)
         {
-            return "selected";
+            // Toggle expansion for flows
+            if (_expandedNodeIds.Contains(item.Id))
+            {
+                _expandedNodeIds.Remove(item.Id);
+            }
+            else
+            {
+                _expandedNodeIds.Add(item.Id);
+            }
+            await OnFlowSelected.InvokeAsync(item.Id);
         }
-        return "";
+        else if (item.IsNode)
+        {
+            await OnNodeSelected.InvokeAsync(item.Id);
+        }
+        else if (item.HasChildren)
+        {
+            // Toggle expansion for category nodes (Flows, Subflows, Global Config)
+            if (_expandedNodeIds.Contains(item.Id))
+            {
+                _expandedNodeIds.Remove(item.Id);
+            }
+            else
+            {
+                _expandedNodeIds.Add(item.Id);
+            }
+        }
     }
 
     private List<TreeItem> GetTreeData()
@@ -222,41 +270,35 @@
             Id = "flows",
             Text = "Flows",
             ParentId = null,
-            HasChildren = true,
-            Expanded = _expandedNodeIds.Contains("flows"),
+            HasChildren = Flows.Any(),
             IconCss = "fa fa-sitemap"
         });
 
         foreach (var flow in Flows)
         {
+            var flowNodes = GetFlowNodesFunc?.Invoke(flow.Id) ?? new List<NodeInfo>();
             items.Add(new TreeItem
             {
                 Id = flow.Id,
                 Text = flow.Label,
                 ParentId = "flows",
-                HasChildren = true,
-                Expanded = _expandedNodeIds.Contains(flow.Id),
+                HasChildren = flowNodes.Any(),
                 IconCss = "fa fa-sitemap",
                 IsFlow = true
             });
 
-            // Add flow nodes only if flow is expanded
-            if (_expandedNodeIds.Contains(flow.Id))
+            // Add flow nodes
+            foreach (var node in flowNodes)
             {
-                var flowNodes = GetFlowNodesFunc?.Invoke(flow.Id) ?? new List<NodeInfo>();
-                foreach (var node in flowNodes)
+                items.Add(new TreeItem
                 {
-                    items.Add(new TreeItem
-                    {
-                        Id = node.Id,
-                        Text = node.Name ?? node.Type,
-                        ParentId = flow.Id,
-                        HasChildren = false,
-                        Color = node.Color,
-                        IconCss = "fa fa-square",
-                        IsNode = true
-                    });
-                }
+                    Id = node.Id,
+                    Text = node.Name ?? node.Type,
+                    ParentId = flow.Id,
+                    HasChildren = false,
+                    Color = node.Color,
+                    IsNode = true
+                });
             }
         }
 
@@ -267,7 +309,6 @@
             Text = "Subflows",
             ParentId = null,
             HasChildren = false,
-            Expanded = _expandedNodeIds.Contains("subflows"),
             IconCss = "fa fa-share-alt"
         });
 
@@ -278,7 +319,6 @@
             Text = "Global Configuration",
             ParentId = null,
             HasChildren = GlobalConfigNodes.Any(),
-            Expanded = _expandedNodeIds.Contains("global-config"),
             IconCss = "fa fa-cog"
         });
 
@@ -298,63 +338,6 @@
         return items;
     }
 
-    private async Task OnNodeClicked(NodeClickEventArgs args)
-    {
-        var nodeId = args.NodeData?.Id;
-        if (nodeId == null) return;
-
-        // Update local selection state
-        _selectedTreeNodeId = nodeId;
-
-        var treeItem = GetTreeData().FirstOrDefault(t => t.Id == nodeId);
-        if (treeItem != null)
-        {
-            if (treeItem.IsFlow)
-            {
-                // Toggle expansion for flows
-                if (_expandedNodeIds.Contains(nodeId))
-                {
-                    _expandedNodeIds.Remove(nodeId);
-                }
-                else
-                {
-                    _expandedNodeIds.Add(nodeId);
-                }
-                await OnFlowSelected.InvokeAsync(treeItem.Id);
-            }
-            else if (treeItem.IsNode)
-            {
-                await OnNodeSelected.InvokeAsync(treeItem.Id);
-            }
-            else if (treeItem.HasChildren)
-            {
-                // Toggle expansion for category nodes (Flows, Subflows, Global Config)
-                if (_expandedNodeIds.Contains(nodeId))
-                {
-                    _expandedNodeIds.Remove(nodeId);
-                }
-                else
-                {
-                    _expandedNodeIds.Add(nodeId);
-                }
-            }
-        }
-        StateHasChanged();
-    }
-
-    private void OnNodeExpanding(NodeExpandEventArgs args)
-    {
-        // Prevent default expansion behavior - we handle it manually in OnNodeClicked
-        if (args.NodeData?.Id != null)
-        {
-            var nodeId = args.NodeData.Id;
-            if (!_expandedNodeIds.Contains(nodeId))
-            {
-                _expandedNodeIds.Add(nodeId);
-            }
-        }
-    }
-
     private void NextTip()
     {
         _currentTipIndex = (_currentTipIndex + 1) % _tips.Length;
@@ -372,7 +355,6 @@
         public string Text { get; set; } = "";
         public string? ParentId { get; set; }
         public bool HasChildren { get; set; } = false;
-        public bool Expanded { get; set; } = false;
         public string? IconCss { get; set; }
         public string? Color { get; set; }
         public bool IsFlow { get; set; } = false;
