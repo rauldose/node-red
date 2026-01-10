@@ -2772,6 +2772,222 @@ public partial class Editor : IDisposable
         return Subflows.FirstOrDefault(sf => sf.Id == subflowId);
     }
     
+    /// <summary>
+    /// Checks if the current flow tab is a subflow template.
+    /// </summary>
+    private bool IsCurrentFlowSubflow()
+    {
+        return Subflows.Any(sf => sf.Id == CurrentFlowId);
+    }
+    
+    /// <summary>
+    /// Gets the subflow info for the current flow (if it's a subflow).
+    /// </summary>
+    private SubflowInfo? GetCurrentSubflowInfo()
+    {
+        return Subflows.FirstOrDefault(sf => sf.Id == CurrentFlowId);
+    }
+    
+    /// <summary>
+    /// Opens a dialog to edit the properties of the current subflow.
+    /// </summary>
+    private void EditSubflowProperties()
+    {
+        var subflow = GetCurrentSubflowInfo();
+        if (subflow == null) return;
+        
+        // For now, show a message - in a full implementation, this would open a properties dialog
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = $"Edit properties for subflow '{subflow.Name}'. Use the Subflows menu to rename or modify settings.",
+            Timestamp = DateTimeOffset.Now
+        });
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Sets the number of inputs for the current subflow (0 or 1).
+    /// </summary>
+    private void SetSubflowInputs(int inputs)
+    {
+        var subflow = GetCurrentSubflowInfo();
+        if (subflow == null) return;
+        
+        if (inputs < 0 || inputs > 1) return;
+        
+        var oldInputs = subflow.Inputs;
+        subflow.Inputs = inputs;
+        
+        // Update the I/O nodes in the diagram
+        UpdateSubflowIONodes(subflow);
+        
+        // Update the palette entry
+        UpdateSubflowInPalette(subflow);
+        
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = $"Subflow '{subflow.Name}' inputs changed from {oldInputs} to {inputs}.",
+            Timestamp = DateTimeOffset.Now
+        });
+        
+        HasUnsavedChanges = true;
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Increments the number of outputs for the current subflow.
+    /// </summary>
+    private void IncrementSubflowOutputs()
+    {
+        var subflow = GetCurrentSubflowInfo();
+        if (subflow == null) return;
+        
+        subflow.Outputs++;
+        
+        // Update the palette entry
+        UpdateSubflowInPalette(subflow);
+        
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = $"Subflow '{subflow.Name}' now has {subflow.Outputs} output(s).",
+            Timestamp = DateTimeOffset.Now
+        });
+        
+        HasUnsavedChanges = true;
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Decrements the number of outputs for the current subflow (minimum 0).
+    /// </summary>
+    private void DecrementSubflowOutputs()
+    {
+        var subflow = GetCurrentSubflowInfo();
+        if (subflow == null) return;
+        
+        if (subflow.Outputs <= 0) return;
+        
+        subflow.Outputs--;
+        
+        // Update the palette entry
+        UpdateSubflowInPalette(subflow);
+        
+        DebugMessages.Add(new DebugMessage
+        {
+            NodeId = "system",
+            NodeName = "System",
+            Data = $"Subflow '{subflow.Name}' now has {subflow.Outputs} output(s).",
+            Timestamp = DateTimeOffset.Now
+        });
+        
+        HasUnsavedChanges = true;
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Deletes the current subflow (if editing a subflow template).
+    /// </summary>
+    private void DeleteCurrentSubflow()
+    {
+        var subflow = GetCurrentSubflowInfo();
+        if (subflow == null) return;
+        
+        DeleteSubflow(subflow.Id);
+    }
+    
+    /// <summary>
+    /// Updates the I/O nodes in the subflow diagram based on inputs/outputs settings.
+    /// </summary>
+    private void UpdateSubflowIONodes(SubflowInfo subflow)
+    {
+        // Find and update/remove/add input node
+        var inputNodeId = $"{subflow.Id}_in";
+        var existingInputNode = DiagramNodes?.FirstOrDefault(n => n.ID == inputNodeId);
+        
+        if (subflow.Inputs == 0 && existingInputNode != null)
+        {
+            // Remove input node
+            DiagramNodes?.Remove(existingInputNode);
+            AllNodes.Remove(inputNodeId);
+        }
+        else if (subflow.Inputs == 1 && existingInputNode == null)
+        {
+            // Add input node
+            var inputNode = new Node
+            {
+                ID = inputNodeId,
+                OffsetX = 150,
+                OffsetY = 200,
+                Width = 80,
+                Height = 25,
+                Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
+                Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
+                AdditionalInfo = new Dictionary<string, object?>
+                {
+                    { "nodeType", "subflow-in" },
+                    { "subflowId", subflow.Id }
+                }
+            };
+            inputNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+            {
+                new ShapeAnnotation { ID = "iconAnnotation", Content = "→", Style = new TextStyle { Color = "#333", FontSize = 12 } },
+                new ShapeAnnotation { ID = "labelAnnotation", Content = "Input", Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
+            };
+            inputNode.Ports = new DiagramObjectCollection<PointPort>
+            {
+                new PointPort
+                {
+                    ID = "output",
+                    Offset = new DiagramPoint { X = 1, Y = 0.5 },
+                    Visibility = PortVisibility.Visible,
+                    Height = 8,
+                    Width = 8,
+                    Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+                }
+            };
+            DiagramNodes?.Add(inputNode);
+            
+            // Add to registry
+            AllNodes[inputNodeId] = new NodeData
+            {
+                Id = inputNodeId,
+                Z = subflow.Id,
+                Type = "subflow-in",
+                X = 150,
+                Y = 200,
+                W = 80,
+                H = 25,
+                Name = "Input",
+                Color = "#A6BBCF",
+                IconClass = "→",
+                Props = new Dictionary<string, object?> { { "subflowId", subflow.Id } }
+            };
+        }
+    }
+    
+    /// <summary>
+    /// Updates a subflow entry in the palette.
+    /// </summary>
+    private void UpdateSubflowInPalette(SubflowInfo subflow)
+    {
+        var subflowCategory = PaletteCategories.FirstOrDefault(c => c.Name == "subflows");
+        if (subflowCategory == null) return;
+        
+        var paletteNode = subflowCategory.Nodes.FirstOrDefault(n => n.Type == $"subflow:{subflow.Id}");
+        if (paletteNode != null)
+        {
+            paletteNode.Inputs = subflow.Inputs;
+            paletteNode.Outputs = subflow.Outputs;
+            paletteNode.Label = subflow.Name;
+        }
+    }
+    
     private void LoadFlowNodes(string flowId)
     {
         // This method is now deprecated - use RestoreFlowState instead

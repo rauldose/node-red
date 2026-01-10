@@ -684,6 +684,44 @@
                                 </li>
                             </ul>
 
+                            @* Subflow toolbar - shown when editing a subflow template *@
+                            @if (IsCurrentFlowSubflow())
+                            {
+                                var currentSubflow = GetCurrentSubflowInfo();
+                                <div id="red-ui-workspace-toolbar" class="red-ui-subflow-toolbar">
+                                    <a class="red-ui-toolbar-button" @onclick="EditSubflowProperties" title="Edit subflow properties">
+                                        <i class="fa fa-pencil"></i> edit properties
+                                    </a>
+                                    
+                                    <span class="red-ui-toolbar-separator"></span>
+                                    
+                                    <span class="red-ui-toolbar-label">input</span>
+                                    <div class="red-ui-toolbar-button-group">
+                                        <a class="red-ui-toolbar-button @(currentSubflow?.Inputs == 0 ? "active" : "")" 
+                                           @onclick="() => SetSubflowInputs(0)" title="No inputs">0</a>
+                                        <a class="red-ui-toolbar-button @(currentSubflow?.Inputs == 1 ? "active" : "")" 
+                                           @onclick="() => SetSubflowInputs(1)" title="One input">1</a>
+                                    </div>
+                                    
+                                    <span class="red-ui-toolbar-label">output</span>
+                                    <div class="red-ui-toolbar-button-group red-ui-toolbar-spinner">
+                                        <a class="red-ui-toolbar-button" @onclick="DecrementSubflowOutputs" title="Remove output">
+                                            <i class="fa fa-minus"></i>
+                                        </a>
+                                        <span class="red-ui-toolbar-spinner-value">@(currentSubflow?.Outputs ?? 1)</span>
+                                        <a class="red-ui-toolbar-button" @onclick="IncrementSubflowOutputs" title="Add output">
+                                            <i class="fa fa-plus"></i>
+                                        </a>
+                                    </div>
+                                    
+                                    <span class="red-ui-toolbar-separator"></span>
+                                    
+                                    <a class="red-ui-toolbar-button red-ui-toolbar-button-danger" @onclick="DeleteCurrentSubflow" title="Delete subflow">
+                                        <i class="fa fa-trash"></i> delete subflow
+                                    </a>
+                                </div>
+                            }
+
                             <div id="red-ui-workspace-chart" 
                                  @ondrop="OnWorkspaceDrop" 
                                  @ondragover="OnWorkspaceDragOver"
@@ -1650,6 +1688,101 @@
         display: inline;
         margin-right: 5px;
         color: #c88;
+    }
+
+    /* Subflow Editor Toolbar */
+    #red-ui-workspace-toolbar,
+    .red-ui-subflow-toolbar {
+        display: flex;
+        align-items: center;
+        padding: 5px 10px;
+        background: linear-gradient(to bottom, #f7f7f7, #e8e8e8);
+        border-bottom: 1px solid #bbb;
+        gap: 5px;
+        font-size: 12px;
+    }
+
+    .red-ui-toolbar-button {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        color: #444;
+        text-decoration: none;
+        cursor: pointer;
+        gap: 5px;
+    }
+
+    .red-ui-toolbar-button:hover {
+        background: #e6e6e6;
+        border-color: #999;
+    }
+
+    .red-ui-toolbar-button.active {
+        background: #ddd;
+        border-color: #999;
+    }
+
+    .red-ui-toolbar-button-danger {
+        color: #a00;
+    }
+
+    .red-ui-toolbar-button-danger:hover {
+        background: #fee;
+        border-color: #c88;
+    }
+
+    .red-ui-toolbar-button-group {
+        display: inline-flex;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .red-ui-toolbar-button-group .red-ui-toolbar-button {
+        border-radius: 0;
+        margin-left: -1px;
+    }
+
+    .red-ui-toolbar-button-group .red-ui-toolbar-button:first-child {
+        border-radius: 3px 0 0 3px;
+        margin-left: 0;
+    }
+
+    .red-ui-toolbar-button-group .red-ui-toolbar-button:last-child {
+        border-radius: 0 3px 3px 0;
+    }
+
+    .red-ui-toolbar-spinner {
+        align-items: stretch;
+    }
+
+    .red-ui-toolbar-spinner-value {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 30px;
+        padding: 0 8px;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-left: none;
+        border-right: none;
+        font-weight: bold;
+    }
+
+    .red-ui-toolbar-label {
+        color: #666;
+        margin-left: 10px;
+        margin-right: 5px;
+    }
+
+    .red-ui-toolbar-separator {
+        display: inline-block;
+        width: 1px;
+        height: 20px;
+        background: #ccc;
+        margin: 0 10px;
     }
 
     #red-ui-workspace-chart {
