@@ -476,23 +476,27 @@ public partial class Editor : IDisposable
                     Height = nodeData.H,
                     Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
                     Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
-                    AdditionalInfo = new Dictionary<string, object?>(nodeData.Props) { ["nodeType"] = nodeData.Type }
+                    AdditionalInfo = new Dictionary<string, object?>(nodeData.Props) { ["nodeType"] = nodeData.Type },
+                    Constraints = DefaultNodeConstraints
                 };
                 ioNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
                 {
                     new ShapeAnnotation { ID = "iconAnnotation", Content = isInput ? "→" : "←", Style = new TextStyle { Color = "#333", FontSize = 12 } },
                     new ShapeAnnotation { ID = "labelAnnotation", Content = nodeData.Name, Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
                 };
+                // Use standard port IDs (port1 for input, port2 for output) for consistent connection handling
                 ioNode.Ports = new DiagramObjectCollection<PointPort>
                 {
                     new PointPort
                     {
-                        ID = isInput ? "output" : "input",
+                        ID = isInput ? "port2" : "port1",  // subflow-in has output port (port2), subflow-out has input port (port1)
                         Offset = new DiagramPoint { X = isInput ? 1 : 0, Y = 0.5 },
                         Visibility = PortVisibility.Visible,
-                        Height = 8,
-                        Width = 8,
-                        Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+                        Height = 10,
+                        Width = 10,
+                        Shape = PortShapes.Square,
+                        Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
+                        Constraints = isInput ? (PortConstraints.Default | PortConstraints.Draw) : PortConstraints.Default
                     }
                 };
                 DiagramNodes?.Add(ioNode);
@@ -2445,7 +2449,7 @@ public partial class Editor : IDisposable
     
     private void AddSubflowIONodes(SubflowInfo subflow)
     {
-        // Add subflow input node
+        // Add subflow input node (has output port on the right)
         var inputNode = new Node
         {
             ID = $"{subflow.Id}_in",
@@ -2455,6 +2459,7 @@ public partial class Editor : IDisposable
             Height = 25,
             Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
             Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
+            Constraints = DefaultNodeConstraints,
             AdditionalInfo = new Dictionary<string, object?>
             {
                 { "nodeType", "subflow-in" },
@@ -2466,21 +2471,24 @@ public partial class Editor : IDisposable
             new ShapeAnnotation { ID = "iconAnnotation", Content = "→", Style = new TextStyle { Color = "#333", FontSize = 12 } },
             new ShapeAnnotation { ID = "labelAnnotation", Content = "Input", Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
         };
+        // Use standard port ID (port2 for output) for consistent connection handling
         inputNode.Ports = new DiagramObjectCollection<PointPort>
         {
             new PointPort
             {
-                ID = "output",
+                ID = "port2",
+                Shape = PortShapes.Square,
                 Offset = new DiagramPoint { X = 1, Y = 0.5 },
                 Visibility = PortVisibility.Visible,
-                Height = 8,
-                Width = 8,
-                Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+                Height = 10,
+                Width = 10,
+                Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
+                Constraints = PortConstraints.Default | PortConstraints.Draw
             }
         };
         DiagramNodes?.Add(inputNode);
         
-        // Add subflow output node
+        // Add subflow output node (has input port on the left)
         var outputNode = new Node
         {
             ID = $"{subflow.Id}_out",
@@ -2490,6 +2498,7 @@ public partial class Editor : IDisposable
             Height = 25,
             Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
             Style = new ShapeStyle { Fill = "#A6BBCF", StrokeColor = "#7B9BAC", StrokeWidth = 1 },
+            Constraints = DefaultNodeConstraints,
             AdditionalInfo = new Dictionary<string, object?>
             {
                 { "nodeType", "subflow-out" },
@@ -2501,16 +2510,19 @@ public partial class Editor : IDisposable
             new ShapeAnnotation { ID = "iconAnnotation", Content = "←", Style = new TextStyle { Color = "#333", FontSize = 12 } },
             new ShapeAnnotation { ID = "labelAnnotation", Content = "Output", Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
         };
+        // Use standard port ID (port1 for input) for consistent connection handling
         outputNode.Ports = new DiagramObjectCollection<PointPort>
         {
             new PointPort
             {
-                ID = "input",
+                ID = "port1",
+                Shape = PortShapes.Square,
                 Offset = new DiagramPoint { X = 0, Y = 0.5 },
                 Visibility = PortVisibility.Visible,
-                Height = 8,
-                Width = 8,
-                Style = new ShapeStyle { Fill = "#333", StrokeColor = "#333" }
+                Height = 10,
+                Width = 10,
+                Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
+                Constraints = PortConstraints.Default
             }
         };
         DiagramNodes?.Add(outputNode);
@@ -2885,6 +2897,118 @@ public partial class Editor : IDisposable
             Data = $"Subflow '{subflow.Name}' now has {subflow.Outputs} output(s).",
             Timestamp = DateTimeOffset.Now
         });
+        
+        HasUnsavedChanges = true;
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Toggles the status output for the current subflow.
+    /// When enabled, the subflow can output status information.
+    /// </summary>
+    private void ToggleSubflowStatus()
+    {
+        var subflow = GetCurrentSubflowInfo();
+        if (subflow == null) return;
+        
+        subflow.Status = !subflow.Status;
+        
+        // Add or remove status node from the subflow
+        var statusNodeId = $"{subflow.Id}_status";
+        
+        if (subflow.Status)
+        {
+            // Add status node to the diagram and registry
+            var statusNode = new Node
+            {
+                ID = statusNodeId,
+                OffsetX = 500,
+                OffsetY = 280,
+                Width = 80,
+                Height = 25,
+                Shape = new BasicShape { Type = NodeShapes.Basic, Shape = NodeBasicShapes.Rectangle, CornerRadius = 3 },
+                Style = new ShapeStyle { Fill = "#C0C0C0", StrokeColor = "#909090", StrokeWidth = 1 },
+                Constraints = DefaultNodeConstraints,
+                AdditionalInfo = new Dictionary<string, object?>
+                {
+                    { "nodeType", "subflow-status" },
+                    { "subflowId", subflow.Id }
+                }
+            };
+            statusNode.Annotations = new DiagramObjectCollection<ShapeAnnotation>
+            {
+                new ShapeAnnotation { ID = "iconAnnotation", Content = "◉", Style = new TextStyle { Color = "#333", FontSize = 12 } },
+                new ShapeAnnotation { ID = "labelAnnotation", Content = "Status", Style = new TextStyle { Color = "#333", FontSize = 12 }, Offset = new DiagramPoint { X = 0.5, Y = 0.5 } }
+            };
+            statusNode.Ports = new DiagramObjectCollection<PointPort>
+            {
+                new PointPort
+                {
+                    ID = "port1",
+                    Shape = PortShapes.Square,
+                    Offset = new DiagramPoint { X = 0, Y = 0.5 },
+                    Visibility = PortVisibility.Visible,
+                    Height = 10,
+                    Width = 10,
+                    Style = new ShapeStyle { Fill = "#d9d9d9", StrokeColor = "#999" },
+                    Constraints = PortConstraints.Default
+                }
+            };
+            DiagramNodes?.Add(statusNode);
+            
+            // Add to registry
+            AllNodes[statusNodeId] = new NodeData
+            {
+                Id = statusNodeId,
+                Z = subflow.Id,
+                Type = "subflow-status",
+                X = 500,
+                Y = 280,
+                W = 80,
+                H = 25,
+                Name = "Status",
+                Color = "#C0C0C0",
+                IconClass = "◉",
+                Props = new Dictionary<string, object?> { { "subflowId", subflow.Id } }
+            };
+            
+            DebugMessages.Add(new DebugMessage
+            {
+                NodeId = "system",
+                NodeName = "System",
+                Data = $"Status output enabled for subflow '{subflow.Name}'. Connect nodes to the Status input to report status.",
+                Timestamp = DateTimeOffset.Now
+            });
+        }
+        else
+        {
+            // Remove status node from diagram and registry
+            var existingNode = DiagramNodes?.FirstOrDefault(n => n.ID == statusNodeId);
+            if (existingNode != null)
+            {
+                DiagramNodes?.Remove(existingNode);
+            }
+            AllNodes.Remove(statusNodeId);
+            
+            // Remove any connectors connected to the status node
+            var connectorsToRemove = DiagramConnectors?.Where(c => c.SourceID == statusNodeId || c.TargetID == statusNodeId).ToList();
+            if (connectorsToRemove != null)
+            {
+                foreach (var conn in connectorsToRemove)
+                {
+                    DiagramConnectors?.Remove(conn);
+                    AllConnectors.Remove(conn.ID);
+                }
+            }
+            
+            DebugMessages.Add(new DebugMessage
+            {
+                NodeId = "system",
+                NodeName = "System",
+                Data = $"Status output disabled for subflow '{subflow.Name}'.",
+                Timestamp = DateTimeOffset.Now
+            });
+        }
         
         HasUnsavedChanges = true;
         StateHasChanged();
@@ -4324,6 +4448,7 @@ public partial class Editor : IDisposable
         public string Description { get; set; } = "";
         public string Category { get; set; } = "subflows";
         public string Color { get; set; } = "#DDAA99";
+        public bool Status { get; set; } = false; // Whether status output is enabled
         public List<string> NodeIds { get; set; } = new();
         public List<(string ConnectorId, string SourceId, string SourcePort, string TargetId, string TargetPort)> Connections { get; set; } = new();
     }

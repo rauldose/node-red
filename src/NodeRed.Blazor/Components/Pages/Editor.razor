@@ -716,6 +716,14 @@
                                     
                                     <span class="red-ui-toolbar-separator"></span>
                                     
+                                    <label class="red-ui-toolbar-button red-ui-toolbar-checkbox @(currentSubflow?.Status == true ? "active" : "")" 
+                                           title="Enable status output for this subflow">
+                                        <input type="checkbox" checked="@(currentSubflow?.Status ?? false)" @onchange="ToggleSubflowStatus" />
+                                        <span>status</span>
+                                    </label>
+                                    
+                                    <span class="red-ui-toolbar-separator"></span>
+                                    
                                     <a class="red-ui-toolbar-button red-ui-toolbar-button-danger" @onclick="DeleteCurrentSubflow" title="Delete subflow">
                                         <i class="fa fa-trash"></i> delete subflow
                                     </a>
@@ -1783,6 +1791,23 @@
         height: 20px;
         background: #ccc;
         margin: 0 10px;
+    }
+
+    .red-ui-toolbar-checkbox {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+    }
+
+    .red-ui-toolbar-checkbox input[type="checkbox"] {
+        margin: 0;
+        cursor: pointer;
+    }
+
+    .red-ui-toolbar-checkbox.active {
+        background: #d9edf7;
+        border-color: #31708f;
     }
 
     #red-ui-workspace-chart {
