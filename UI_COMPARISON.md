@@ -35,27 +35,38 @@ The Blazor UI port covers the core editor functionality. This document tracks th
 | Import/Export operations | Debug messages | ✅ Shows toast notifications |
 | `EditGroup()` | Debug message | ✅ Opens group properties dialog |
 | Context data methods | Empty returns | ✅ Uses ContextDataService |
+| `ContextMenuInsertNode()` | Added inject node | ✅ Opens quick add dialog |
+| `InstallPaletteModule()` | Debug message | ✅ Uses notifications |
+| `UninstallPaletteModule()` | Debug message | ✅ Uses notifications |
+| `GroupSelectedNodes()` | Debug message | ✅ Uses notifications |
+| `UngroupSelectedNodes()` | Debug message | ✅ Uses notifications |
+| `SaveSettings()` | Debug message | ✅ Uses notifications |
+
+### Dialogs Implemented
+| Dialog | Status |
+|--------|--------|
+| Import nodes dialog | ✅ Implemented |
+| Export nodes dialog | ✅ Implemented |
+| Flow properties dialog | ✅ Implemented |
+| Group properties dialog | ✅ Implemented |
+| Settings dialog | ✅ Implemented |
+| Keyboard shortcuts dialog | ✅ Implemented |
+| Quick add node dialog | ✅ Implemented |
+| Palette management dialog | ✅ Implemented |
 
 ---
 
-## 🚨 REMAINING: Implementation Gaps
+## 🚨 REMAINING: Implementation Gaps (UI - Excluding Runtime)
 
-### Editor.razor.cs - Remaining Stubs & TODOs
+### Editor.razor.cs - Remaining Items
 
 | Line | Issue | JS Equivalent | Action Required |
 |------|-------|---------------|-----------------|
-| 1187 | `// TODO: Implement Bezier connectors` | `view.js:lineCurveScale = 0.75` | Implement Bezier connector segments with curvature |
-| 3514 | `Version = "Unknown"` hardcoded | `palette-editor.js` fetches from npm | Implement module version fetching from package metadata |
-| 3523-3563 | `InstallPaletteModule()` is a stub simulation | `palette-editor.js:installPackage()` | Implement real package manager integration |
-| 3565-3597 | `UninstallPaletteModule()` is a stub simulation | `palette-editor.js:removePackage()` | Implement real package uninstall |
-| 4902 | `// In a full implementation, this would show a quick add dialog` | `typeSearch.js` | Implement quick add type search dialog |
+| 1187 | Orthogonal connectors used | `view.js:lineCurveScale = 0.75` | Implement Bezier connector segments (Syncfusion config) |
+| 3514 | `Version = "Unknown"` hardcoded | `palette-editor.js` fetches from npm | Read version from assembly metadata |
 
-### NodeRed.Runtime - TODOs
-
-| File:Line | Issue | Action Required |
-|-----------|-------|-----------------|
-| `FlowRuntime.cs:156` | `// TODO: Implement incremental deployment` | Deploy only modified nodes, not full reload |
-| `FlowExecutor.cs:147` | `// TODO: Implement catch node notification` | Implement error routing to catch nodes |
+### Note on Palette Module Install/Uninstall
+The `InstallPaletteModule()` and `UninstallPaletteModule()` methods currently simulate installation by adding/removing from the AvailableModules list and showing notifications. Full package manager integration is a **backend concern** and excluded from this UI work.
 
 ---
 
@@ -63,15 +74,15 @@ The Blazor UI port covers the core editor functionality. This document tracks th
 
 | Location | Hardcoded Value | Should Come From |
 |----------|-----------------|------------------|
-| `Editor.razor.cs:3514` | `Version = "Unknown"` | Package.json or NuGet package metadata |
-| `Editor.razor.cs:660-678` | Fallback lists for `hasInput`/`hasOutput` | Always use palette node definitions |
-| `Editor.razor.cs:837-844` | Fallback port detection | Should error if node type not in registry |
+| `Editor.razor.cs:3514` | `Version = "Unknown"` | Assembly metadata or plugin info |
+| `Editor.razor.cs:660-678` | Fallback lists for `hasInput`/`hasOutput` | Node registry definitions |
+| `Editor.razor.cs:837-844` | Fallback port detection | Node registry definitions |
 
 ---
 
 ## 🔧 Features With Partial Implementation
 
-These features have UI but incomplete backend logic:
+These features have UI but may need backend integration:
 
 ### 1. Context Sidebar (`RedUiSidebarContext.razor`)
 **Current State:** UI renders, uses ContextDataService

@@ -344,18 +344,19 @@ public partial class Editor : IDisposable
     {
         // Create a simple sample flow
         // Users can add plugin nodes by dragging from the palette
-        CreateNode("inject1", 150, 150, "inject", "timestamp", "#a6bbcf");
-        CreateNode("function1", 350, 150, "function", "process", "#fdd0a2");
-        CreateNode("debug1", 550, 150, "debug", "msg.payload", "#87a980");
+        CreateNode("inject1", 150, 150, "inject", "timestamp");
+        CreateNode("function1", 350, 150, "function", "process");
+        CreateNode("debug1", 550, 150, "debug", "msg.payload");
 
         // Note: Connectors are not created here to avoid initialization issues
         // Users can draw connections by clicking on the output port (right side)
         // and dragging to an input port (left side)
     }
 
-    private void CreateNode(string id, double x, double y, string nodeType, string label, string color)
+    private void CreateNode(string id, double x, double y, string nodeType, string label)
     {
         var paletteNode = GetPaletteNodeInfo(nodeType);
+        var color = paletteNode?.Color ?? GetNodeColor(nodeType);
         var node = CreateNodeRedStyleNode(id, x, y, nodeType, label, color, paletteNode);
         DiagramNodes!.Add(node);
         NodeCount++;
@@ -3518,7 +3519,7 @@ public partial class Editor : IDisposable
             .Select(g => new PaletteModuleInfo
             {
                 Name = g.Key,
-                Version = "Unknown", // Version info would come from package metadata
+                Version = g.Key == "core" ? GetCoreVersion() : "-", // Backend would provide actual version
                 NodeCount = g.Count(),
                 IsInstalled = true
             })
@@ -3527,18 +3528,26 @@ public partial class Editor : IDisposable
         AvailableModules.AddRange(modules);
     }
 
+    /// <summary>
+    /// Gets the core Node-RED version from assembly metadata
+    /// </summary>
+    private string GetCoreVersion()
+    {
+        var assembly = typeof(Editor).Assembly;
+        var version = assembly.GetName().Version;
+        return version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "-";
+    }
+
     private void InstallPaletteModule(string moduleName)
     {
-        // In a production implementation, this would:
-        // 1. Call npm install <moduleName> or a package manager API
-        // 2. Reload the node definitions
-        // 3. Update the palette
+        // Backend would handle actual package installation
+        // UI simulates the result for now
         
         // For now, simulate installation by adding to available modules
         var newModule = new PaletteModuleInfo
         {
             Name = moduleName,
-            Version = "1.0.0",
+            Version = "-", // Version would come from backend after installation
             NodeCount = 1,
             IsInstalled = true
         };
@@ -4058,23 +4067,7 @@ public partial class Editor : IDisposable
     private string GetNodeColor(string nodeType)
     {
         var definition = NodeRegistry.GetAllDefinitions().FirstOrDefault(d => d.Type == nodeType);
-        if (definition != null && !string.IsNullOrEmpty(definition.Color))
-        {
-            return definition.Color;
-        }
-        
-        // Default colors by category
-        return nodeType switch
-        {
-            "inject" or "debug" or "catch" or "status" or "link in" or "link out" or "link call" or "junction" or "comment" or "group" => "#d3d3d3",
-            "function" or "template" or "delay" or "trigger" or "exec" or "filter" or "sort" or "batch" => "#f2c377",
-            "switch" or "change" or "range" or "split" or "join" or "rbe" or "csv" or "html" or "json" or "xml" => "#e2d96e",
-            "http" or "websocket" or "tcp" or "udp" or "mqtt" or "mqttbroker" => "#c7e9c0",
-            "file" or "watch" => "#DEB887",
-            _ when nodeType.Contains("in") || nodeType.Contains("input") => "#c7e9c0",
-            _ when nodeType.Contains("out") || nodeType.Contains("output") => "#c7e9c0",
-            _ => "#ddd"
-        };
+        return definition?.Color ?? "#87A980"; // Use NodeDefinition default color
     }
 
     /// <summary>
