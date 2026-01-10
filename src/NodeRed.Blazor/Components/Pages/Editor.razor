@@ -603,12 +603,8 @@
                 <!-- Palette Pane (collapsible) -->
                 <SplitterPane Size="180px" Min="100px" Max="300px" Collapsible="true" CssClass="red-ui-palette-pane">
                     <ContentTemplate>
-                        <div id="red-ui-palette">
-                            <div class="red-ui-palette-search">
-                                <input type="text" placeholder="filter nodes" @bind="PaletteFilter" @bind:event="oninput" />
-                                <i class="fa fa-search"></i>
-                            </div>
-                            <div class="red-ui-palette-scroll">
+                        <RedUiPalette NodeCount="@GetFilteredNodeCount()" OnFilterChanged="@((string f) => PaletteFilter = f)">
+                            <ContentTemplate Context="filter">
                                 @foreach (var category in PaletteCategories.Where(c => FilterCategory(c)))
                                 {
                                     <div class="red-ui-palette-category">
@@ -644,11 +640,8 @@
                                         }
                                     </div>
                                 }
-                            </div>
-                            <div id="red-ui-palette-footer" class="red-ui-component-footer">
-                                <span class="red-ui-palette-footer-text">@GetFilteredNodeCount() nodes</span>
-                            </div>
-                        </div>
+                            </ContentTemplate>
+                        </RedUiPalette>
                     </ContentTemplate>
                 </SplitterPane>
 
@@ -785,72 +778,36 @@
                     <ContentTemplate>
                         @if (IsTrayVisible())
                         {
-                            <div class="red-ui-tray-inline">
-                                @* Tray header *@
-                                <div class="red-ui-tray-header editor-tray-header">
-                                    @* Titlebar with breadcrumbs *@
-                                    <div class="red-ui-tray-titlebar">
-                                        <ul class="red-ui-tray-breadcrumbs">
-                                            <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
-                                        </ul>
-                                    </div>
-                                    @* Toolbar with buttons *@
-                                    <div class="red-ui-tray-toolbar">
-                                        <button class="red-ui-button red-ui-tray-toolbar-left" @onclick="DeleteSelectionAndCloseTray" title="Delete node">
-                                            <i class="fa fa-trash"></i> Delete
-                                        </button>
-                                        <span class="red-ui-tray-toolbar-spacer"></span>
-                                        <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
-                                        <button class="red-ui-button primary" @onclick="SaveAndClosePropertyTray">Done</button>
-                                    </div>
-                                </div>
-                                
-                                @* Tray tabs - Properties, Description, Appearance *@
-                                <div class="red-ui-tray-tabs">
-                                    <ul class="red-ui-tray-tab-list">
-                                        <li class="@(_activeTrayTab == "properties" ? "active" : "")" @onclick='() => _activeTrayTab = "properties"'>
-                                            <a><i class="fa fa-cog"></i> Properties</a>
-                                        </li>
-                                        <li class="@(_activeTrayTab == "description" ? "active" : "")" @onclick='() => _activeTrayTab = "description"'>
-                                            <a><i class="fa fa-file-text-o"></i> Description</a>
-                                        </li>
-                                        <li class="@(_activeTrayTab == "appearance" ? "active" : "")" @onclick='() => _activeTrayTab = "appearance"'>
-                                            <a><i class="fa fa-object-group"></i> Appearance</a>
-                                        </li>
-                                    </ul>
-                                </div>
-                                
-                                @* Tray body *@
-                                <div class="red-ui-tray-body-wrapper">
-                                    <div class="red-ui-tray-body editor-tray-body">
-                                        @if (_activeTrayTab == "properties")
-                                        {
-                                            <div class="red-ui-tray-content">
-                                                @RenderNodePropertyPanel()
-                                            </div>
-                                        }
-                                        else if (_activeTrayTab == "description")
-                                        {
-                                            <div class="red-ui-tray-content">
-                                                @RenderNodeDescriptionPanel()
-                                            </div>
-                                        }
-                                        else if (_activeTrayTab == "appearance")
-                                        {
-                                            <div class="red-ui-tray-content">
-                                                @RenderNodeAppearancePanel()
-                                            </div>
-                                        }
-                                    </div>
-                                </div>
-                                
-                                @* Tray footer *@
-                                <div class="red-ui-tray-footer">
-                                    <span class="red-ui-tray-footer-left">
-                                        <span class="red-ui-tray-footer-node-id">@(SelectedDiagramNode?.ID ?? "")</span>
-                                    </span>
-                                </div>
-                            </div>
+                            <RedUiTrayInline Title="@($"Edit {GetSelectedNodeType()} node")"
+                                             BreadcrumbIcon="fa fa-cube"
+                                             Tabs="@GetTrayTabs()"
+                                             ActiveTabId="@_activeTrayTab"
+                                             ActiveTabIdChanged="@((string id) => _activeTrayTab = id)"
+                                             NodeId="@(SelectedDiagramNode?.ID)">
+                                <ToolbarLeftTemplate>
+                                    <button class="red-ui-button red-ui-tray-toolbar-left" @onclick="DeleteSelectionAndCloseTray" title="Delete node">
+                                        <i class="fa fa-trash"></i> Delete
+                                    </button>
+                                </ToolbarLeftTemplate>
+                                <ToolbarRightTemplate>
+                                    <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
+                                    <button class="red-ui-button primary" @onclick="SaveAndClosePropertyTray">Done</button>
+                                </ToolbarRightTemplate>
+                                <ChildContent>
+                                    @if (_activeTrayTab == "properties")
+                                    {
+                                        @RenderNodePropertyPanel()
+                                    }
+                                    else if (_activeTrayTab == "description")
+                                    {
+                                        @RenderNodeDescriptionPanel()
+                                    }
+                                    else if (_activeTrayTab == "appearance")
+                                    {
+                                        @RenderNodeAppearancePanel()
+                                    }
+                                </ChildContent>
+                            </RedUiTrayInline>
                         }
                     </ContentTemplate>
                 </SplitterPane>

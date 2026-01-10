@@ -1,0 +1,210 @@
+/**
+ * RedUiPalette CSS - Matches the original Node-RED palette.scss
+ * Standalone component styling for the node palette
+ */
+
+/* Main palette container */
+#red-ui-palette {
+    width: 100%;
+    height: 100%;
+    background: var(--red-ui-primary-background, #f3f3f3);
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+/* Palette search input - matches .red-ui-palette-search */
+.red-ui-palette-search {
+    position: relative;
+    background: var(--red-ui-form-input-background, #fff);
+    height: 35px;
+    padding: 3px;
+    border-bottom: 1px solid var(--red-ui-primary-border-color, #bbb);
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.red-ui-palette-search input {
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--red-ui-form-input-border-color, #ccc);
+    border-radius: 3px;
+    padding: 5px 25px 5px 8px;
+    font-size: 12px;
+    background: var(--red-ui-form-input-background, #fff);
+    color: var(--red-ui-form-text-color, #555);
+    box-sizing: border-box;
+}
+
+.red-ui-palette-search input:focus {
+    outline: none;
+    border-color: var(--red-ui-form-input-focus-color, rgba(85, 150, 230, 0.8));
+    box-shadow: 0 0 0 1px var(--red-ui-form-input-focus-color, rgba(85, 150, 230, 0.8));
+}
+
+.red-ui-palette-search input::placeholder {
+    color: var(--red-ui-form-placeholder-color, #aaa);
+}
+
+.red-ui-palette-search i {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+/* Scrollable palette content - matches .red-ui-palette-scroll */
+.red-ui-palette-scroll {
+    position: relative;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0;
+}
+
+/* Category - matches .red-ui-palette-category */
+.red-ui-palette-category {
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+}
+
+/* Category header - matches .red-ui-palette-header */
+.red-ui-palette-header {
+    position: relative;
+    background: var(--red-ui-palette-header-background, #f3f3f3);
+    color: var(--red-ui-palette-header-color, #444);
+    cursor: pointer;
+    text-align: left;
+    padding: 9px 9px 9px 30px;
+    font-weight: bold;
+    font-size: 12px;
+    overflow: hidden;
+    user-select: none;
+}
+
+.red-ui-palette-header:hover {
+    background: var(--red-ui-palette-header-background, #f3f3f3) !important;
+}
+
+.red-ui-palette-header > i {
+    position: absolute;
+    left: 11px;
+    top: 12px;
+    transition: transform 0.2s ease-in-out;
+    transform: rotate(-90deg);
+    font-size: 12px;
+}
+
+.red-ui-palette-header > i.expanded {
+    transform: rotate(0deg);
+}
+
+/* Category content - matches .red-ui-palette-content */
+.red-ui-palette-content {
+    background: var(--red-ui-palette-content-background, #fff);
+    padding: 3px;
+}
+
+/* Palette node - matches .red-ui-palette-node */
+.red-ui-palette-node {
+    cursor: move;
+    background: var(--red-ui-secondary-background, #fff);
+    margin: 10px auto;
+    height: 25px;
+    border-radius: 5px;
+    border: 1px solid var(--red-ui-node-border, #999);
+    background-position: 5% 50%;
+    background-repeat: no-repeat;
+    width: 120px;
+    background-size: contain;
+    position: relative;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+}
+
+.red-ui-palette-node:first-child {
+    margin-top: 15px;
+}
+
+.red-ui-palette-node:last-child {
+    margin-bottom: 15px;
+}
+
+.red-ui-palette-node:hover {
+    border-color: transparent;
+    box-shadow: 0 0 0 2px var(--red-ui-node-selected-color, #ff7f0e);
+}
+
+/* Port styling - matches .red-ui-palette-port */
+.red-ui-palette-port {
+    position: absolute;
+    top: 8px;
+    left: -5px;
+    box-sizing: border-box;
+    background: var(--red-ui-node-port-background, #d9d9d9);
+    border-radius: 3px;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--red-ui-node-border, #999);
+}
+
+.red-ui-palette-port-input {
+    left: -5px;
+}
+
+.red-ui-palette-port-output {
+    left: auto;
+    right: -6px;
+}
+
+.red-ui-palette-node:hover .red-ui-palette-port {
+    background-color: var(--red-ui-node-port-background-hover, #eee);
+}
+
+/* Icon container - matches .red-ui-palette-icon-container */
+.red-ui-palette-icon-container {
+    position: absolute;
+    text-align: center;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 30px;
+    border-right: 1px solid var(--red-ui-node-icon-background-color, rgba(0,0,0,0.05));
+    border-radius: 4px 0 0 4px;
+    background-color: var(--red-ui-node-icon-background-color, rgba(0,0,0,0.05));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.red-ui-palette-icon-fa {
+    color: white;
+    font-size: 14px;
+}
+
+/* Label - matches .red-ui-palette-label */
+.red-ui-palette-label {
+    color: var(--red-ui-node-label-color, #333);
+    font-size: 13px;
+    margin: 4px 0 4px 32px;
+    line-height: 20px;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 5px;
+}
+
+/* Palette footer - matches component-footer mixin */
+#red-ui-palette-footer {
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.red-ui-palette-footer-text {
+    font-size: 11px;
+    color: var(--red-ui-tertiary-text-color, #aaa);
+}

@@ -1,0 +1,176 @@
+/**
+ * RedUiTrayInline CSS - Matches the original Node-RED editor.scss tray styles
+ * Used within a Syncfusion Splitter pane for inline node property editing
+ */
+
+/* Main inline tray container */
+.red-ui-tray-inline {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--red-ui-secondary-background, #fff);
+    border-left: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    box-sizing: border-box;
+}
+
+/* Tray header - matches .red-ui-tray-header */
+.red-ui-tray-inline .red-ui-tray-header {
+    user-select: none;
+    position: relative;
+    box-sizing: border-box;
+    font-weight: bold;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    background: var(--red-ui-palette-header-background, #f3f3f3);
+    flex-shrink: 0;
+}
+
+.red-ui-tray-inline .red-ui-tray-header:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* Tray titlebar - matches .red-ui-tray-titlebar */
+.red-ui-tray-inline .red-ui-tray-titlebar {
+    color: var(--red-ui-header-text-color, #444);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    padding: 8px 10px;
+}
+
+/* Tray breadcrumbs - matches .red-ui-tray-breadcrumbs */
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow-wrap: anywhere;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li {
+    display: inline-block;
+    padding: 0;
+    margin: 0;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li:not(:last-child) {
+    color: var(--red-ui-workspace-button-color, #888);
+    font-weight: normal;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li:not(:last-child):after {
+    display: inline-block;
+    content: '>';
+    margin: 0 5px;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li i {
+    margin-right: 5px;
+}
+
+/* Tray toolbar - matches .red-ui-tray-toolbar */
+.red-ui-tray-inline .red-ui-tray-toolbar {
+    text-align: right;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+}
+
+.red-ui-tray-inline .red-ui-tray-toolbar button {
+    margin-left: 5px;
+}
+
+.red-ui-tray-toolbar-spacer {
+    flex: 1;
+}
+
+/* Tray tabs - matches tab bar styling */
+.red-ui-tray-tabs {
+    background: var(--red-ui-tertiary-background, #f7f7f7);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    flex-shrink: 0;
+}
+
+.red-ui-tray-tab-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+.red-ui-tray-tab-list li {
+    flex: 1;
+    text-align: center;
+}
+
+.red-ui-tray-tab-list li a {
+    display: block;
+    padding: 8px 10px;
+    color: var(--red-ui-tab-text-color-inactive, #888);
+    text-decoration: none;
+    font-size: 12px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+    cursor: pointer;
+}
+
+.red-ui-tray-tab-list li a i {
+    margin-right: 4px;
+}
+
+.red-ui-tray-tab-list li:hover a {
+    color: var(--red-ui-tab-text-color-active, #444);
+}
+
+.red-ui-tray-tab-list li.active a {
+    color: var(--red-ui-tab-text-color-active, #444);
+    border-bottom-color: var(--red-ui-deploy-button-background, #8f0000);
+}
+
+/* Tray body - matches .red-ui-tray-body-wrapper and .red-ui-tray-body */
+.red-ui-tray-inline .red-ui-tray-body-wrapper {
+    flex: 1;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: auto;
+}
+
+.red-ui-tray-inline .red-ui-tray-body {
+    position: relative;
+    box-sizing: border-box;
+    padding: 0.1px; /* prevent margin collapsing */
+}
+
+.red-ui-tray-inline .red-ui-tray-content {
+    padding: 10px 20px;
+    overflow: auto;
+    position: relative;
+}
+
+/* Tray footer - matches .red-ui-tray-footer */
+.red-ui-tray-inline .red-ui-tray-footer {
+    height: 35px;
+    line-height: 35px;
+    font-size: 14px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.red-ui-tray-footer-left {
+    float: left;
+    margin-right: 20px;
+}
+
+.red-ui-tray-footer-node-id {
+    font-family: var(--red-ui-monospace-font, monospace);
+    font-size: 10px;
+    color: var(--red-ui-tertiary-text-color, #aaa);
+}
+
+/* Red button styling for delete */
+.red-ui-tray-toolbar-left {
+    color: var(--red-ui-text-color-error, #c00) !important;
+    border-color: var(--red-ui-text-color-error, #c00) !important;
+}
+
+.red-ui-tray-toolbar-left:hover {
+    background: #fee !important;
+}

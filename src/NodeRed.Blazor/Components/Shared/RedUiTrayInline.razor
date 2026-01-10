@@ -1,0 +1,175 @@
+@*
+    RedUiTrayInline - Blazor implementation of Node-RED's inline tray editor
+    Used within a Syncfusion Splitter pane for node property editing
+    
+    Structure matches editor.scss .red-ui-tray:
+    - .red-ui-tray-header.editor-tray-header
+      - .red-ui-tray-titlebar (with breadcrumbs)
+      - .red-ui-tray-toolbar (buttons)
+    - .red-ui-tray-tabs (optional tab bar)
+    - .red-ui-tray-body-wrapper
+      - .red-ui-tray-body.editor-tray-body
+        - .red-ui-tray-content
+    - .red-ui-tray-footer
+*@
+
+<div class="red-ui-tray-inline">
+    @* Tray header *@
+    <div class="red-ui-tray-header editor-tray-header">
+        @* Title bar with breadcrumbs *@
+        <div class="red-ui-tray-titlebar">
+            <ul class="red-ui-tray-breadcrumbs">
+                @if (BreadcrumbIcon != null)
+                {
+                    <li><i class="@BreadcrumbIcon"></i> @Title</li>
+                }
+                else
+                {
+                    <li>@Title</li>
+                }
+            </ul>
+        </div>
+        
+        @* Toolbar with buttons *@
+        <div class="red-ui-tray-toolbar">
+            @if (ToolbarLeftTemplate != null)
+            {
+                @ToolbarLeftTemplate
+            }
+            <span class="red-ui-tray-toolbar-spacer"></span>
+            @if (ToolbarRightTemplate != null)
+            {
+                @ToolbarRightTemplate
+            }
+        </div>
+    </div>
+    
+    @* Tray tabs - optional *@
+    @if (Tabs != null && Tabs.Count > 0)
+    {
+        <div class="red-ui-tray-tabs">
+            <ul class="red-ui-tray-tab-list">
+                @foreach (var tab in Tabs)
+                {
+                    <li class="@(ActiveTabId == tab.Id ? "active" : "")" @onclick="() => SelectTab(tab.Id)">
+                        <a>
+                            @if (!string.IsNullOrEmpty(tab.IconClass))
+                            {
+                                <i class="@tab.IconClass"></i>
+                            }
+                            @tab.Label
+                        </a>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+    
+    @* Tray body wrapper *@
+    <div class="red-ui-tray-body-wrapper">
+        @* Tray body *@
+        <div class="red-ui-tray-body editor-tray-body">
+            <div class="red-ui-tray-content">
+                @if (ChildContent != null)
+                {
+                    @ChildContent
+                }
+            </div>
+        </div>
+    </div>
+    
+    @* Tray footer *@
+    <div class="red-ui-tray-footer red-ui-component-footer">
+        @if (FooterTemplate != null)
+        {
+            @FooterTemplate
+        }
+        else if (!string.IsNullOrEmpty(NodeId))
+        {
+            <span class="red-ui-tray-footer-left">
+                <span class="red-ui-tray-footer-node-id">@NodeId</span>
+            </span>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Tray title - displayed in breadcrumbs
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "";
+
+    /// <summary>
+    /// Icon class for the breadcrumb (e.g., "fa fa-cube")
+    /// </summary>
+    [Parameter]
+    public string? BreadcrumbIcon { get; set; }
+
+    /// <summary>
+    /// Toolbar left template (e.g., delete button)
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ToolbarLeftTemplate { get; set; }
+
+    /// <summary>
+    /// Toolbar right template (e.g., cancel/done buttons)
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ToolbarRightTemplate { get; set; }
+
+    /// <summary>
+    /// Tab definitions for tray tabs
+    /// </summary>
+    [Parameter]
+    public List<TrayTab>? Tabs { get; set; }
+
+    /// <summary>
+    /// Currently active tab ID
+    /// </summary>
+    [Parameter]
+    public string ActiveTabId { get; set; } = "";
+
+    /// <summary>
+    /// Event callback when active tab changes
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> ActiveTabIdChanged { get; set; }
+
+    /// <summary>
+    /// Main body content
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Footer template
+    /// </summary>
+    [Parameter]
+    public RenderFragment? FooterTemplate { get; set; }
+
+    /// <summary>
+    /// Node ID to display in footer (if FooterTemplate is not provided)
+    /// </summary>
+    [Parameter]
+    public string? NodeId { get; set; }
+
+    private async Task SelectTab(string tabId)
+    {
+        if (tabId != ActiveTabId)
+        {
+            ActiveTabId = tabId;
+            await ActiveTabIdChanged.InvokeAsync(tabId);
+        }
+    }
+
+    /// <summary>
+    /// Represents a tray tab
+    /// </summary>
+    public class TrayTab
+    {
+        public string Id { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string IconClass { get; set; } = "";
+    }
+}

@@ -1,0 +1,67 @@
+@*
+    RedUiPalette - Blazor implementation of Node-RED's palette
+    Matches the structure from packages/node_modules/@node-red/editor-client/src/sass/palette.scss
+    
+    Structure:
+    - #red-ui-palette
+      - .red-ui-palette-search (filter input)
+      - .red-ui-palette-scroll (scrollable node list)
+        - .red-ui-palette-category
+          - .red-ui-palette-header
+          - .red-ui-palette-content
+            - .red-ui-palette-node
+      - #red-ui-palette-footer
+*@
+
+<div id="red-ui-palette">
+    @* Search/filter input *@
+    <div class="red-ui-palette-search">
+        <input type="text" placeholder="filter nodes" @bind="Filter" @bind:event="oninput" />
+        <i class="fa fa-search"></i>
+    </div>
+    
+    @* Scrollable palette content *@
+    <div class="red-ui-palette-scroll">
+        @if (ContentTemplate != null)
+        {
+            @ContentTemplate(Filter)
+        }
+    </div>
+    
+    @* Palette footer *@
+    <div id="red-ui-palette-footer" class="red-ui-component-footer">
+        <span class="red-ui-palette-footer-text">@NodeCount nodes</span>
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Content template - receives the current filter string
+    /// </summary>
+    [Parameter]
+    public RenderFragment<string>? ContentTemplate { get; set; }
+
+    /// <summary>
+    /// Total node count to display in footer
+    /// </summary>
+    [Parameter]
+    public int NodeCount { get; set; }
+
+    // Filter state
+    private string _filter = "";
+    private string Filter
+    {
+        get => _filter;
+        set
+        {
+            _filter = value;
+            OnFilterChanged.InvokeAsync(value);
+        }
+    }
+
+    /// <summary>
+    /// Event callback when filter changes
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnFilterChanged { get; set; }
+}

@@ -81,6 +81,14 @@ public partial class Editor : IDisposable
         new RedUiSidebar.SidebarTab { Id = "debug", Name = "Debug messages", Label = "debug", IconClass = "fa fa-bug", Pinned = true, EnableOnEdit = true }
     };
 
+    // Tray tabs for node property editor
+    private List<RedUiTrayInline.TrayTab> GetTrayTabs() => new()
+    {
+        new RedUiTrayInline.TrayTab { Id = "properties", Label = "Properties", IconClass = "fa fa-cog" },
+        new RedUiTrayInline.TrayTab { Id = "description", Label = "Description", IconClass = "fa fa-file-text-o" },
+        new RedUiTrayInline.TrayTab { Id = "appearance", Label = "Appearance", IconClass = "fa fa-object-group" }
+    };
+
     // Menu state
     private bool IsMainMenuOpen = false;
     private bool IsDeployMenuOpen = false;

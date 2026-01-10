@@ -30,6 +30,8 @@
     --red-ui-secondary-text-color-selected: #666;
     --red-ui-secondary-text-color-inactive: #666;
     --red-ui-secondary-text-color-disabled: #bbb;
+    --red-ui-secondary-text-color-disabled-active: #999;
+    --red-ui-secondary-text-color-disabled-inactive: #aaa;
     --red-ui-tertiary-text-color: #aaa;
     --red-ui-header-text-color: #444;
 
@@ -354,66 +356,108 @@ h1:focus {
 
 /* ============================================= */
 /* Inline Tray Pane Styling                     */
+/* Matches editor.scss tray styles              */
 /* ============================================= */
 
 .red-ui-tray-pane {
-    background: #fff;
+    background: var(--red-ui-secondary-background, #fff);
+    position: relative;
 }
 
 .red-ui-tray-inline {
     height: 100%;
     display: flex;
     flex-direction: column;
-    background: #fff;
-    border-left: 1px solid #bbb;
+    background: var(--red-ui-secondary-background, #fff);
+    border-left: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    box-sizing: content-box;
 }
 
+/* Tray header - matches .red-ui-tray-header */
 .red-ui-tray-inline .red-ui-tray-header {
-    background: #f7f7f7;
-    border-bottom: 1px solid #ddd;
-}
-
-.red-ui-tray-inline .red-ui-tray-titlebar {
-    padding: 8px 10px;
-    border-bottom: 1px solid #eee;
+    user-select: none;
+    position: relative;
+    box-sizing: border-box;
     font-weight: bold;
-    color: #444;
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    background: var(--red-ui-palette-header-background, #f7f7f7);
+    flex-shrink: 0;
 }
 
+.red-ui-tray-inline .red-ui-tray-header:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* Tray titlebar - matches .red-ui-tray-titlebar */
+.red-ui-tray-inline .red-ui-tray-titlebar {
+    color: var(--red-ui-header-text-color, #444);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    padding: 8px 10px;
+}
+
+/* Tray toolbar - matches .red-ui-tray-toolbar */
 .red-ui-tray-inline .red-ui-tray-toolbar {
-    padding: 6px 10px;
     text-align: right;
+    padding: 6px 10px;
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
     gap: 5px;
 }
 
+.red-ui-tray-inline .red-ui-tray-toolbar button {
+    margin-left: 5px;
+}
+
+/* Tray body - matches .red-ui-tray-body-wrapper and .red-ui-tray-body */
 .red-ui-tray-inline .red-ui-tray-body-wrapper {
     flex: 1;
+    width: 100%;
+    box-sizing: border-box;
     overflow: auto;
 }
 
 .red-ui-tray-inline .red-ui-tray-body {
-    padding: 0.1px;
+    position: relative;
+    box-sizing: border-box;
+    padding: 0.1px; /* prevent margin collapsing */
 }
 
 .red-ui-tray-inline .red-ui-tray-content {
     padding: 10px 20px;
+    overflow: auto;
+    position: relative;
 }
 
+/* Tray breadcrumbs - matches .red-ui-tray-breadcrumbs */
 .red-ui-tray-inline ul.red-ui-tray-breadcrumbs {
-    list-style: none;
+    list-style-type: none;
     margin: 0;
     padding: 0;
+    overflow-wrap: anywhere;
 }
 
 .red-ui-tray-inline ul.red-ui-tray-breadcrumbs li {
     display: inline-block;
+    padding: 0;
+    margin: 0;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li:not(:last-child) {
+    color: var(--red-ui-workspace-button-color, #888);
+    font-weight: normal;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li:not(:last-child):after {
+    display: inline-block;
+    content: '>';
+    margin: 0 5px;
 }
 
 .red-ui-tray-inline ul.red-ui-tray-breadcrumbs li i {
     margin-right: 5px;
-    color: #888;
+    color: var(--red-ui-secondary-text-color, #888);
 }
 
 /* Tray toolbar with left/right buttons */
