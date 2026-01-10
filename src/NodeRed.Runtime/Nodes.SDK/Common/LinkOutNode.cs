@@ -55,22 +55,56 @@ This allows creating virtual wires that:
 
     protected override Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
     {
-        // Link Out sends to configured Link In nodes
-        // This is handled by the runtime based on the links configuration
         var mode = GetConfig("mode", "link");
         
         if (mode == "return")
         {
-            // Return mode - send back to caller
-            // The runtime handles the actual routing
+            // Return mode - the message should have _linkSource property set by Link Call
+            // The runtime handles routing back to the caller
+            if (!msg.Properties.ContainsKey("_linkSource"))
+            {
+                Warn("Link Out in return mode received message without _linkSource");
+            }
+            // Send through normal routing - FlowExecutor.HandleLinkOut will handle return mode
+            Send(0, msg);
         }
         else
         {
-            // Normal link mode - send to all connected Link In nodes
-            // The runtime handles the actual routing based on the links property
+            // Normal link mode - get configured links and send to each
+            var links = GetConfigList("links");
+            if (links.Count == 0)
+            {
+                // No links configured - message is dropped
+                Status("no links", StatusFill.Yellow, SdkStatusShape.Ring);
+            }
+            else
+            {
+                Status($"→ {links.Count} link(s)", StatusFill.Green, SdkStatusShape.Dot);
+                // The runtime will handle cross-flow routing via the wires/links configuration
+                Send(0, msg);
+            }
         }
         
         done();
         return Task.CompletedTask;
+    }
+
+    private List<string> GetConfigList(string name)
+    {
+        var result = new List<string>();
+        if (Config.Config.TryGetValue(name, out var value))
+        {
+            if (value is IEnumerable<object> list)
+            {
+                foreach (var item in list)
+                {
+                    if (item?.ToString() is string s && !string.IsNullOrEmpty(s))
+                    {
+                        result.Add(s);
+                    }
+                }
+            }
+        }
+        return result;
     }
 }

@@ -32,6 +32,11 @@ public class Workspace
     public List<FlowNode> ConfigNodes { get; set; } = new();
 
     /// <summary>
+    /// Subflow definitions (reusable flow templates).
+    /// </summary>
+    public List<Subflow> Subflows { get; set; } = new();
+
+    /// <summary>
     /// Current state of the flows.
     /// </summary>
     public FlowState State { get; set; } = FlowState.Stopped;

@@ -98,4 +98,19 @@ public interface INodeContext
     /// Sets a value in the global context.
     /// </summary>
     void SetGlobalContext<T>(string key, T value);
+
+    /// <summary>
+    /// Gets a value from the node-level context.
+    /// </summary>
+    T? GetNodeContext<T>(string key);
+
+    /// <summary>
+    /// Sets a value in the node-level context.
+    /// </summary>
+    void SetNodeContext<T>(string key, T value);
+
+    /// <summary>
+    /// Gets an environment variable value.
+    /// </summary>
+    object? GetEnv(string name);
 }

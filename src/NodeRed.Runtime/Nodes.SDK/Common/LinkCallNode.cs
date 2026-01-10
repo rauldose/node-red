@@ -19,6 +19,8 @@ namespace NodeRed.Runtime.Nodes.SDK.Common;
     Outputs = 1)]
 public class LinkCallNode : SdkNodeBase
 {
+    private readonly Dictionary<string, (NodeMessage msg, DateTime sent, CancellationTokenSource cts)> _pendingCalls = new();
+
     protected override List<NodePropertyDefinition> DefineProperties() =>
         PropertyBuilder.Create()
             .AddText("name", "Name", icon: "fa fa-tag")
@@ -49,17 +51,92 @@ timeout, the node will generate an error.")
 
     protected override Task OnInputAsync(NodeMessage msg, SendDelegate send, DoneDelegate done)
     {
-        // Link Call sends to Link In and waits for Link Out (return mode)
-        // This is handled by the runtime
-        
+        // Check if this is a return message (from Link Out in return mode)
+        if (msg.Properties.ContainsKey("_linkCallReturn"))
+        {
+            // This is a return from a previous call
+            msg.Properties.Remove("_linkCallReturn");
+            Status("", StatusFill.Grey, SdkStatusShape.Dot);
+            send(0, msg);
+            done();
+            return Task.CompletedTask;
+        }
+
+        // This is a new outgoing call
         var timeout = GetConfig("timeout", 30);
+        var links = GetConfigList("links");
+        
+        if (links.Count == 0)
+        {
+            Error("No target link configured");
+            done(new InvalidOperationException("No target link configured"));
+            return Task.CompletedTask;
+        }
+
         Status("calling...", StatusFill.Blue, SdkStatusShape.Ring);
         
-        // The runtime handles the actual call/response mechanism
-        // For now, just pass through
+        // Set the _linkSource property so Link Out (return mode) knows where to send the response
+        msg.Properties["_linkSource"] = Id;
+        
+        // Set up timeout
+        var cts = new CancellationTokenSource();
+        var callId = Guid.NewGuid().ToString();
+        _pendingCalls[callId] = (msg, DateTime.UtcNow, cts);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(timeout), cts.Token);
+                // If we reach here, timeout occurred
+                if (_pendingCalls.ContainsKey(callId))
+                {
+                    _pendingCalls.Remove(callId);
+                    Status("timeout", StatusFill.Red, SdkStatusShape.Ring);
+                    Error($"Link call timeout after {timeout}s");
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // Call completed before timeout - this is expected
+            }
+        });
+
+        // Send to the configured Link In nodes
+        // The runtime handles the actual routing
         send(0, msg);
         done();
         
         return Task.CompletedTask;
+    }
+
+    protected override Task OnCloseAsync()
+    {
+        // Cancel any pending calls
+        foreach (var call in _pendingCalls.Values)
+        {
+            call.cts.Cancel();
+        }
+        _pendingCalls.Clear();
+        return Task.CompletedTask;
+    }
+
+    private List<string> GetConfigList(string name)
+    {
+        var result = new List<string>();
+        if (Config.Config.TryGetValue(name, out var value))
+        {
+            if (value is IEnumerable<object> list)
+            {
+                foreach (var item in list)
+                {
+                    if (item?.ToString() is string s && !string.IsNullOrEmpty(s))
+                    {
+                        result.Add(s);
+                    }
+                }
+            }
+        }
+        return result;
     }
 }
