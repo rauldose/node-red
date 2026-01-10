@@ -656,13 +656,18 @@
                             <ul id="red-ui-workspace-tabs">
                                 @foreach (var flow in Flows)
                                 {
-                                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "") @(flow.Disabled ? "red-ui-workspace-disabled" : "")"
+                                    var isSubflowTab = Subflows.Any(sf => sf.Id == flow.Id);
+                                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "") @(flow.Disabled ? "red-ui-workspace-disabled" : "") @(isSubflowTab ? "red-ui-tab-subflow" : "")"
                                         @onclick="() => SwitchFlow(flow.Id)"
                                         @ondblclick="() => EditFlowProperties(flow.Id)">
                                         <a href="javascript:void(0)">
                                             @if (flow.Disabled)
                                             {
                                                 <i class="fa fa-ban red-ui-workspace-disabled-icon"></i>
+                                            }
+                                            else if (isSubflowTab)
+                                            {
+                                                <i class="fa fa-th-large red-ui-workspace-subflow-icon"></i>
                                             }
                                             <span>@flow.Label</span>
                                             @if (Flows.Count > 1)
@@ -678,6 +683,52 @@
                                     <a href="javascript:void(0)"><i class="fa fa-plus"></i></a>
                                 </li>
                             </ul>
+
+                            @* Subflow toolbar - shown when editing a subflow template *@
+                            @if (IsCurrentFlowSubflow())
+                            {
+                                var currentSubflow = GetCurrentSubflowInfo();
+                                <div id="red-ui-workspace-toolbar" class="red-ui-subflow-toolbar">
+                                    <a class="red-ui-toolbar-button" @onclick="EditSubflowProperties" title="Edit subflow properties">
+                                        <i class="fa fa-pencil"></i> edit properties
+                                    </a>
+                                    
+                                    <span class="red-ui-toolbar-separator"></span>
+                                    
+                                    <span class="red-ui-toolbar-label">input</span>
+                                    <div class="red-ui-toolbar-button-group">
+                                        <a class="red-ui-toolbar-button @(currentSubflow?.Inputs == 0 ? "active" : "")" 
+                                           @onclick="() => SetSubflowInputs(0)" title="No inputs">0</a>
+                                        <a class="red-ui-toolbar-button @(currentSubflow?.Inputs == 1 ? "active" : "")" 
+                                           @onclick="() => SetSubflowInputs(1)" title="One input">1</a>
+                                    </div>
+                                    
+                                    <span class="red-ui-toolbar-label">output</span>
+                                    <div class="red-ui-toolbar-button-group red-ui-toolbar-spinner">
+                                        <a class="red-ui-toolbar-button" @onclick="DecrementSubflowOutputs" title="Remove output">
+                                            <i class="fa fa-minus"></i>
+                                        </a>
+                                        <span class="red-ui-toolbar-spinner-value">@(currentSubflow?.Outputs ?? 1)</span>
+                                        <a class="red-ui-toolbar-button" @onclick="IncrementSubflowOutputs" title="Add output">
+                                            <i class="fa fa-plus"></i>
+                                        </a>
+                                    </div>
+                                    
+                                    <span class="red-ui-toolbar-separator"></span>
+                                    
+                                    <label class="red-ui-toolbar-button red-ui-toolbar-checkbox @(currentSubflow?.Status == true ? "active" : "")" 
+                                           title="Enable status output for this subflow">
+                                        <input type="checkbox" checked="@(currentSubflow?.Status ?? false)" @onchange="ToggleSubflowStatus" />
+                                        <span>status</span>
+                                    </label>
+                                    
+                                    <span class="red-ui-toolbar-separator"></span>
+                                    
+                                    <a class="red-ui-toolbar-button red-ui-toolbar-button-danger" @onclick="DeleteCurrentSubflow" title="Delete subflow">
+                                        <i class="fa fa-trash"></i> delete subflow
+                                    </a>
+                                </div>
+                            }
 
                             <div id="red-ui-workspace-chart" 
                                  @ondrop="OnWorkspaceDrop" 
@@ -890,6 +941,21 @@
         var schema = GetNodeSchema(nodeType);
         
         <div class="red-ui-editor-form">
+            @* Edit Template button for subflow instances (like original Node-RED) *@
+            @if (IsSelectedNodeSubflowInstance())
+            {
+                var subflowInfo = GetSelectedSubflowInfo();
+                <div class="form-row red-ui-subflow-instance-header">
+                    <div class="red-ui-subflow-info">
+                        <span class="red-ui-subflow-icon" style="background-color: @(subflowInfo?.Color ?? "#DDAA99");"></span>
+                        <span class="red-ui-subflow-name">@(subflowInfo?.Name ?? "Subflow")</span>
+                    </div>
+                    <button class="red-ui-button red-ui-button-small" @onclick="EditSubflowTemplate" title="Edit the subflow template">
+                        <i class="fa fa-pencil"></i> Edit Template
+                    </button>
+                </div>
+            }
+            
             @* Common name field *@
             <div class="form-row">
                 <label><i class="fa fa-tag"></i> Name</label>
@@ -1616,6 +1682,134 @@
         color: #aaa;
     }
 
+    /* Subflow tab styling */
+    .red-ui-tab-subflow {
+        background: #ffe8e0 !important;
+    }
+
+    .red-ui-tab-subflow.active {
+        background: #fff5f2 !important;
+        border-bottom: 1px solid #fff5f2 !important;
+    }
+
+    .red-ui-workspace-subflow-icon {
+        display: inline;
+        margin-right: 5px;
+        color: #c88;
+    }
+
+    /* Subflow Editor Toolbar */
+    #red-ui-workspace-toolbar,
+    .red-ui-subflow-toolbar {
+        display: flex;
+        align-items: center;
+        padding: 5px 10px;
+        background: linear-gradient(to bottom, #f7f7f7, #e8e8e8);
+        border-bottom: 1px solid #bbb;
+        gap: 5px;
+        font-size: 12px;
+    }
+
+    .red-ui-toolbar-button {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        color: #444;
+        text-decoration: none;
+        cursor: pointer;
+        gap: 5px;
+    }
+
+    .red-ui-toolbar-button:hover {
+        background: #e6e6e6;
+        border-color: #999;
+    }
+
+    .red-ui-toolbar-button.active {
+        background: #ddd;
+        border-color: #999;
+    }
+
+    .red-ui-toolbar-button-danger {
+        color: #a00;
+    }
+
+    .red-ui-toolbar-button-danger:hover {
+        background: #fee;
+        border-color: #c88;
+    }
+
+    .red-ui-toolbar-button-group {
+        display: inline-flex;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .red-ui-toolbar-button-group .red-ui-toolbar-button {
+        border-radius: 0;
+        margin-left: -1px;
+    }
+
+    .red-ui-toolbar-button-group .red-ui-toolbar-button:first-child {
+        border-radius: 3px 0 0 3px;
+        margin-left: 0;
+    }
+
+    .red-ui-toolbar-button-group .red-ui-toolbar-button:last-child {
+        border-radius: 0 3px 3px 0;
+    }
+
+    .red-ui-toolbar-spinner {
+        align-items: stretch;
+    }
+
+    .red-ui-toolbar-spinner-value {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 30px;
+        padding: 0 8px;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-left: none;
+        border-right: none;
+        font-weight: bold;
+    }
+
+    .red-ui-toolbar-label {
+        color: #666;
+        margin-left: 10px;
+        margin-right: 5px;
+    }
+
+    .red-ui-toolbar-separator {
+        display: inline-block;
+        width: 1px;
+        height: 20px;
+        background: #ccc;
+        margin: 0 10px;
+    }
+
+    .red-ui-toolbar-checkbox {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+    }
+
+    .red-ui-toolbar-checkbox input[type="checkbox"] {
+        margin: 0;
+        cursor: pointer;
+    }
+
+    .red-ui-toolbar-checkbox.active {
+        background: #d9edf7;
+        border-color: #31708f;
+    }
+
     #red-ui-workspace-chart {
         flex: 1;
         background: #fff;
@@ -1759,6 +1953,40 @@
 
     .red-ui-button-primary:hover {
         background: #8C101C !important;
+    }
+
+    /* Subflow instance header in properties pane */
+    .red-ui-subflow-instance-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .red-ui-subflow-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .red-ui-subflow-icon {
+        width: 20px;
+        height: 17px;
+        border-radius: 3px;
+        border: 1px solid #999;
+        display: inline-block;
+    }
+
+    .red-ui-subflow-name {
+        font-weight: 500;
+        color: #444;
+    }
+
+    .red-ui-button-small {
+        padding: 4px 10px;
+        font-size: 11px;
     }
 
     .red-ui-info-header {
