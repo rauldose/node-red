@@ -19,7 +19,7 @@
     <div style="flex: 1; overflow: hidden;">
         @if (ShowTOC)
         {
-            <SfSplitter Height="100%" Width="100%" Orientation="Orientation.Vertical">
+            <SfSplitter Height="100%" Width="100%" Orientation="Syncfusion.Blazor.Layouts.Orientation.Vertical">
                 <SplitterPanes>
                     @* TOC panel (tree) *@
                     <SplitterPane Size="35%" Min="80px" Collapsible="true">
@@ -128,9 +128,13 @@
     private async Task OnNodeClicked(NodeClickEventArgs args)
     {
         var nodeData = args.NodeData;
-        if (nodeData.IsNode)
+        var id = nodeData.Id;
+        // Check if this is a node type (not a category) by checking the tree data
+        var treeItems = GetFilteredTreeData();
+        var treeItem = treeItems.FirstOrDefault(t => t.Id == id);
+        if (treeItem != null && !treeItem.HasChildren)
         {
-            await OnNodeTypeSelected.InvokeAsync(nodeData.Id);
+            await OnNodeTypeSelected.InvokeAsync(id);
         }
     }
 

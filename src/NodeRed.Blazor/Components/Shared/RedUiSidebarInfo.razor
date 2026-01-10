@@ -7,7 +7,7 @@
     Uses SfTreeView for tree list and SfSplitter for resizable panels
 *@
 
-<SfSplitter Height="100%" Width="100%" Orientation="Orientation.Vertical">
+<SfSplitter Height="100%" Width="100%" Orientation="Syncfusion.Blazor.Layouts.Orientation.Vertical">
     <SplitterPanes>
         @* Outliner panel (tree view of flows) *@
         <SplitterPane Size="40%" Min="100px" Collapsible="true">
@@ -249,13 +249,16 @@
     private async Task OnNodeClicked(NodeClickEventArgs args)
     {
         var nodeData = args.NodeData;
-        if (nodeData.IsFlow)
+        var id = nodeData.Id;
+        // Check if this is a flow (flows have "flow_" prefix in our tree) or a node
+        var treeItem = _treeData.FirstOrDefault(t => t.Id == id);
+        if (treeItem != null && treeItem.IsFlow)
         {
-            await OnFlowSelected.InvokeAsync(nodeData.Id);
+            await OnFlowSelected.InvokeAsync(id);
         }
-        else if (nodeData.IsNode)
+        else
         {
-            await OnNodeSelected.InvokeAsync(nodeData.Id);
+            await OnNodeSelected.InvokeAsync(id);
         }
     }
 
