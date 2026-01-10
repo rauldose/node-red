@@ -225,6 +225,7 @@ h1:focus {
 .e-splitter.e-splitter-vertical .e-split-bar {
     height: 7px !important;
     min-height: 7px !important;
+    width: 100% !important;
     border-top: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
     border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
     border-left: none !important;
@@ -840,6 +841,7 @@ ul.red-ui-tray-breadcrumbs li {
     border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd) !important;
     height: 7px !important;
     min-height: 7px !important;
+    width: 100% !important;
     cursor: ns-resize !important;
     display: flex !important;
     justify-content: center !important;
