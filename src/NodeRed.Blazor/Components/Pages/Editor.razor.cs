@@ -908,8 +908,8 @@ public partial class Editor : IDisposable
             // This ensures they move together with the group (matching Node-RED JS behavior)
             if (!_isSelectingGroupNodes && DiagramInstance != null)
             {
-                var group = Groups.FirstOrDefault(g => g.DiagramNodeId == node.ID);
-                if (group != null && group.NodeIds.Count > 0 && DiagramNodes != null)
+                // Use AllGroups dictionary for O(1) lookup by node ID (Id == DiagramNodeId)
+                if (AllGroups.TryGetValue(node.ID, out var group) && group.NodeIds.Count > 0 && DiagramNodes != null)
                 {
                     _isSelectingGroupNodes = true;
                     try
@@ -978,9 +978,8 @@ public partial class Editor : IDisposable
                     // Update position in central registry
                     UpdateNodePosition(movedNode.ID, movedNode.OffsetX, movedNode.OffsetY);
                     
-                    // If this is a group node, update group bounds
-                    var group = Groups.FirstOrDefault(g => g.DiagramNodeId == movedNode.ID);
-                    if (group != null)
+                    // If this is a group node, update group bounds (O(1) lookup)
+                    if (movedNode.ID != null && AllGroups.TryGetValue(movedNode.ID, out var group))
                     {
                         var oldNode = args.OldValue?.Nodes?.FirstOrDefault(n => n.ID == movedNode.ID);
                         if (oldNode != null)
