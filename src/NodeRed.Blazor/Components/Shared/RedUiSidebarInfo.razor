@@ -11,24 +11,31 @@
             <SplitterPane Size="60%" Min="100px" Collapsible="true">
                 <ContentTemplate>
                     <div class="red-ui-info-outliner" style="height: 100%; overflow: auto;">
-                        <SfTreeView TValue="TreeItem" CssClass="red-ui-treeview" @ref="_treeView"
-                                    ExpandedNodes="@_expandedNodes">
+                        <SfTreeView TValue="TreeItem" CssClass="red-ui-treeview" @ref="_treeView">
                             <TreeViewFieldsSettings TValue="TreeItem"
                                                     DataSource="@GetTreeData()"
                                                     Id="Id"
                                                     Text="Text"
                                                     ParentID="ParentId"
                                                     HasChildren="HasChildren"
-                                                    IconCss="IconCss"
                                                     Expanded="Expanded">
                             </TreeViewFieldsSettings>
-                            <TreeViewEvents TValue="TreeItem" NodeClicked="OnNodeClicked"></TreeViewEvents>
+                            <TreeViewEvents TValue="TreeItem" NodeClicked="OnNodeClicked" NodeExpanding="OnNodeExpanding"></TreeViewEvents>
                             <TreeViewTemplates TValue="TreeItem">
                                 <NodeTemplate>
-                                    <div class="red-ui-tree-node @(context.Id == SelectedNodeId || context.Id == SelectedFlowId ? "selected" : "")">
-                                        @if (!string.IsNullOrEmpty(context.Color))
+                                    <div class="red-ui-tree-node @(GetNodeSelectionClass(context))">
+                                        @if (context.IsNode && !string.IsNullOrEmpty(context.Color))
                                         {
-                                            <span class="red-ui-palette-icon-container" style="background-color: @context.Color; width: 18px; height: 15px; border-radius: 3px; margin-right: 6px; display: inline-block; border: 1px solid #999;"></span>
+                                            <span class="red-ui-node-icon-container" style="background-color: @context.Color;">
+                                                @if (!string.IsNullOrEmpty(context.IconCss))
+                                                {
+                                                    <i class="@context.IconCss red-ui-node-icon"></i>
+                                                }
+                                            </span>
+                                        }
+                                        else if (!string.IsNullOrEmpty(context.IconCss))
+                                        {
+                                            <i class="@context.IconCss red-ui-tree-icon"></i>
                                         }
                                         <span class="red-ui-tree-node-label">@context.Text</span>
                                     </div>
@@ -164,7 +171,8 @@
 
     // TreeView reference and state
     private SfTreeView<TreeItem>? _treeView;
-    private string[] _expandedNodes = new[] { "flows", "subflows", "global-config" };
+    private HashSet<string> _expandedNodeIds = new() { "flows" };
+    private string? _selectedTreeNodeId;
 
     // Tips
     private string[] _tips = new[]
@@ -184,6 +192,24 @@
         {
             _displayTip = CurrentTip;
         }
+        // Update selected tree node when external selection changes
+        if (!string.IsNullOrEmpty(SelectedNodeId))
+        {
+            _selectedTreeNodeId = SelectedNodeId;
+        }
+        else if (!string.IsNullOrEmpty(SelectedFlowId))
+        {
+            _selectedTreeNodeId = SelectedFlowId;
+        }
+    }
+
+    private string GetNodeSelectionClass(TreeItem context)
+    {
+        if (_selectedTreeNodeId == context.Id)
+        {
+            return "selected";
+        }
+        return "";
     }
 
     private List<TreeItem> GetTreeData()
@@ -197,8 +223,8 @@
             Text = "Flows",
             ParentId = null,
             HasChildren = true,
-            Expanded = true,
-            IconCss = "fa fa-folder"
+            Expanded = _expandedNodeIds.Contains("flows"),
+            IconCss = "fa fa-sitemap"
         });
 
         foreach (var flow in Flows)
@@ -209,24 +235,28 @@
                 Text = flow.Label,
                 ParentId = "flows",
                 HasChildren = true,
-                Expanded = SelectedFlowId == flow.Id,
+                Expanded = _expandedNodeIds.Contains(flow.Id),
                 IconCss = "fa fa-sitemap",
                 IsFlow = true
             });
 
-            // Add flow nodes
-            var flowNodes = GetFlowNodesFunc?.Invoke(flow.Id) ?? new List<NodeInfo>();
-            foreach (var node in flowNodes)
+            // Add flow nodes only if flow is expanded
+            if (_expandedNodeIds.Contains(flow.Id))
             {
-                items.Add(new TreeItem
+                var flowNodes = GetFlowNodesFunc?.Invoke(flow.Id) ?? new List<NodeInfo>();
+                foreach (var node in flowNodes)
                 {
-                    Id = node.Id,
-                    Text = node.Name ?? node.Type,
-                    ParentId = flow.Id,
-                    HasChildren = false,
-                    Color = node.Color,
-                    IsNode = true
-                });
+                    items.Add(new TreeItem
+                    {
+                        Id = node.Id,
+                        Text = node.Name ?? node.Type,
+                        ParentId = flow.Id,
+                        HasChildren = false,
+                        Color = node.Color,
+                        IconCss = "fa fa-square",
+                        IsNode = true
+                    });
+                }
             }
         }
 
@@ -237,8 +267,8 @@
             Text = "Subflows",
             ParentId = null,
             HasChildren = false,
-            Expanded = false,
-            IconCss = "fa fa-folder"
+            Expanded = _expandedNodeIds.Contains("subflows"),
+            IconCss = "fa fa-share-alt"
         });
 
         // Global Configuration section
@@ -248,8 +278,8 @@
             Text = "Global Configuration",
             ParentId = null,
             HasChildren = GlobalConfigNodes.Any(),
-            Expanded = false,
-            IconCss = "fa fa-folder"
+            Expanded = _expandedNodeIds.Contains("global-config"),
+            IconCss = "fa fa-cog"
         });
 
         foreach (var node in GlobalConfigNodes)
@@ -273,16 +303,54 @@
         var nodeId = args.NodeData?.Id;
         if (nodeId == null) return;
 
+        // Update local selection state
+        _selectedTreeNodeId = nodeId;
+
         var treeItem = GetTreeData().FirstOrDefault(t => t.Id == nodeId);
         if (treeItem != null)
         {
             if (treeItem.IsFlow)
             {
+                // Toggle expansion for flows
+                if (_expandedNodeIds.Contains(nodeId))
+                {
+                    _expandedNodeIds.Remove(nodeId);
+                }
+                else
+                {
+                    _expandedNodeIds.Add(nodeId);
+                }
                 await OnFlowSelected.InvokeAsync(treeItem.Id);
             }
             else if (treeItem.IsNode)
             {
                 await OnNodeSelected.InvokeAsync(treeItem.Id);
+            }
+            else if (treeItem.HasChildren)
+            {
+                // Toggle expansion for category nodes (Flows, Subflows, Global Config)
+                if (_expandedNodeIds.Contains(nodeId))
+                {
+                    _expandedNodeIds.Remove(nodeId);
+                }
+                else
+                {
+                    _expandedNodeIds.Add(nodeId);
+                }
+            }
+        }
+        StateHasChanged();
+    }
+
+    private void OnNodeExpanding(NodeExpandEventArgs args)
+    {
+        // Prevent default expansion behavior - we handle it manually in OnNodeClicked
+        if (args.NodeData?.Id != null)
+        {
+            var nodeId = args.NodeData.Id;
+            if (!_expandedNodeIds.Contains(nodeId))
+            {
+                _expandedNodeIds.Add(nodeId);
             }
         }
     }
