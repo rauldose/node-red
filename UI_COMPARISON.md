@@ -4,41 +4,51 @@ This document provides a comprehensive comparison of the functionalities between
 
 ## Executive Summary
 
-The Blazor UI port covers the core editor functionality but contains **stubs, placeholders, and hardcoded values** that need to be properly implemented to match the JavaScript implementation. This document identifies these implementation gaps to achieve 1:1 functionality.
+The Blazor UI port covers the core editor functionality. This document tracks the implementation status and identifies remaining gaps to achieve 1:1 functionality with the JavaScript implementation.
 
 ---
 
-## 🚨 CRITICAL: Implementation Gaps (Stubs/Placeholders/Hardcoded Values)
+## ✅ COMPLETED: Recently Implemented Features
 
-This section lists specific code locations where the Blazor implementation has placeholders, stubs, or hardcoded values that need real implementation to match JS functionality.
+### Services Created (Modularization)
+| Service | Purpose | Status |
+|---------|---------|--------|
+| `ClipboardService.cs` | Clipboard operations via JSInterop | ✅ Implemented |
+| `NotificationService.cs` | Toast notifications matching JS RED.notify() | ✅ Implemented |
+| `DialogService.cs` | Centralized dialog management | ✅ Implemented |
+| `DiagramNavigationService.cs` | Pan/zoom/reveal node operations | ✅ Implemented |
+| `ContextDataService.cs` | Node/flow/global context data | ✅ Implemented |
 
-### Editor.razor.cs - Identified Stubs & TODOs
+### UI Components Created
+| Component | Purpose | Status |
+|-----------|---------|--------|
+| `RedUiNotifications.razor` | Toast notification display | ✅ Implemented |
+| `RedUiDialogs.razor` | Central dialog container | ✅ Implemented |
+
+### Fixed Stubs
+| Method | Previous State | Current State |
+|--------|----------------|---------------|
+| `RevealSelectedNode()` | TODO comment | ✅ Pans diagram to node |
+| `CopyNodeLink()` | TODO comment | ✅ Copies to clipboard |
+| `CopyMessage()`/`CopyPath()` | Empty stubs | ✅ Uses ClipboardService |
+| Deploy operations | No feedback | ✅ Shows success/error toasts |
+| Import/Export operations | Debug messages | ✅ Shows toast notifications |
+| `EditGroup()` | Debug message | ✅ Opens group properties dialog |
+| Context data methods | Empty returns | ✅ Uses ContextDataService |
+
+---
+
+## 🚨 REMAINING: Implementation Gaps
+
+### Editor.razor.cs - Remaining Stubs & TODOs
 
 | Line | Issue | JS Equivalent | Action Required |
 |------|-------|---------------|-----------------|
 | 1187 | `// TODO: Implement Bezier connectors` | `view.js:lineCurveScale = 0.75` | Implement Bezier connector segments with curvature |
-| 3245 | `// In a full implementation, groups would be tracked` | `group.js` full tracking | Implement proper group membership tracking |
-| 3446 | `EditGroup()` outputs "In a full implementation, this would open group properties" | `group.js:editGroup()` | Implement group properties dialog |
 | 3514 | `Version = "Unknown"` hardcoded | `palette-editor.js` fetches from npm | Implement module version fetching from package metadata |
 | 3523-3563 | `InstallPaletteModule()` is a stub simulation | `palette-editor.js:installPackage()` | Implement real package manager integration |
 | 3565-3597 | `UninstallPaletteModule()` is a stub simulation | `palette-editor.js:removePackage()` | Implement real package uninstall |
-| 4112 | `// TODO: Pan/zoom to the selected node` | `view.js:reveal()` | Implement scroll-to-node with animation |
-| 4121 | `// TODO: Copy node path to clipboard via JSInterop` | `clipboard.js:copyText()` | Implement JSInterop clipboard integration |
 | 4902 | `// In a full implementation, this would show a quick add dialog` | `typeSearch.js` | Implement quick add type search dialog |
-
-### RedUiSidebarDebug.razor - Stubs
-
-| Line | Issue | JS Equivalent | Action Required |
-|------|-------|---------------|-----------------|
-| 97-99 | `CopyMessage()` is empty stub | `debug.js:copyMessage()` | Implement JSInterop clipboard copy |
-| 101-104 | `CopyPath()` is empty stub | `debug.js:copyPath()` | Implement message path copy |
-
-### RedUiSidebarContext.razor - Missing API Integration
-
-| Issue | JS Equivalent | Action Required |
-|-------|---------------|-----------------|
-| Context data returns empty | `tab-context.js:$.getJSON("context/...")` | Implement context API endpoints and data fetching |
-| Auto-refresh not functional | `tab-context.js:updateEntry()` | Implement timer-based auto-refresh |
 
 ### NodeRed.Runtime - TODOs
 
@@ -64,12 +74,10 @@ This section lists specific code locations where the Blazor implementation has p
 These features have UI but incomplete backend logic:
 
 ### 1. Context Sidebar (`RedUiSidebarContext.razor`)
-**Current State:** UI renders but always shows "No context data"
-**JS Implementation:** Makes API calls to `/context/node/{id}`, `/context/flow/{id}`, `/context/global`
-**Fix Required:** 
-- Create context API endpoints in .NET backend
-- Implement `IContextService` to track runtime context
-- Wire up refresh buttons to fetch real data
+**Current State:** UI renders, uses ContextDataService
+**Remaining Work:** 
+- Connect to runtime context when flows are running
+- Implement auto-refresh timer functionality
 
 ### 2. Config Node Sidebar (`RedUiSidebarConfig.razor`)
 **Current State:** Lists config nodes but doesn't track usage
