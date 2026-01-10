@@ -2359,11 +2359,9 @@ public partial class Editor : IDisposable
 
     private void RefreshSubflows()
     {
-        Subflows.Clear();
-        
-        // In the full implementation, subflows would be stored in the workspace
-        // For now, we can create a basic structure
-        // Subflows in Node-RED are special flow tabs that can be instantiated as nodes
+        // Subflows are now stored persistently and don't need to be refreshed/cleared
+        // This method is kept for backward compatibility and potential future use
+        // (e.g., loading subflows from storage)
     }
 
     private void CreateSubflow()
@@ -2385,38 +2383,23 @@ public partial class Editor : IDisposable
         
         Subflows.Add(newSubflow);
         
-        // Create a new flow tab for the subflow
-        var newFlow = new FlowTab
-        {
-            Id = subflowId,
-            Label = subflowName,
-            Disabled = false,
-            Info = "Subflow editor - add nodes here to define the subflow logic"
-        };
-        Flows.Add(newFlow);
-        
         // Add the subflow as a node type to the palette
+        // (Like original Node-RED - subflow is added to palette, but NO new tab is created)
         AddSubflowToPalette(newSubflow);
         
-        // Sync current flow to the central registry before switching
-        SyncDiagramToRegistry();
-        
-        // Add subflow I/O nodes to the central registry
+        // Add subflow I/O nodes to the central registry (for when the subflow is opened later)
         AddSubflowIONodesToRegistry(newSubflow);
-        
-        // Switch to the subflow tab and populate from registry
-        CurrentFlowId = subflowId;
-        PopulateDiagramFromRegistry(subflowId);
         
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = $"Created subflow '{subflowName}'. Add nodes between the input and output to define the subflow logic. The subflow is now available in the palette under 'subflows'.",
+            Data = $"Created subflow '{subflowName}'. The subflow is now available in the palette under 'subflows'. Drag it to any flow to use it, or click 'Edit Template' in the properties pane to edit its contents.",
             Timestamp = DateTimeOffset.Now
         });
         
         HasUnsavedChanges = true;
+        IsSubflowsDialogOpen = false;
         StateHasChanged();
     }
     
@@ -2627,23 +2610,56 @@ public partial class Editor : IDisposable
         
         Subflows.Add(newSubflow);
         
-        // Create a new flow tab for the subflow
-        var newFlow = new FlowTab
-        {
-            Id = subflowId,
-            Label = subflowName,
-            Disabled = false,
-            Info = $"Subflow created from selection - {selectedNodes.Count} nodes"
-        };
-        Flows.Add(newFlow);
+        // Add the subflow to the palette (no tab is created yet - like original Node-RED)
+        AddSubflowToPalette(newSubflow);
         
-        // Remove selected nodes from current flow (they're now in the subflow)
+        // Add subflow I/O nodes to the central registry
+        AddSubflowIONodesToRegistry(newSubflow);
+        
+        // Move selected nodes to the subflow registry (update their Z property)
         foreach (var node in selectedNodes)
         {
+            var nodeType = node.AdditionalInfo?.TryGetValue("nodeType", out var typeObj) == true
+                ? typeObj as string ?? "" : "";
+            var nodeColor = node.Style?.Fill ?? "#ddd";
+            var iconClass = node.AdditionalInfo?.TryGetValue("iconClass", out var iconObj) == true
+                ? iconObj as string ?? "fa fa-cube" : "fa fa-cube";
+            var labelContent = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? "";
+            
+            // Add to the subflow's registry (with Z = subflowId)
+            var nodeData = new NodeData
+            {
+                Id = node.ID,
+                Z = subflowId,
+                Type = nodeType,
+                X = node.OffsetX,
+                Y = node.OffsetY,
+                W = node.Width ?? 122,
+                H = node.Height ?? 25,
+                Name = labelContent,
+                Color = nodeColor,
+                IconClass = iconClass,
+                Props = node.AdditionalInfo != null ? new Dictionary<string, object?>(node.AdditionalInfo) : new(),
+                Changed = true,
+                Dirty = true
+            };
+            AllNodes[node.ID] = nodeData;
+            
+            // Remove from current flow's diagram
             DiagramNodes?.Remove(node);
         }
         
-        // Remove connectors between the removed nodes
+        // Store connectors between the moved nodes in the registry
+        var connectorsToMove = DiagramConnectors?
+            .Where(c => nodeIds.Contains(c.SourceID) && nodeIds.Contains(c.TargetID))
+            .ToList() ?? new List<Connector>();
+        foreach (var connector in connectorsToMove)
+        {
+            AddConnectorToRegistry(connector.ID, subflowId, connector.SourceID, connector.SourcePortID ?? "", connector.TargetID, connector.TargetPortID ?? "");
+            DiagramConnectors?.Remove(connector);
+        }
+        
+        // Remove connectors that connected to/from the moved nodes (to external nodes)
         var connectorsToRemove = DiagramConnectors?
             .Where(c => nodeIds.Contains(c.SourceID) || nodeIds.Contains(c.TargetID))
             .ToList() ?? new List<Connector>();
@@ -2653,7 +2669,6 @@ public partial class Editor : IDisposable
         }
         
         // Create a subflow instance node in place of the removed nodes
-        // Note: selectedNodes.Count > 0 is guaranteed by earlier check
         var avgX = selectedNodes.Count > 0 ? selectedNodes.Average(n => n.OffsetX) : 300.0;
         var avgY = selectedNodes.Count > 0 ? selectedNodes.Average(n => n.OffsetY) : 200.0;
         
@@ -2661,13 +2676,14 @@ public partial class Editor : IDisposable
         var subflowInstanceNode = CreateNodeRedStyleNode(subflowInstanceId, avgX, avgY, "subflow:" + subflowId, subflowName, "#DDAA99", null);
         DiagramNodes?.Add(subflowInstanceNode);
         
-        AddSubflowToPalette(newSubflow);
+        // Add the instance to the registry
+        AddNodeToRegistry(subflowInstanceId, CurrentFlowId, "subflow:" + subflowId, avgX, avgY, subflowName, "#DDAA99", "fa fa-th-large");
         
         DebugMessages.Add(new DebugMessage
         {
             NodeId = "system",
             NodeName = "System",
-            Data = $"Created subflow '{subflowName}' from {selectedNodes.Count} selected node(s). A subflow instance has been placed in the current flow.",
+            Data = $"Created subflow '{subflowName}' from {selectedNodes.Count} selected node(s). A subflow instance has been placed in the current flow. Click 'Edit Template' in the properties pane to edit the subflow contents.",
             Timestamp = DateTimeOffset.Now
         });
         
@@ -2681,8 +2697,26 @@ public partial class Editor : IDisposable
         var subflow = Subflows.FirstOrDefault(sf => sf.Id == subflowId);
         if (subflow != null)
         {
+            // Create the flow tab for editing if it doesn't exist yet
+            var existingTab = Flows.FirstOrDefault(f => f.Id == subflowId);
+            if (existingTab == null)
+            {
+                var newFlow = new FlowTab
+                {
+                    Id = subflowId,
+                    Label = subflow.Name,
+                    Disabled = false,
+                    Info = "Subflow editor - add nodes here to define the subflow logic"
+                };
+                Flows.Add(newFlow);
+            }
+            
+            // Sync current flow state before switching
+            SyncDiagramToRegistry();
+            
             // Use proper tab switching which saves/restores state
-            SwitchFlow(subflowId);
+            CurrentFlowId = subflowId;
+            PopulateDiagramFromRegistry(subflowId);
             
             DebugMessages.Add(new DebugMessage
             {
@@ -2697,6 +2731,47 @@ public partial class Editor : IDisposable
         }
     }
     
+    /// <summary>
+    /// Opens the subflow template editor for the currently selected subflow instance.
+    /// Called from the properties pane when editing a subflow instance node.
+    /// </summary>
+    private void EditSubflowTemplate()
+    {
+        if (SelectedDiagramNode == null) return;
+        
+        var nodeType = GetSelectedNodeType();
+        if (!nodeType.StartsWith("subflow:")) return;
+        
+        var subflowId = nodeType.Substring(8); // Remove "subflow:" prefix
+        
+        // Close the property tray and edit the subflow
+        IsPropertyTrayOpen = false;
+        EditSubflow(subflowId);
+    }
+    
+    /// <summary>
+    /// Checks if the currently selected node is a subflow instance.
+    /// </summary>
+    private bool IsSelectedNodeSubflowInstance()
+    {
+        if (SelectedDiagramNode == null) return false;
+        var nodeType = GetSelectedNodeType();
+        return nodeType.StartsWith("subflow:");
+    }
+    
+    /// <summary>
+    /// Gets the subflow info for the currently selected subflow instance.
+    /// </summary>
+    private SubflowInfo? GetSelectedSubflowInfo()
+    {
+        if (SelectedDiagramNode == null) return null;
+        var nodeType = GetSelectedNodeType();
+        if (!nodeType.StartsWith("subflow:")) return null;
+        
+        var subflowId = nodeType.Substring(8);
+        return Subflows.FirstOrDefault(sf => sf.Id == subflowId);
+    }
+    
     private void LoadFlowNodes(string flowId)
     {
         // This method is now deprecated - use RestoreFlowState instead
@@ -2709,7 +2784,7 @@ public partial class Editor : IDisposable
         var subflow = Subflows.FirstOrDefault(sf => sf.Id == subflowId);
         if (subflow != null)
         {
-            // Remove the flow tab for this subflow
+            // Remove the flow tab for this subflow (if it exists)
             var flowTab = Flows.FirstOrDefault(f => f.Id == subflowId);
             if (flowTab != null)
             {
@@ -2722,11 +2797,11 @@ public partial class Editor : IDisposable
                 var firstRegularFlow = Flows.FirstOrDefault(f => !Subflows.Any(sf => sf.Id == f.Id));
                 if (firstRegularFlow != null)
                 {
-                    CurrentFlowId = firstRegularFlow.Id;
+                    SwitchFlow(firstRegularFlow.Id);
                 }
                 else if (Flows.Count > 0)
                 {
-                    CurrentFlowId = Flows[0].Id;
+                    SwitchFlow(Flows[0].Id);
                 }
                 else
                 {
@@ -2734,6 +2809,13 @@ public partial class Editor : IDisposable
                     AddNewFlow();
                 }
             }
+            
+            // Remove from the palette
+            RemoveSubflowFromPalette(subflowId);
+            
+            // Remove I/O nodes from the registry
+            AllNodes.Remove($"{subflowId}_in");
+            AllNodes.Remove($"{subflowId}_out");
             
             Subflows.Remove(subflow);
             DebugMessages.Add(new DebugMessage
@@ -2745,6 +2827,28 @@ public partial class Editor : IDisposable
             });
             HasUnsavedChanges = true;
             StateHasChanged();
+        }
+    }
+    
+    /// <summary>
+    /// Remove a subflow from the palette
+    /// </summary>
+    private void RemoveSubflowFromPalette(string subflowId)
+    {
+        var subflowCategory = PaletteCategories.FirstOrDefault(c => c.Name == "subflows");
+        if (subflowCategory != null)
+        {
+            var nodeToRemove = subflowCategory.Nodes.FirstOrDefault(n => n.Type == $"subflow:{subflowId}");
+            if (nodeToRemove != null)
+            {
+                subflowCategory.Nodes.Remove(nodeToRemove);
+            }
+            
+            // Remove the category if it's empty
+            if (subflowCategory.Nodes.Count == 0)
+            {
+                PaletteCategories.Remove(subflowCategory);
+            }
         }
     }
 

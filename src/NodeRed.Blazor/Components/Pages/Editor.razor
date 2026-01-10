@@ -656,13 +656,18 @@
                             <ul id="red-ui-workspace-tabs">
                                 @foreach (var flow in Flows)
                                 {
-                                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "") @(flow.Disabled ? "red-ui-workspace-disabled" : "")"
+                                    var isSubflowTab = Subflows.Any(sf => sf.Id == flow.Id);
+                                    <li class="red-ui-tab @(CurrentFlowId == flow.Id ? "active" : "") @(flow.Disabled ? "red-ui-workspace-disabled" : "") @(isSubflowTab ? "red-ui-tab-subflow" : "")"
                                         @onclick="() => SwitchFlow(flow.Id)"
                                         @ondblclick="() => EditFlowProperties(flow.Id)">
                                         <a href="javascript:void(0)">
                                             @if (flow.Disabled)
                                             {
                                                 <i class="fa fa-ban red-ui-workspace-disabled-icon"></i>
+                                            }
+                                            else if (isSubflowTab)
+                                            {
+                                                <i class="fa fa-th-large red-ui-workspace-subflow-icon"></i>
                                             }
                                             <span>@flow.Label</span>
                                             @if (Flows.Count > 1)
@@ -890,6 +895,21 @@
         var schema = GetNodeSchema(nodeType);
         
         <div class="red-ui-editor-form">
+            @* Edit Template button for subflow instances (like original Node-RED) *@
+            @if (IsSelectedNodeSubflowInstance())
+            {
+                var subflowInfo = GetSelectedSubflowInfo();
+                <div class="form-row red-ui-subflow-instance-header">
+                    <div class="red-ui-subflow-info">
+                        <span class="red-ui-subflow-icon" style="background-color: @(subflowInfo?.Color ?? "#DDAA99");"></span>
+                        <span class="red-ui-subflow-name">@(subflowInfo?.Name ?? "Subflow")</span>
+                    </div>
+                    <button class="red-ui-button red-ui-button-small" @onclick="EditSubflowTemplate" title="Edit the subflow template">
+                        <i class="fa fa-pencil"></i> Edit Template
+                    </button>
+                </div>
+            }
+            
             @* Common name field *@
             <div class="form-row">
                 <label><i class="fa fa-tag"></i> Name</label>
@@ -1616,6 +1636,22 @@
         color: #aaa;
     }
 
+    /* Subflow tab styling */
+    .red-ui-tab-subflow {
+        background: #ffe8e0 !important;
+    }
+
+    .red-ui-tab-subflow.active {
+        background: #fff5f2 !important;
+        border-bottom: 1px solid #fff5f2 !important;
+    }
+
+    .red-ui-workspace-subflow-icon {
+        display: inline;
+        margin-right: 5px;
+        color: #c88;
+    }
+
     #red-ui-workspace-chart {
         flex: 1;
         background: #fff;
@@ -1759,6 +1795,40 @@
 
     .red-ui-button-primary:hover {
         background: #8C101C !important;
+    }
+
+    /* Subflow instance header in properties pane */
+    .red-ui-subflow-instance-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .red-ui-subflow-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .red-ui-subflow-icon {
+        width: 20px;
+        height: 17px;
+        border-radius: 3px;
+        border: 1px solid #999;
+        display: inline-block;
+    }
+
+    .red-ui-subflow-name {
+        font-weight: 500;
+        color: #444;
+    }
+
+    .red-ui-button-small {
+        padding: 4px 10px;
+        font-size: 11px;
     }
 
     .red-ui-info-header {
