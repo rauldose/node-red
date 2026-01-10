@@ -268,6 +268,7 @@ h1:focus {
     font-size: 12px;
     border-bottom: 2px solid transparent;
     transition: color 0.2s, border-color 0.2s;
+    cursor: pointer;
 }
 
 .red-ui-tray-tab-list li a i {
@@ -313,4 +314,66 @@ h1:focus {
     border: 1px solid #ddd;
     font-size: 12px;
     color: #666;
+    margin-bottom: 10px;
+}
+
+/* Description textarea */
+.red-ui-description-textarea {
+    width: 100%;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+/* Appearance tab styles */
+.red-ui-icon-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.red-ui-node-icon-preview {
+    width: 40px;
+    height: 30px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.red-ui-node-icon-preview i {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.red-ui-icon-hint {
+    color: #888;
+    font-size: 12px;
+}
+
+.red-ui-port-labels-header {
+    font-weight: bold;
+    margin-top: 15px;
+}
+
+.red-ui-port-label {
+    margin-left: 20px;
+}
+
+.red-ui-port-inputs {
+    flex: 1;
+}
+
+.red-ui-editor-node-label-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.red-ui-port-number {
+    width: 20px;
+    text-align: right;
+}
+
+.red-ui-editor-node-label-row input {
+    flex: 1;
 }
