@@ -60,6 +60,10 @@ public partial class Editor : IDisposable
     private string SelectedNodeName = "";
     private int SelectedSidebarTab = 0;
     private bool IsPropertyTrayOpen = false;
+    private string _activeTrayTab = "properties"; // Tray tabs: properties, description, appearance
+    private string _selectedNodeDescription = ""; // Node description for editing
+    private string _selectedNodeIcon = ""; // Node icon for appearance tab
+    private bool _selectedNodeShowLabel = true; // Whether to show label
 
     // Sidebar state
     private bool _isSidebarClosed = false;
@@ -991,6 +995,12 @@ public partial class Editor : IDisposable
     private void SaveAndClosePropertyTray()
     {
         SaveNodeProperties();
+        IsPropertyTrayOpen = false;
+    }
+
+    private void DeleteSelectionAndCloseTray()
+    {
+        DeleteSelection();
         IsPropertyTrayOpen = false;
     }
 

@@ -725,29 +725,72 @@
                 <!-- Property Editor Tray Pane (appears when double-clicking a node) -->
                 @if (IsPropertyTrayOpen && SelectedDiagramNode != null)
                 {
-                    <SplitterPane Size="350px" Min="300px" Max="500px" CssClass="red-ui-tray-pane">
+                    <SplitterPane Size="450px" Min="350px" Max="700px" CssClass="red-ui-tray-pane">
                         <ContentTemplate>
                             <div class="red-ui-tray-inline">
                                 @* Tray header *@
                                 <div class="red-ui-tray-header editor-tray-header">
+                                    @* Titlebar with breadcrumbs *@
                                     <div class="red-ui-tray-titlebar">
                                         <ul class="red-ui-tray-breadcrumbs">
                                             <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
                                         </ul>
                                     </div>
+                                    @* Toolbar with buttons *@
                                     <div class="red-ui-tray-toolbar">
+                                        <button class="red-ui-button red-ui-tray-toolbar-left" @onclick="DeleteSelectionAndCloseTray" title="Delete node">
+                                            <i class="fa fa-trash"></i> Delete
+                                        </button>
+                                        <span class="red-ui-tray-toolbar-spacer"></span>
                                         <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
                                         <button class="red-ui-button primary" @onclick="SaveAndClosePropertyTray">Done</button>
                                     </div>
                                 </div>
                                 
+                                @* Tray tabs - Properties, Description, Appearance *@
+                                <div class="red-ui-tray-tabs">
+                                    <ul class="red-ui-tray-tab-list">
+                                        <li class="@(_activeTrayTab == "properties" ? "active" : "")" @onclick='() => _activeTrayTab = "properties"'>
+                                            <a href="javascript:void(0)"><i class="fa fa-cog"></i> Properties</a>
+                                        </li>
+                                        <li class="@(_activeTrayTab == "description" ? "active" : "")" @onclick='() => _activeTrayTab = "description"'>
+                                            <a href="javascript:void(0)"><i class="fa fa-file-text-o"></i> Description</a>
+                                        </li>
+                                        <li class="@(_activeTrayTab == "appearance" ? "active" : "")" @onclick='() => _activeTrayTab = "appearance"'>
+                                            <a href="javascript:void(0)"><i class="fa fa-object-group"></i> Appearance</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                
                                 @* Tray body *@
                                 <div class="red-ui-tray-body-wrapper">
                                     <div class="red-ui-tray-body editor-tray-body">
-                                        <div class="red-ui-tray-content">
-                                            @RenderNodePropertyPanel()
-                                        </div>
+                                        @if (_activeTrayTab == "properties")
+                                        {
+                                            <div class="red-ui-tray-content">
+                                                @RenderNodePropertyPanel()
+                                            </div>
+                                        }
+                                        else if (_activeTrayTab == "description")
+                                        {
+                                            <div class="red-ui-tray-content">
+                                                @RenderNodeDescriptionPanel()
+                                            </div>
+                                        }
+                                        else if (_activeTrayTab == "appearance")
+                                        {
+                                            <div class="red-ui-tray-content">
+                                                @RenderNodeAppearancePanel()
+                                            </div>
+                                        }
                                     </div>
+                                </div>
+                                
+                                @* Tray footer *@
+                                <div class="red-ui-tray-footer">
+                                    <span class="red-ui-tray-footer-left">
+                                        <span class="red-ui-tray-footer-node-id">@(SelectedDiagramNode?.ID ?? "")</span>
+                                    </span>
                                 </div>
                             </div>
                         </ContentTemplate>
@@ -1027,6 +1070,83 @@
             {
                 <span>@field.Suffix</span>
             }
+        </div>
+    };
+
+    /// <summary>
+    /// Render the Description tab panel - markdown editor for node info
+    /// </summary>
+    private RenderFragment RenderNodeDescriptionPanel() => __builder =>
+    {
+        <div class="red-ui-editor-form">
+            <div class="form-row form-row-full">
+                <label><i class="fa fa-file-text-o"></i> Node Description</label>
+                <p class="form-tips" style="margin-bottom: 10px;">
+                    Add a description for this node. This will be shown in the Info sidebar.
+                </p>
+                <textarea rows="12" 
+                          @bind="_selectedNodeDescription" 
+                          placeholder="Enter a description for this node (supports Markdown)"
+                          style="width: 100%; font-family: monospace; font-size: 12px;"></textarea>
+            </div>
+        </div>
+    };
+
+    /// <summary>
+    /// Render the Appearance tab panel - icon, label, color settings
+    /// </summary>
+    private RenderFragment RenderNodeAppearancePanel() => __builder =>
+    {
+        var nodeType = GetSelectedNodeType();
+        var nodeColor = GetSelectedNodeColor();
+        
+        <div class="red-ui-editor-form">
+            @* Show Label toggle *@
+            <div class="form-row">
+                <label><i class="fa fa-tag"></i> Label</label>
+                <label class="checkbox-label">
+                    <input type="checkbox" @bind="_selectedNodeShowLabel" />
+                    Show label on node
+                </label>
+            </div>
+
+            @* Node Icon *@
+            <div class="form-row">
+                <label><i class="fa fa-image"></i> Icon</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="red-ui-node-icon-preview" style="width: 40px; height: 30px; background-color: @nodeColor; border: 1px solid #999; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fa fa-cube" style="color: rgba(0,0,0,0.5);"></i>
+                    </div>
+                    <span style="color: #888; font-size: 12px;">Default icon for @nodeType</span>
+                </div>
+            </div>
+
+            @* Port Labels section *@
+            <div class="form-row">
+                <label style="font-weight: bold; margin-top: 15px;">Port Labels</label>
+            </div>
+
+            @* Input Labels *@
+            <div class="form-row">
+                <label style="margin-left: 20px;"><i class="fa fa-arrow-right"></i> Inputs</label>
+                <div style="flex: 1;">
+                    <div class="red-ui-editor-node-label-row" style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 20px; text-align: right;">1.</span>
+                        <input type="text" placeholder="Input label" style="flex: 1;" />
+                    </div>
+                </div>
+            </div>
+
+            @* Output Labels *@
+            <div class="form-row">
+                <label style="margin-left: 20px;"><i class="fa fa-arrow-left"></i> Outputs</label>
+                <div style="flex: 1;">
+                    <div class="red-ui-editor-node-label-row" style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 20px; text-align: right;">1.</span>
+                        <input type="text" placeholder="Output label" style="flex: 1;" />
+                    </div>
+                </div>
+            </div>
         </div>
     };
 }
