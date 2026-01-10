@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using NodeRed.Blazor.Components.Shared;
+using NodeRed.Blazor.Models;
 using NodeRed.Blazor.Services;
 using NodeRed.Core.Entities;
 using NodeRed.Core.Enums;

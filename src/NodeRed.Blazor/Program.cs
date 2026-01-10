@@ -25,6 +25,8 @@ builder.Services.AddScoped<IDiagramNavigationService, DiagramNavigationService>(
 builder.Services.AddSingleton<IContextDataService, ContextDataService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IDialogService, DialogService>();
+builder.Services.AddScoped<IUndoRedoService, UndoRedoService>();
+builder.Services.AddScoped<ISearchService, SearchService>();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
