@@ -15,12 +15,13 @@
                    Width="150px" ShowClearButton="true" Input="OnSearchInput"></SfTextBox>
     </div>
 
-    @* Splitter with TOC on top and content below *@
-    <SfSplitter Orientation="Syncfusion.Blazor.Layouts.Orientation.Vertical" CssClass="red-ui-help-splitter" Height="100%">
-        <SplitterPanes>
-            @* TOC panel (tree) - visible when ShowTOC is true *@
-            @if (ShowTOC)
-            {
+    @* Content area - either with splitter or just help content *@
+    @if (ShowTOC)
+    {
+        @* Splitter with TOC on top and content below *@
+        <SfSplitter @key="@_splitterKey" Orientation="Syncfusion.Blazor.Layouts.Orientation.Vertical" CssClass="red-ui-help-splitter" Height="100%">
+            <SplitterPanes>
+                @* TOC panel (tree) *@
                 <SplitterPane Size="30%" Min="100px" Collapsible="true">
                     <ContentTemplate>
                         <div class="red-ui-sidebar-help-toc" style="height: 100%; overflow: auto; padding: 5px;">
@@ -49,72 +50,23 @@
                         </div>
                     </ContentTemplate>
                 </SplitterPane>
-            }
 
-            @* Help content panel *@
-            <SplitterPane Size="@(ShowTOC ? "70%" : "100%")" Min="150px">
-                <ContentTemplate>
-                    <div class="red-ui-sidebar-help-content" style="height: 100%; overflow-y: auto; padding: 10px;">
-                        <div class="red-ui-help">
-                            @if (HelpContent != null)
-                            {
-                                @HelpContent
-                            }
-                            else if (!string.IsNullOrEmpty(SelectedNodeType))
-                            {
-                                <h3 style="margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px;">@SelectedNodeType</h3>
-                                @if (!string.IsNullOrEmpty(HelpSummary))
-                                {
-                                    <p>@HelpSummary</p>
-                                }
-                                @if (HelpInputs?.Count > 0)
-                                {
-                                    <h4>Inputs</h4>
-                                    <dl class="message-properties">
-                                        @foreach (var input in HelpInputs)
-                                        {
-                                            <dt>@input.Name <span class="property-type">@input.Type</span></dt>
-                                            <dd>@input.Description</dd>
-                                        }
-                                    </dl>
-                                }
-                                @if (HelpOutputs?.Count > 0)
-                                {
-                                    <h4>Outputs</h4>
-                                    <dl class="message-properties">
-                                        @foreach (var output in HelpOutputs)
-                                        {
-                                            <dt>@output.Name <span class="property-type">@output.Type</span></dt>
-                                            <dd>@output.Description</dd>
-                                        }
-                                    </dl>
-                                }
-                                @if (!string.IsNullOrEmpty(HelpDetails))
-                                {
-                                    <h4>Details</h4>
-                                    <p style="white-space: pre-wrap;">@HelpDetails</p>
-                                }
-                                @if (HelpReferences?.Count > 0)
-                                {
-                                    <h4>References</h4>
-                                    <ul>
-                                        @foreach (var reference in HelpReferences)
-                                        {
-                                            <li><a href="@reference.Url" target="_blank">@reference.Title</a></li>
-                                        }
-                                    </ul>
-                                }
-                            }
-                            else
-                            {
-                                <span class="red-ui-help-info-none">Select a node type to view help</span>
-                            }
-                        </div>
-                    </div>
-                </ContentTemplate>
-            </SplitterPane>
-        </SplitterPanes>
-    </SfSplitter>
+                @* Help content panel *@
+                <SplitterPane Size="70%" Min="150px">
+                    <ContentTemplate>
+                        @RenderHelpContent()
+                    </ContentTemplate>
+                </SplitterPane>
+            </SplitterPanes>
+        </SfSplitter>
+    }
+    else
+    {
+        @* Just help content without splitter *@
+        <div style="flex: 1; overflow-y: auto;">
+            @RenderHelpContent()
+        </div>
+    }
 </div>
 
 @code {
@@ -130,8 +82,75 @@
 
     private bool ShowTOC { get; set; } = true;
     private string SearchQuery { get; set; } = "";
+    private string _splitterKey = Guid.NewGuid().ToString();
 
-    private void ToggleTOC() => ShowTOC = !ShowTOC;
+    private void ToggleTOC()
+    {
+        ShowTOC = !ShowTOC;
+        // Generate new key to force re-creation of the splitter when toggling
+        _splitterKey = Guid.NewGuid().ToString();
+    }
+
+    private RenderFragment RenderHelpContent() => __builder =>
+    {
+        <div class="red-ui-sidebar-help-content" style="height: 100%; overflow-y: auto; padding: 10px;">
+            <div class="red-ui-help">
+                @if (HelpContent != null)
+                {
+                    @HelpContent
+                }
+                else if (!string.IsNullOrEmpty(SelectedNodeType))
+                {
+                    <h3 style="margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px;">@SelectedNodeType</h3>
+                    @if (!string.IsNullOrEmpty(HelpSummary))
+                    {
+                        <p>@HelpSummary</p>
+                    }
+                    @if (HelpInputs?.Count > 0)
+                    {
+                        <h4>Inputs</h4>
+                        <dl class="message-properties">
+                            @foreach (var input in HelpInputs)
+                            {
+                                <dt>@input.Name <span class="property-type">@input.Type</span></dt>
+                                <dd>@input.Description</dd>
+                            }
+                        </dl>
+                    }
+                    @if (HelpOutputs?.Count > 0)
+                    {
+                        <h4>Outputs</h4>
+                        <dl class="message-properties">
+                            @foreach (var output in HelpOutputs)
+                            {
+                                <dt>@output.Name <span class="property-type">@output.Type</span></dt>
+                                <dd>@output.Description</dd>
+                            }
+                        </dl>
+                    }
+                    @if (!string.IsNullOrEmpty(HelpDetails))
+                    {
+                        <h4>Details</h4>
+                        <p style="white-space: pre-wrap;">@HelpDetails</p>
+                    }
+                    @if (HelpReferences?.Count > 0)
+                    {
+                        <h4>References</h4>
+                        <ul>
+                            @foreach (var reference in HelpReferences)
+                            {
+                                <li><a href="@reference.Url" target="_blank">@reference.Title</a></li>
+                            }
+                        </ul>
+                    }
+                }
+                else
+                {
+                    <span class="red-ui-help-info-none">Select a node type to view help</span>
+                }
+            </div>
+        </div>
+    };
 
     private void OnSearchInput(InputEventArgs args)
     {
