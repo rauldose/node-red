@@ -45,6 +45,20 @@ public interface IFlowRuntime
     Task DeployAsync(Workspace workspace, DeployType deployType = DeployType.Full);
 
     /// <summary>
+    /// Deploys changes to the flows with version conflict detection.
+    /// </summary>
+    /// <param name="workspace">The updated workspace.</param>
+    /// <param name="deployType">Type of deployment (full, flows, nodes).</param>
+    /// <param name="expectedRevision">The revision the client expects. If provided and doesn't match, throws VersionConflictException.</param>
+    /// <returns>The new revision after deployment.</returns>
+    Task<string> DeployWithRevisionAsync(Workspace workspace, DeployType deployType = DeployType.Full, string? expectedRevision = null);
+
+    /// <summary>
+    /// Gets the current workspace revision.
+    /// </summary>
+    string? GetCurrentRevision();
+
+    /// <summary>
     /// Injects a message into a specific node.
     /// </summary>
     /// <param name="nodeId">The target node ID.</param>

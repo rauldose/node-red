@@ -63,6 +63,18 @@ public abstract class NodeBase : INode
     protected IContextAccessor Global => new ContextAccessor(_context!, ContextScope.Global);
 
     /// <summary>
+    /// Access to node-level context storage.
+    /// </summary>
+    protected IContextAccessor Node => new ContextAccessor(_context!, ContextScope.Node);
+
+    /// <summary>
+    /// Gets an environment variable value.
+    /// </summary>
+    /// <param name="name">The environment variable name.</param>
+    /// <returns>The environment variable value or null.</returns>
+    protected object? GetEnv(string name) => _context?.GetEnv(name);
+
+    /// <summary>
     /// Delegate for sending messages to output ports.
     /// </summary>
     /// <param name="port">Output port index (0-based)</param>
@@ -349,7 +361,8 @@ public enum SdkStatusShape
 public enum ContextScope
 {
     Flow,
-    Global
+    Global,
+    Node
 }
 
 /// <summary>
@@ -374,16 +387,28 @@ internal class ContextAccessor : IContextAccessor
         _scope = scope;
     }
 
-    public T? Get<T>(string key) => _scope == ContextScope.Flow
-        ? _context.GetFlowContext<T>(key)
-        : _context.GetGlobalContext<T>(key);
+    public T? Get<T>(string key) => _scope switch
+    {
+        ContextScope.Flow => _context.GetFlowContext<T>(key),
+        ContextScope.Global => _context.GetGlobalContext<T>(key),
+        ContextScope.Node => _context.GetNodeContext<T>(key),
+        _ => default
+    };
 
     public void Set<T>(string key, T value)
     {
-        if (_scope == ContextScope.Flow)
-            _context.SetFlowContext(key, value);
-        else
-            _context.SetGlobalContext(key, value);
+        switch (_scope)
+        {
+            case ContextScope.Flow:
+                _context.SetFlowContext(key, value);
+                break;
+            case ContextScope.Global:
+                _context.SetGlobalContext(key, value);
+                break;
+            case ContextScope.Node:
+                _context.SetNodeContext(key, value);
+                break;
+        }
     }
 
     public object? Get(string key) => Get<object>(key);

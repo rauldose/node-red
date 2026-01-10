@@ -14,17 +14,22 @@ public class NodeContext : INodeContext
 {
     private readonly FlowExecutor _executor;
     private readonly string _flowId;
+    private readonly string _nodeId;
     private readonly Dictionary<string, object?> _flowContext;
     private readonly Dictionary<string, object?> _globalContext;
+    private readonly Dictionary<string, object?> _nodeContext = new();
+    private NodeMessage? _currentMessage;
 
     public NodeContext(
         FlowExecutor executor,
         string flowId,
+        string nodeId,
         Dictionary<string, object?> flowContext,
         Dictionary<string, object?> globalContext)
     {
         _executor = executor;
         _flowId = flowId;
+        _nodeId = nodeId;
         _flowContext = flowContext;
         _globalContext = globalContext;
     }
@@ -40,8 +45,21 @@ public class NodeContext : INodeContext
     {
         if (error != null)
         {
-            _executor.HandleNodeError(nodeId, error);
+            _executor.HandleNodeError(nodeId, error, _currentMessage);
         }
+        else if (_currentMessage != null)
+        {
+            // Notify complete nodes
+            _executor.NotifyCompleteNodes(nodeId, _currentMessage);
+        }
+    }
+
+    /// <summary>
+    /// Sets the current message being processed (for complete node tracking).
+    /// </summary>
+    public void SetCurrentMessage(NodeMessage msg)
+    {
+        _currentMessage = msg;
     }
 
     /// <inheritdoc />
@@ -86,5 +104,51 @@ public class NodeContext : INodeContext
     public void SetGlobalContext<T>(string key, T value)
     {
         _globalContext[key] = value;
+    }
+
+    /// <summary>
+    /// Gets a value from the node-level context.
+    /// </summary>
+    public T? GetNodeContext<T>(string key)
+    {
+        if (_nodeContext.TryGetValue(key, out var value) && value is T typedValue)
+        {
+            return typedValue;
+        }
+        return default;
+    }
+
+    /// <summary>
+    /// Sets a value in the node-level context.
+    /// </summary>
+    public void SetNodeContext<T>(string key, T value)
+    {
+        _nodeContext[key] = value;
+    }
+
+    /// <summary>
+    /// Gets an environment variable value.
+    /// </summary>
+    public object? GetEnv(string name)
+    {
+        // Check flow environment variables first
+        var flowNode = _executor.GetNode(_nodeId);
+        if (flowNode?.Config?.Config.TryGetValue("env", out var envObj) == true)
+        {
+            if (envObj is Dictionary<string, object?> envDict && envDict.TryGetValue(name, out var value))
+            {
+                return value;
+            }
+        }
+
+        // Return built-in environment variables
+        return name switch
+        {
+            "NR_NODE_ID" => _nodeId,
+            "NR_NODE_NAME" => flowNode?.Config?.Name ?? _nodeId,
+            "NR_FLOW_ID" => _flowId,
+            "NR_FLOW_NAME" => _flowId, // Would need flow reference for actual name
+            _ => null
+        };
     }
 }
