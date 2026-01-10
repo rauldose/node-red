@@ -891,6 +891,9 @@ public partial class Editor : IDisposable
         DiagramConnectors!.Add(connector);
     }
 
+    // Flag to prevent recursive selection when auto-selecting group nodes
+    private bool _isSelectingGroupNodes = false;
+
     private void OnSelectionChanged(Syncfusion.Blazor.Diagram.SelectionChangedEventArgs args)
     {
         if (args.NewValue?.Count > 0 && args.NewValue[0] is Node node)
@@ -900,6 +903,37 @@ public partial class Editor : IDisposable
             SelectedNodeName = node.Annotations?.FirstOrDefault(a => a.ID == "labelAnnotation")?.Content ?? "";
             LoadNodeProperties(node);
             SelectedSidebarTab = 0;
+            
+            // When a group is selected, also select all its contained nodes
+            // This ensures they move together with the group (matching Node-RED JS behavior)
+            if (!_isSelectingGroupNodes && DiagramInstance != null)
+            {
+                // Use AllGroups dictionary for O(1) lookup by node ID (Id == DiagramNodeId)
+                if (AllGroups.TryGetValue(node.ID, out var group) && group.NodeIds.Count > 0 && DiagramNodes != null)
+                {
+                    _isSelectingGroupNodes = true;
+                    try
+                    {
+                        // Build a collection of all nodes to select (group + contained nodes)
+                        var nodesToSelect = new ObservableCollection<IDiagramObject> { node };
+                        foreach (var nodeId in group.NodeIds)
+                        {
+                            var containedNode = DiagramNodes.FirstOrDefault(n => n.ID == nodeId);
+                            if (containedNode != null)
+                            {
+                                nodesToSelect.Add(containedNode);
+                            }
+                        }
+                        
+                        // Select all nodes together
+                        DiagramInstance.Select(nodesToSelect);
+                    }
+                    finally
+                    {
+                        _isSelectingGroupNodes = false;
+                    }
+                }
+            }
         }
         else
         {
@@ -929,10 +963,11 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
-    /// Handles position changes - when a group is moved, move its contained nodes too.
-    /// Note: async void is acceptable here as this is an event handler.
+    /// Handles position changes - updates internal registry when nodes are moved.
+    /// Since contained nodes are auto-selected when a group is selected, they move together
+    /// during the drag operation (matching Node-RED JS behavior).
     /// </summary>
-    private async void OnPositionChanged(PositionChangedEventArgs args)
+    private void OnPositionChanged(PositionChangedEventArgs args)
     {
         try
         {
@@ -943,40 +978,18 @@ public partial class Editor : IDisposable
                     // Update position in central registry
                     UpdateNodePosition(movedNode.ID, movedNode.OffsetX, movedNode.OffsetY);
                     
-                    // Check if this is a group node
-                    var group = Groups.FirstOrDefault(g => g.DiagramNodeId == movedNode.ID);
-                    if (group != null && DiagramNodes != null && group.NodeIds.Count > 0)
+                    // If this is a group node, update group bounds (O(1) lookup)
+                    if (movedNode.ID != null && AllGroups.TryGetValue(movedNode.ID, out var group))
                     {
-                        // Calculate the delta movement
                         var oldNode = args.OldValue?.Nodes?.FirstOrDefault(n => n.ID == movedNode.ID);
                         if (oldNode != null)
                         {
                             double deltaX = movedNode.OffsetX - oldNode.OffsetX;
                             double deltaY = movedNode.OffsetY - oldNode.OffsetY;
                             
-                            // Only move if there's actual movement
-                            if (Math.Abs(deltaX) > 0.001 || Math.Abs(deltaY) > 0.001)
-                            {
-                                // Move all nodes that belong to this group
-                                foreach (var nodeId in group.NodeIds)
-                                {
-                                    var node = DiagramNodes.FirstOrDefault(n => n.ID == nodeId);
-                                    if (node != null)
-                                    {
-                                        node.OffsetX += deltaX;
-                                        node.OffsetY += deltaY;
-                                        // Also update in registry
-                                        UpdateNodePosition(nodeId, node.OffsetX, node.OffsetY);
-                                    }
-                                }
-                                
-                                // Update group position info
-                                group.X += deltaX;
-                                group.Y += deltaY;
-                                
-                                // Force diagram to refresh and show updated positions
-                                await InvokeAsync(StateHasChanged);
-                            }
+                            // Update group position info
+                            group.X += deltaX;
+                            group.Y += deltaY;
                         }
                     }
                 }
@@ -3303,6 +3316,7 @@ public partial class Editor : IDisposable
             {
                 Id = groupId,
                 Name = groupName,
+                FlowId = CurrentFlowId,
                 NodeCount = selectedNodes.Count,
                 NodeIds = nodeIds,
                 Color = "#FFCCCC",
@@ -3314,6 +3328,7 @@ public partial class Editor : IDisposable
             };
             
             Groups.Add(newGroup);
+            AllGroups[groupId] = newGroup; // Add to central registry
             
             DebugMessages.Add(new DebugMessage
             {
@@ -3377,6 +3392,7 @@ public partial class Editor : IDisposable
             }
             
             Groups.Remove(groupToRemove);
+            AllGroups.Remove(groupToRemove.Id); // Remove from central registry
             
             DebugMessages.Add(new DebugMessage
             {
@@ -3429,6 +3445,7 @@ public partial class Editor : IDisposable
             }
             
             Groups.Remove(group);
+            AllGroups.Remove(groupId); // Remove from central registry
             DebugMessages.Add(new DebugMessage
             {
                 NodeId = "system",
