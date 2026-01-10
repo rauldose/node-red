@@ -763,12 +763,12 @@
                 else if (tabId == "help")
                 {
                     <RedUiSidebarHelp 
-                        SelectedNodeType="@GetSelectedNodeType()"
-                        HelpSummary="@GetNodeHelp(GetSelectedNodeType())?.Summary"
-                        HelpDetails="@GetNodeHelp(GetSelectedNodeType())?.Details"
-                        HelpInputs="@GetHelpInputs()"
-                        HelpOutputs="@GetHelpOutputs()"
-                        HelpReferences="@GetHelpReferences()"
+                        SelectedNodeType="@GetNodeTypeForHelp()"
+                        HelpSummary="@GetNodeHelp(GetNodeTypeForHelp())?.Summary"
+                        HelpDetails="@GetNodeHelp(GetNodeTypeForHelp())?.Details"
+                        HelpInputs="@GetHelpInputsForHelp()"
+                        HelpOutputs="@GetHelpOutputsForHelp()"
+                        HelpReferences="@GetHelpReferencesForHelp()"
                         Categories="@GetHelpCategories()"
                         OnNodeTypeSelected="@((string type) => SelectNodeTypeForHelp(type))" />
                 }

@@ -47,14 +47,30 @@
 
 ::deep .red-ui-help-treeview .e-list-item {
     padding: 2px 0;
+    background: transparent !important;
 }
 
 ::deep .red-ui-help-treeview .e-list-item .e-text-content {
     padding: 3px 8px;
+    background: transparent;
 }
 
-::deep .red-ui-help-treeview .e-list-item:hover .e-text-content {
-    background: var(--red-ui-list-item-background-hover, #f0f0f0);
+/* Override Syncfusion default hover that affects all items */
+::deep .red-ui-help-treeview .e-list-item .e-fullrow {
+    background: transparent !important;
+}
+
+::deep .red-ui-help-treeview .e-list-item:hover > .e-fullrow {
+    background: var(--red-ui-list-item-background-hover, #f0f0f0) !important;
+}
+
+::deep .red-ui-help-treeview .e-list-item.e-active > .e-fullrow {
+    background: var(--red-ui-list-item-background-selected, #e0e0e0) !important;
+}
+
+/* Disable hover on parent items when hovering child */
+::deep .red-ui-help-treeview .e-list-item:not(:hover) .e-fullrow {
+    background: transparent !important;
 }
 
 /* Tree node custom template */

@@ -95,6 +95,9 @@ public partial class Editor : IDisposable
     // Node statuses (node ID -> status)
     private Dictionary<string, NodeStatus> _nodeStatuses = new();
 
+    // Help tab - selected node type from the tree view
+    private string? _helpSelectedNodeType;
+
     // Cached node definitions for performance
     private List<NodeDefinition>? _cachedNodeDefinitions;
 
@@ -1474,6 +1477,19 @@ public partial class Editor : IDisposable
             return typeObj as string ?? "unknown";
         }
         return "unknown";
+    }
+
+    /// <summary>
+    /// Gets the node type to show help for - uses manually selected type from Help tree, 
+    /// or falls back to the currently selected diagram node's type.
+    /// </summary>
+    private string GetNodeTypeForHelp()
+    {
+        if (!string.IsNullOrEmpty(_helpSelectedNodeType))
+        {
+            return _helpSelectedNodeType;
+        }
+        return GetSelectedNodeType();
     }
 
     private string GetSelectedNodeColor()
@@ -3590,6 +3606,22 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
+    /// Gets help inputs for the Help tab (uses _helpSelectedNodeType)
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpProperty> GetHelpInputsForHelp()
+    {
+        var nodeHelp = GetNodeHelp(GetNodeTypeForHelp());
+        if (nodeHelp?.Inputs == null) return new();
+        
+        return nodeHelp.Inputs.Select(i => new RedUiSidebarHelp.HelpProperty
+        {
+            Name = i.Name,
+            Type = i.Type,
+            Description = i.Description
+        }).ToList();
+    }
+
+    /// <summary>
     /// Gets help outputs formatted for the Help sidebar component
     /// </summary>
     private List<RedUiSidebarHelp.HelpProperty> GetHelpOutputs()
@@ -3606,11 +3638,42 @@ public partial class Editor : IDisposable
     }
 
     /// <summary>
+    /// Gets help outputs for the Help tab (uses _helpSelectedNodeType)
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpProperty> GetHelpOutputsForHelp()
+    {
+        var nodeHelp = GetNodeHelp(GetNodeTypeForHelp());
+        if (nodeHelp?.Outputs == null) return new();
+        
+        return nodeHelp.Outputs.Select(o => new RedUiSidebarHelp.HelpProperty
+        {
+            Name = o.Name,
+            Type = o.Type,
+            Description = o.Description
+        }).ToList();
+    }
+
+    /// <summary>
     /// Gets help references formatted for the Help sidebar component
     /// </summary>
     private List<RedUiSidebarHelp.HelpReference> GetHelpReferences()
     {
         var nodeHelp = GetNodeHelp(GetSelectedNodeType());
+        if (nodeHelp?.References == null) return new();
+        
+        return nodeHelp.References.Select(r => new RedUiSidebarHelp.HelpReference
+        {
+            Title = r.Title,
+            Url = r.Url
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Gets help references for the Help tab (uses _helpSelectedNodeType)
+    /// </summary>
+    private List<RedUiSidebarHelp.HelpReference> GetHelpReferencesForHelp()
+    {
+        var nodeHelp = GetNodeHelp(GetNodeTypeForHelp());
         if (nodeHelp?.References == null) return new();
         
         return nodeHelp.References.Select(r => new RedUiSidebarHelp.HelpReference
@@ -3643,7 +3706,7 @@ public partial class Editor : IDisposable
     /// </summary>
     private void SelectNodeTypeForHelp(string nodeType)
     {
-        // This would select the node type and show its help
+        _helpSelectedNodeType = nodeType;
         StateHasChanged();
     }
 
