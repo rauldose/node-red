@@ -719,26 +719,40 @@
                                 </span>
                             </div>
                         </div>
-
-                        <!-- Property Editor Tray (slides out when double-clicking a node) -->
-                        <RedUiTray IsOpen="@(IsPropertyTrayOpen && SelectedDiagramNode != null)" TrayWidth="350">
-                            <TitleTemplate>
-                                <ul class="red-ui-tray-breadcrumbs">
-                                    <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
-                                </ul>
-                            </TitleTemplate>
-                            <ToolbarTemplate>
-                                <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
-                                <button class="red-ui-button primary" @onclick="SaveAndClosePropertyTray">Done</button>
-                            </ToolbarTemplate>
-                            <ChildContent>
-                                <div class="red-ui-tray-content">
-                                    @RenderNodePropertyPanel()
-                                </div>
-                            </ChildContent>
-                        </RedUiTray>
                     </ContentTemplate>
                 </SplitterPane>
+
+                <!-- Property Editor Tray Pane (appears when double-clicking a node) -->
+                @if (IsPropertyTrayOpen && SelectedDiagramNode != null)
+                {
+                    <SplitterPane Size="350px" Min="300px" Max="500px" CssClass="red-ui-tray-pane">
+                        <ContentTemplate>
+                            <div class="red-ui-tray-inline">
+                                @* Tray header *@
+                                <div class="red-ui-tray-header editor-tray-header">
+                                    <div class="red-ui-tray-titlebar">
+                                        <ul class="red-ui-tray-breadcrumbs">
+                                            <li><i class="fa fa-cube"></i> Edit @GetSelectedNodeType() node</li>
+                                        </ul>
+                                    </div>
+                                    <div class="red-ui-tray-toolbar">
+                                        <button class="red-ui-button" @onclick="ClosePropertyTray">Cancel</button>
+                                        <button class="red-ui-button primary" @onclick="SaveAndClosePropertyTray">Done</button>
+                                    </div>
+                                </div>
+                                
+                                @* Tray body *@
+                                <div class="red-ui-tray-body-wrapper">
+                                    <div class="red-ui-tray-body editor-tray-body">
+                                        <div class="red-ui-tray-content">
+                                            @RenderNodePropertyPanel()
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </ContentTemplate>
+                    </SplitterPane>
+                }
 
                 <!-- Sidebar Pane (collapsible) -->
                 <SplitterPane Size="315px" Min="200px" Max="500px" Collapsible="true" CssClass="red-ui-sidebar-pane">

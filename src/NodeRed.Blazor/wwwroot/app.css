@@ -156,3 +156,67 @@ h1:focus {
     height: 100%;
     width: 100%;
 }
+
+/* ============================================= */
+/* Inline Tray Pane Styling                     */
+/* ============================================= */
+
+.red-ui-tray-pane {
+    background: #fff;
+}
+
+.red-ui-tray-inline {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-left: 1px solid #bbb;
+}
+
+.red-ui-tray-inline .red-ui-tray-header {
+    background: #f7f7f7;
+    border-bottom: 1px solid #ddd;
+}
+
+.red-ui-tray-inline .red-ui-tray-titlebar {
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+    font-weight: bold;
+    color: #444;
+}
+
+.red-ui-tray-inline .red-ui-tray-toolbar {
+    padding: 6px 10px;
+    text-align: right;
+    display: flex;
+    justify-content: flex-end;
+    gap: 5px;
+}
+
+.red-ui-tray-inline .red-ui-tray-body-wrapper {
+    flex: 1;
+    overflow: auto;
+}
+
+.red-ui-tray-inline .red-ui-tray-body {
+    padding: 0.1px;
+}
+
+.red-ui-tray-inline .red-ui-tray-content {
+    padding: 10px 20px;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li {
+    display: inline-block;
+}
+
+.red-ui-tray-inline ul.red-ui-tray-breadcrumbs li i {
+    margin-right: 5px;
+    color: #888;
+}
