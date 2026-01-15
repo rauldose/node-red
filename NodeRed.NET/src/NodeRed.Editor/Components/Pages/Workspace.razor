@@ -1,0 +1,314 @@
+@page "/workspace"
+@using MudBlazor
+@rendermode InteractiveServer
+
+<PageTitle>Node-RED</PageTitle>
+
+<MudThemeProvider Theme="@_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<style>
+    .red-ui-header {
+        background: #8f0000;
+        color: white;
+        height: 40px;
+        padding: 0 20px;
+    }
+    .red-ui-palette {
+        background: #f3f3f3;
+        border-right: 1px solid #ddd;
+        width: 250px;
+    }
+    .red-ui-palette-header {
+        background: #fff;
+        border-bottom: 1px solid #ddd;
+        padding: 12px;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    .red-ui-palette-category {
+        border-bottom: 1px solid #ddd;
+    }
+    .red-ui-palette-category-label {
+        background: #f3f3f3;
+        padding: 6px 12px;
+        font-size: 12px;
+        color: #666;
+        font-weight: 600;
+        cursor: pointer;
+        user-select: none;
+    }
+    .red-ui-palette-category-label:hover {
+        background: #ececec;
+    }
+    .red-ui-palette-node {
+        background: #fff;
+        border: 1px solid #999;
+        border-radius: 5px;
+        margin: 8px;
+        padding: 8px;
+        cursor: move;
+        font-size: 13px;
+    }
+    .red-ui-workspace {
+        background: #e3e3e3;
+        position: relative;
+        height: 100%;
+    }
+    .red-ui-node {
+        background: #dfc47d;
+        border: 1px solid #998  ;
+        border-radius: 5px;
+        padding: 10px;
+        min-width: 150px;
+        position: absolute;
+        cursor: move;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.15);
+    }
+    .red-ui-node-label {
+        font-size: 14px;
+        color: #000;
+        font-weight: 500;
+    }
+    .red-ui-node-type {
+        font-size: 10px;
+        color: #555;
+    }
+    .red-ui-port {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border: 1px solid #999;
+        background: #dfc47d;
+        border-radius: 2px;
+        cursor: crosshair;
+    }
+    .red-ui-port-input {
+        left: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    .red-ui-port-output {
+        right: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    .red-ui-sidebar {
+        background: #fff;
+        border-top: 1px solid #ddd;
+        height: 250px;
+    }
+    .red-ui-tab-button {
+        background: #f3f3f3;
+        border: none;
+        padding: 8px 16px;
+        cursor: pointer;
+        border-right: 1px solid #ddd;
+        font-size: 13px;
+    }
+    .red-ui-tab-button.active {
+        background: #fff;
+        font-weight: 600;
+    }
+    .red-ui-debug-message {
+        padding: 8px 12px;
+        border-bottom: 1px solid #eee;
+        font-family: monospace;
+        font-size: 12px;
+    }
+    .red-ui-deploy-button {
+        background: #8f0000;
+        color: white;
+        border: none;
+        padding: 6px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        margin-left: 12px;
+    }
+    .red-ui-deploy-button:hover {
+        background: #700000;
+    }
+</style>
+
+<div style="display: flex; flex-direction: column; height: 100vh; overflow: hidden;">
+    <!-- Header -->
+    <div class="red-ui-header" style="display: flex; align-items: center;">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Size="Size.Small" />
+        <MudText Typo="Typo.h6" Style="margin: 0 20px; font-size: 18px;">Node-RED</MudText>
+        <MudSpacer />
+        <button class="red-ui-deploy-button">Deploy</button>
+    </div>
+    
+    <!-- Main content area -->
+    <div style="display: flex; flex: 1; overflow: hidden;">
+        <!-- Palette -->
+        <div class="red-ui-palette">
+            <div class="red-ui-palette-header">
+                <MudIcon Icon="@Icons.Material.Filled.ViewModule" Size="Size.Small" Style="vertical-align: middle; margin-right: 8px;" />
+                node palette
+            </div>
+            
+            <div class="red-ui-palette-category">
+                <div class="red-ui-palette-category-label">
+                    <MudIcon Icon="@Icons.Material.Filled.ExpandMore" Size="Size.Small" Style="vertical-align: middle;" />
+                    common
+                </div>
+                <div class="red-ui-palette-node" style="background: #f6c891; border-color: #e9b96e;">
+                    <div style="font-weight: 500;">inject</div>
+                </div>
+                <div class="red-ui-palette-node" style="background: #87d68d; border-color: #6fc74a;">
+                    <div style="font-weight: 500;">debug</div>
+                </div>
+            </div>
+            
+            <div class="red-ui-palette-category">
+                <div class="red-ui-palette-category-label">
+                    <MudIcon Icon="@Icons.Material.Filled.ExpandMore" Size="Size.Small" Style="vertical-align: middle;" />
+                    function
+                </div>
+                <div class="red-ui-palette-node" style="background: #e7e7ae; border-color: #d1d186;">
+                    <div style="font-weight: 500;">function</div>
+                </div>
+                <div class="red-ui-palette-node" style="background: #e7e7ae; border-color: #d1d186;">
+                    <div style="font-weight: 500;">change</div>
+                </div>
+                <div class="red-ui-palette-node" style="background: #e7e7ae; border-color: #d1d186;">
+                    <div style="font-weight: 500;">switch</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Workspace -->
+        <div style="flex: 1; display: flex; flex-direction: column;">
+            <div class="red-ui-workspace">
+                @if (_demoNodes.Any())
+                {
+                    <!-- Demo inject node -->
+                    <div class="red-ui-node" style="top: 100px; left: 100px; background: #f6c891; border-color: #e9b96e;">
+                        <div class="red-ui-node-type">inject</div>
+                        <div class="red-ui-node-label">timestamp</div>
+                        <div class="red-ui-port red-ui-port-output"></div>
+                    </div>
+                    
+                    <!-- Demo debug node -->
+                    <div class="red-ui-node" style="top: 100px; left: 320px; background: #87d68d; border-color: #6fc74a;">
+                        <div class="red-ui-node-port red-ui-port-input"></div>
+                        <div class="red-ui-node-type">debug</div>
+                        <div class="red-ui-node-label">msg.payload</div>
+                    </div>
+                    
+                    <!-- Wire connecting the nodes -->
+                    <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                        <path d="M 262 126 C 292 126 292 126 320 126" stroke="#999" stroke-width="2" fill="none" />
+                    </svg>
+                }
+            </div>
+            
+            <!-- Sidebar (bottom panel) -->
+            <div class="red-ui-sidebar">
+                <div style="display: flex; border-bottom: 1px solid #ddd;">
+                    <button class="red-ui-tab-button @(_activeTab == "info" ? "active" : "")" @onclick='() => _activeTab = "info"'>
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Style="vertical-align: middle; margin-right: 4px;" />
+                        Information
+                    </button>
+                    <button class="red-ui-tab-button @(_activeTab == "debug" ? "active" : "")" @onclick='() => _activeTab = "debug"'>
+                        <MudIcon Icon="@Icons.Material.Filled.BugReport" Size="Size.Small" Style="vertical-align: middle; margin-right: 4px;" />
+                        Debug messages
+                    </button>
+                </div>
+                
+                <div style="padding: 12px; overflow-y: auto; height: calc(100% - 40px);">
+                    @if (_activeTab == "info")
+                    {
+                        <div style="font-size: 13px;">
+                            <div style="margin-bottom: 12px;">
+                                <strong>Node-RED</strong>
+                            </div>
+                            <div style="color: #666;">
+                                Select a node to view its information
+                            </div>
+                        </div>
+                    }
+                    else if (_activeTab == "debug")
+                    {
+                        @if (_debugMessages.Any())
+                        {
+                            @foreach (var msg in _debugMessages)
+                            {
+                                <div class="red-ui-debug-message">
+                                    <div style="color: #999; font-size: 11px; margin-bottom: 4px;">
+                                        @msg.Timestamp.ToString("dd/MM/yyyy HH:mm:ss")
+                                    </div>
+                                    <div>@msg.Message</div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div style="color: #999; font-size: 13px;">
+                                No debug messages
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _activeTab = "info";
+    private List<DemoNode> _demoNodes = new() 
+    { 
+        new DemoNode { Type = "inject", Label = "timestamp" },
+        new DemoNode { Type = "debug", Label = "msg.payload" }
+    };
+    
+    private List<DebugMessage> _debugMessages = new()
+    {
+        new DebugMessage { Timestamp = DateTimeOffset.Now, Message = "[ msg.payload : string ] \"Welcome to Node-RED!\"" }
+    };
+
+    private MudTheme _theme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#8f0000",
+            AppbarBackground = "#8f0000",
+        }
+    };
+
+    private void CreateGroup()
+    {
+        _debugMessages.Add(new DebugMessage 
+        { 
+            Timestamp = DateTimeOffset.Now, 
+            Message = "[ msg ] object: { payload: \"Group created\" }" 
+        });
+    }
+
+    private void CreateSubflow()
+    {
+        _debugMessages.Add(new DebugMessage 
+        { 
+            Timestamp = DateTimeOffset.Now, 
+            Message = "[ msg ] object: { payload: \"Subflow created\" }" 
+        });
+    }
+
+    private class DemoNode
+    {
+        public string Type { get; set; } = "";
+        public string Label { get; set; } = "";
+    }
+    
+    private class DebugMessage
+    {
+        public DateTimeOffset Timestamp { get; set; }
+        public string Message { get; set; } = "";
+    }
+}

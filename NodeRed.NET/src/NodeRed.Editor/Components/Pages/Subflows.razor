@@ -1,0 +1,227 @@
+@page "/subflows"
+@using MudBlazor
+@rendermode InteractiveServer
+
+<PageTitle>Subflows - NodeRed.NET</PageTitle>
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Subflows</MudText>
+    <MudText Typo="Typo.body1" Class="mb-4">
+        Subflows are reusable flow components that can be instantiated multiple times. They act like functions with inputs and outputs.
+    </MudText>
+
+    <MudPaper Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_newSubflowName" Label="Subflow Name" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect @bind-Value="_newSubflowCategory" Label="Category" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("common")">Common</MudSelectItem>
+                    <MudSelectItem Value="@("function")">Function</MudSelectItem>
+                    <MudSelectItem Value="@("network")">Network</MudSelectItem>
+                    <MudSelectItem Value="@("storage")">Storage</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateSubflow" FullWidth="true">
+                    Create Subflow
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable Items="@_subflows" Hover="true" Breakpoint="Breakpoint.Sm" class="mb-4">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Category</MudTh>
+            <MudTh>Inputs</MudTh>
+            <MudTh>Outputs</MudTh>
+            <MudTh>Instances</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">
+                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />
+                @context.Name
+            </MudTd>
+            <MudTd DataLabel="Category">
+                <MudChip T="string" Size="Size.Small" Color="Color.Info">@context.Category</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Inputs">@context.Inputs</MudTd>
+            <MudTd DataLabel="Outputs">@context.Outputs</MudTd>
+            <MudTd DataLabel="Instances">@context.InstanceCount</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="() => EditSubflow(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" Color="Color.Secondary" OnClick="() => DuplicateSubflow(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Success" OnClick="() => ExportSubflow(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteSubflow(context)" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    <MudDivider Class="my-4" />
+
+    <MudText Typo="Typo.h5" Class="mb-4">Subflow Capabilities</MudText>
+    <MudGrid>
+        <MudItem xs="12" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Recycling" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
+                    <MudText Typo="Typo.h6">Reusability</MudText>
+                    <MudText Typo="Typo.body2">
+                        Create once, use multiple times across different flows
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Input" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                    <MudText Typo="Typo.h6">Input/Output Ports</MudText>
+                    <MudText Typo="Typo.body2">
+                        Define multiple inputs and outputs like a function
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Tertiary" Class="mb-2" />
+                    <MudText Typo="Typo.h6">Encapsulation</MudText>
+                    <MudText Typo="Typo.body2">
+                        Hide implementation details, expose clean interface
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Share" Size="Size.Large" Color="Color.Success" Class="mb-2" />
+                    <MudText Typo="Typo.h6">Shareable</MudText>
+                    <MudText Typo="Typo.body2">
+                        Export and share subflows with other developers
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <MudDivider Class="my-4" />
+
+    <MudText Typo="Typo.h6" Class="mb-2">Example: HTTP Request Handler Subflow</MudText>
+    <MudPaper Class="pa-4" Style="background-color: #f5f5f5;">
+        <pre style="margin: 0; font-family: monospace; font-size: 0.875rem;">
+{
+  "type": "subflow",
+  "name": "HTTP Request Handler",
+  "info": "Handles HTTP requests with error handling and logging",
+  "in": [{"x": 50, "y": 50}],
+  "out": [
+    {"x": 450, "y": 40, "wires": []},  // Success output
+    {"x": 450, "y": 80, "wires": []}   // Error output
+  ],
+  "category": "network",
+  "color": "#7FC7FF"
+}
+        </pre>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string _newSubflowName = "";
+    private string _newSubflowCategory = "common";
+    private List<SubflowInfo> _subflows = new();
+
+    protected override void OnInitialized()
+    {
+        // Sample subflows
+        _subflows = new List<SubflowInfo>
+        {
+            new SubflowInfo 
+            { 
+                Name = "HTTP Request Handler", 
+                Category = "network", 
+                Inputs = 1, 
+                Outputs = 2, 
+                InstanceCount = 5 
+            },
+            new SubflowInfo 
+            { 
+                Name = "Data Validator", 
+                Category = "function", 
+                Inputs = 1, 
+                Outputs = 2, 
+                InstanceCount = 3 
+            },
+            new SubflowInfo 
+            { 
+                Name = "Error Logger", 
+                Category = "common", 
+                Inputs = 1, 
+                Outputs = 1, 
+                InstanceCount = 8 
+            }
+        };
+    }
+
+    private void CreateSubflow()
+    {
+        if (!string.IsNullOrWhiteSpace(_newSubflowName))
+        {
+            _subflows.Add(new SubflowInfo
+            {
+                Name = _newSubflowName,
+                Category = _newSubflowCategory,
+                Inputs = 1,
+                Outputs = 1,
+                InstanceCount = 0
+            });
+            _newSubflowName = "";
+        }
+    }
+
+    private void EditSubflow(SubflowInfo subflow)
+    {
+        // In full implementation, would open subflow editor
+    }
+
+    private void DuplicateSubflow(SubflowInfo subflow)
+    {
+        _subflows.Add(new SubflowInfo
+        {
+            Name = $"{subflow.Name} (Copy)",
+            Category = subflow.Category,
+            Inputs = subflow.Inputs,
+            Outputs = subflow.Outputs,
+            InstanceCount = 0
+        });
+    }
+
+    private void ExportSubflow(SubflowInfo subflow)
+    {
+        // In full implementation, would export as JSON
+    }
+
+    private void DeleteSubflow(SubflowInfo subflow)
+    {
+        _subflows.Remove(subflow);
+    }
+
+    private class SubflowInfo
+    {
+        public string Name { get; set; } = "";
+        public string Category { get; set; } = "";
+        public int Inputs { get; set; }
+        public int Outputs { get; set; }
+        public int InstanceCount { get; set; }
+    }
+}

@@ -1,0 +1,143 @@
+@page "/groups"
+@using MudBlazor
+@rendermode InteractiveServer
+
+<PageTitle>Groups - NodeRed.NET</PageTitle>
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Flow Groups</MudText>
+    <MudText Typo="Typo.body1" Class="mb-4">
+        Groups help organize nodes visually and logically on the canvas. They can contain multiple nodes and support nesting.
+    </MudText>
+
+    <MudPaper Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="_newGroupName" Label="Group Name" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateGroup" FullWidth="true">
+                    Create Group
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudTable Items="@_groups" Hover="true" Breakpoint="Breakpoint.Sm" class="mb-4">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Nodes</MudTh>
+            <MudTh>Size</MudTh>
+            <MudTh>Parent</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">
+                <MudIcon Icon="@Icons.Material.Filled.Folder" Class="mr-2" />
+                @context.Name
+            </MudTd>
+            <MudTd DataLabel="Nodes">@context.NodeCount nodes</MudTd>
+            <MudTd DataLabel="Size">@context.Width x @context.Height</MudTd>
+            <MudTd DataLabel="Parent">@(context.ParentGroup ?? "None")</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="() => EditGroup(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="() => DeleteGroup(context)" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    <MudDivider Class="my-4" />
+
+    <MudText Typo="Typo.h5" Class="mb-4">Group Features</MudText>
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.GroupWork" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
+                    <MudText Typo="Typo.h6">Visual Organization</MudText>
+                    <MudText Typo="Typo.body2">
+                        Group related nodes together for better flow visualization and understanding
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Layers" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                    <MudText Typo="Typo.h6">Nested Groups</MudText>
+                    <MudText Typo="Typo.body2">
+                        Create hierarchical structures by nesting groups within other groups
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudCard>
+                <MudCardContent>
+                    <MudIcon Icon="@Icons.Material.Filled.Settings" Size="Size.Large" Color="Color.Tertiary" Class="mb-2" />
+                    <MudText Typo="Typo.h6">Environment Variables</MudText>
+                    <MudText Typo="Typo.body2">
+                        Set shared environment variables for all nodes within a group
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private string _newGroupName = "";
+    private List<GroupInfo> _groups = new();
+
+    protected override void OnInitialized()
+    {
+        // Sample groups
+        _groups = new List<GroupInfo>
+        {
+            new GroupInfo { Name = "Data Processing", NodeCount = 5, Width = 400, Height = 300, ParentGroup = null },
+            new GroupInfo { Name = "API Handlers", NodeCount = 3, Width = 350, Height = 250, ParentGroup = null },
+            new GroupInfo { Name = "Error Handling", NodeCount = 2, Width = 300, Height = 200, ParentGroup = "Data Processing" }
+        };
+    }
+
+    private void CreateGroup()
+    {
+        if (!string.IsNullOrWhiteSpace(_newGroupName))
+        {
+            _groups.Add(new GroupInfo
+            {
+                Name = _newGroupName,
+                NodeCount = 0,
+                Width = 300,
+                Height = 200,
+                ParentGroup = null
+            });
+            _newGroupName = "";
+        }
+    }
+
+    private void EditGroup(GroupInfo group)
+    {
+        // In full implementation, would open edit dialog
+    }
+
+    private void DeleteGroup(GroupInfo group)
+    {
+        _groups.Remove(group);
+    }
+
+    private class GroupInfo
+    {
+        public string Name { get; set; } = "";
+        public int NodeCount { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
+        public string? ParentGroup { get; set; }
+    }
+}

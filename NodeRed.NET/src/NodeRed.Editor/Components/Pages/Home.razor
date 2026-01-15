@@ -1,0 +1,13 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager Navigation
+
+<PageTitle>NodeRed.NET</PageTitle>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Redirect to workspace on load
+        Navigation.NavigateTo("/workspace");
+    }
+}
