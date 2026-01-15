@@ -1,0 +1,615 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/red.js
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/main.js
+   ============================================================
+   ORIGINAL CODE (red.js lines 931-956):
+   ------------------------------------------------------------
+   function init(options) {
+       if (initialised) {
+           throw new Error("RED already initialised");
+       }
+       initialised = true;
+       if(window.ace) { window.ace.require("ace/ext/language_tools"); }
+       options = options || {};
+       options.apiRootUrl = options.apiRootUrl || "";
+       if (options.apiRootUrl && !/\/$/.test(options.apiRootUrl)) {
+           options.apiRootUrl = options.apiRootUrl+"/";
+       }
+       options.target = $("#red-ui-editor");
+       options.target.addClass("red-ui-editor");
+
+       buildEditor(options);
+
+       RED.i18n.init(options, function() {
+           RED.settings.init(options, function() {
+               if (knownThemes) {
+                   RED.settings.editorTheme = RED.settings.editorTheme || {};
+                   RED.settings.editorTheme.themes = knownThemes;
+               }
+               loadEditor();
+           });
+       })
+   }
+   ------------------------------------------------------------
+   TRANSLATION:
+   This Blazor component translates the RED.init() and buildEditor() functions.
+   - jQuery DOM manipulation → Blazor component rendering
+   - $.getJSON() → HttpClient with async/await
+   - Event subscriptions → Component lifecycle events
+   ============================================================ *@
+
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+@using NodeRed.Editor.Services
+@inject EditorState State
+@inject IEditorComms Comms
+@inject HttpClient Http
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div id="red-ui-editor" class="red-ui-editor">
+    @* Header *@
+    <div id="red-ui-header">
+        <span class="red-ui-header-logo">
+            @if (!string.IsNullOrEmpty(State.Theme?.Header?.Image))
+            {
+                <a href="@(State.Theme?.Header?.Url ?? "#")">
+                    <img src="@State.Theme.Header.Image" alt="Logo" />
+                    @if (!string.IsNullOrEmpty(State.Theme?.Header?.Title))
+                    {
+                        <span>@State.Theme.Header.Title</span>
+                    }
+                </a>
+            }
+            else
+            {
+                <span>Node-RED.NET</span>
+            }
+        </span>
+        <ul class="red-ui-header-toolbar @(IsLoading ? "hide" : "")">
+            @* Deploy button - translated from ui/deploy.js *@
+            <li>
+                <DeployButton OnDeploy="HandleDeploy" />
+            </li>
+            @* Menu button - translated from main.js buildMainMenu() *@
+            <li>
+                <a id="red-ui-header-button-sidemenu" class="button" @onclick="ToggleMenu">
+                    <i class="fa fa-bars"></i>
+                </a>
+            </li>
+        </ul>
+        <div id="red-ui-header-shade" class="@(ShowHeaderShade ? "" : "hide")"></div>
+    </div>
+
+    @* Main container - translated from buildEditor() *@
+    <div id="red-ui-main-container" class="@(SidebarClosed ? "red-ui-sidebar-closed" : "") @(IsLoading ? "hide" : "")">
+        @* Loading progress - translated from loader object *@
+        @if (IsLoading)
+        {
+            <Loader Progress="@LoadingProgress" Message="@LoadingMessage" />
+        }
+
+        @* Workspace area *@
+        <div id="red-ui-workspace">
+            <Workspaces @ref="workspacesRef" />
+        </div>
+
+        @* Editor stack for tray dialogs *@
+        <div id="red-ui-editor-stack" tabindex="-1">
+            <EditorTray @ref="editorTrayRef" />
+        </div>
+
+        @* Palette panel *@
+        <div id="red-ui-palette">
+            <Palette @ref="paletteRef" />
+        </div>
+
+        @* Sidebar panel *@
+        <div id="red-ui-sidebar">
+            <Sidebar @ref="sidebarRef" />
+        </div>
+
+        <div id="red-ui-sidebar-separator"></div>
+    </div>
+
+    @* Plugin and node configs *@
+    <div id="red-ui-editor-plugin-configs"></div>
+    <div id="red-ui-editor-node-configs"></div>
+
+    @* Full shade overlay *@
+    <div id="red-ui-full-shade" class="@(ShowFullShade ? "" : "hide")"></div>
+</div>
+
+@* Context menu component *@
+<ContextMenu @ref="contextMenuRef" />
+
+@* Notifications component *@
+<Notifications @ref="notificationsRef" />
+
+@code {
+    // ============================================================
+    // MAPPING NOTES:
+    // - var initialised = false → private bool _initialized
+    // - options.apiRootUrl → ApiRootUrl parameter
+    // - loader.start/end → IsLoading, LoadingProgress, LoadingMessage
+    // - RED.comms.subscribe → Comms.Subscribe()
+    // - $.ajax() → Http.GetFromJsonAsync()
+    // ============================================================
+
+    [Parameter]
+    public string ApiRootUrl { get; set; } = "";
+
+    private bool _initialized = false;
+    private bool IsLoading = true;
+    private int LoadingProgress = 0;
+    private string LoadingMessage = "...";
+    private bool SidebarClosed = true;
+    private bool ShowHeaderShade = false;
+    private bool ShowFullShade = false;
+
+    // Component references
+    private Workspaces? workspacesRef;
+    private EditorTray? editorTrayRef;
+    private Palette? paletteRef;
+    private Sidebar? sidebarRef;
+    private ContextMenu? contextMenuRef;
+    private Notifications? notificationsRef;
+
+    // Subscriptions for cleanup
+    private List<IDisposable> _subscriptions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Translated from init() check
+        if (_initialized)
+        {
+            throw new InvalidOperationException("RED already initialised");
+        }
+        _initialized = true;
+
+        // Normalize API root URL (translated from options.apiRootUrl handling)
+        if (!string.IsNullOrEmpty(ApiRootUrl) && !ApiRootUrl.EndsWith("/"))
+        {
+            ApiRootUrl += "/";
+        }
+
+        // Start loading sequence - translated from loader.start()
+        ReportProgress("...", 0);
+
+        try
+        {
+            // Load theme - translated from $.getJSON("theme")
+            await LoadThemeAsync();
+
+            // Initialize i18n - translated from RED.i18n.init()
+            await State.I18n.InitAsync(ApiRootUrl);
+
+            // Initialize settings - translated from RED.settings.init()
+            await State.Settings.InitAsync(ApiRootUrl);
+
+            // Load editor - translated from loadEditor()
+            await LoadEditorAsync();
+        }
+        catch (Exception ex)
+        {
+            await ShowNotificationAsync($"Failed to initialize editor: {ex.Message}", "error");
+        }
+    }
+
+    /// <summary>
+    /// Translated from $.getJSON(options.apiRootUrl+"theme", ...)
+    /// </summary>
+    private async Task LoadThemeAsync()
+    {
+        try
+        {
+            State.Theme = await Http.GetFromJsonAsync<ThemeSettings>($"{ApiRootUrl}theme");
+        }
+        catch
+        {
+            // Theme is optional, use defaults
+            State.Theme = new ThemeSettings();
+        }
+    }
+
+    /// <summary>
+    /// Translated from loadEditor() function in red.js lines 838-889
+    /// </summary>
+    private async Task LoadEditorAsync()
+    {
+        // Initialize components - translated from RED.*.init() calls
+        await State.Nodes.InitAsync();
+        await State.Plugins.InitAsync();
+
+        // Connect comms - translated from RED.comms.connect()
+        await Comms.ConnectAsync();
+
+        // Subscribe to notifications - translated from completeLoad() subscriptions
+        SetupSubscriptions();
+
+        // Load plugins - translated from loadPluginList()
+        await LoadPluginListAsync();
+    }
+
+    /// <summary>
+    /// Translated from loadPluginList() function
+    /// </summary>
+    private async Task LoadPluginListAsync()
+    {
+        ReportProgress(State.I18n.Translate("event.loadPlugins"), 10);
+
+        try
+        {
+            var plugins = await Http.GetFromJsonAsync<List<PluginInfo>>($"{ApiRootUrl}plugins");
+            State.Plugins.SetPluginList(plugins ?? new List<PluginInfo>());
+
+            ReportProgress(State.I18n.Translate("event.loadPlugins"), 13);
+
+            // Load plugin catalogs
+            await State.I18n.LoadPluginCatalogsAsync();
+
+            // Load plugins HTML
+            await LoadPluginsAsync();
+
+            // Then load node list
+            await LoadNodeListAsync();
+        }
+        catch (Exception ex)
+        {
+            await ShowNotificationAsync($"Failed to load plugins: {ex.Message}", "error");
+        }
+    }
+
+    /// <summary>
+    /// Translated from loadPlugins() function
+    /// </summary>
+    private async Task LoadPluginsAsync()
+    {
+        ReportProgress(State.I18n.Translate("event.loadPlugins", new { count = "" }), 17);
+
+        try
+        {
+            var lang = State.Settings.GetLocal("editor-language") ?? State.I18n.DetectLanguage();
+            
+            // Load plugin HTML content
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{ApiRootUrl}plugins");
+            request.Headers.Add("Accept", "text/html");
+            request.Headers.Add("Accept-Language", lang);
+
+            var response = await Http.SendAsync(request);
+            var data = await response.Content.ReadAsStringAsync();
+
+            // Parse and append plugin configs
+            var configs = ParsePluginConfigs(data);
+            foreach (var config in configs)
+            {
+                await AppendPluginConfigAsync(config);
+            }
+        }
+        catch (Exception ex)
+        {
+            await ShowNotificationAsync($"Failed to load plugins HTML: {ex.Message}", "warning");
+        }
+    }
+
+    /// <summary>
+    /// Translated from loadNodeList() function
+    /// </summary>
+    private async Task LoadNodeListAsync()
+    {
+        ReportProgress(State.I18n.Translate("event.loadPalette"), 20);
+
+        try
+        {
+            var nodes = await Http.GetFromJsonAsync<List<NodeSetInfo>>($"{ApiRootUrl}nodes");
+            State.Nodes.SetNodeList(nodes ?? new List<NodeSetInfo>());
+
+            ReportProgress(State.I18n.Translate("event.loadNodeCatalogs"), 25);
+
+            await State.I18n.LoadNodeCatalogsAsync();
+
+            // Load icons
+            await LoadIconListAsync();
+
+            // Load nodes HTML
+            await LoadNodesAsync();
+        }
+        catch (Exception ex)
+        {
+            await ShowNotificationAsync($"Failed to load nodes: {ex.Message}", "error");
+        }
+    }
+
+    /// <summary>
+    /// Translated from loadIconList() function
+    /// </summary>
+    private async Task LoadIconListAsync()
+    {
+        try
+        {
+            var icons = await Http.GetFromJsonAsync<Dictionary<string, List<string>>>($"{ApiRootUrl}icons");
+            State.Nodes.SetIconSets(icons ?? new Dictionary<string, List<string>>());
+        }
+        catch
+        {
+            // Icons are optional
+        }
+    }
+
+    /// <summary>
+    /// Translated from loadNodes() function
+    /// </summary>
+    private async Task LoadNodesAsync()
+    {
+        ReportProgress(State.I18n.Translate("event.loadNodes", new { count = "" }), 30);
+
+        try
+        {
+            var lang = State.Settings.GetLocal("editor-language") ?? State.I18n.DetectLanguage();
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{ApiRootUrl}nodes");
+            request.Headers.Add("Accept", "text/html");
+            request.Headers.Add("Accept-Language", lang);
+
+            var response = await Http.SendAsync(request);
+            var data = await response.Content.ReadAsStringAsync();
+
+            var configs = ParseNodeConfigs(data);
+            var totalCount = configs.Count;
+
+            for (int i = 0; i < configs.Count; i++)
+            {
+                ReportProgress(
+                    State.I18n.Translate("event.loadNodes", new { count = $"{i + 1}/{totalCount}" }),
+                    30 + (int)(((double)(i + 1) / totalCount) * 40)
+                );
+                await AppendNodeConfigAsync(configs[i]);
+            }
+
+            // Load flows
+            await LoadFlowsAsync();
+        }
+        catch (Exception ex)
+        {
+            await ShowNotificationAsync($"Failed to load nodes HTML: {ex.Message}", "error");
+        }
+    }
+
+    /// <summary>
+    /// Translated from loadFlows() function
+    /// </summary>
+    private async Task LoadFlowsAsync()
+    {
+        ReportProgress(State.I18n.Translate("event.loadFlows"), 80);
+
+        try
+        {
+            var flowsData = await Http.GetFromJsonAsync<FlowsResponse>($"{ApiRootUrl}flows");
+
+            if (flowsData != null)
+            {
+                State.Nodes.SetVersion(flowsData.Rev);
+
+                ReportProgress(State.I18n.Translate("event.importFlows"), 90);
+
+                State.Nodes.Import(flowsData.Flows);
+                State.Nodes.SetDirty(false);
+
+                // Trigger redraw
+                workspacesRef?.Redraw(true);
+
+                // Show first visible workspace
+                if (State.Workspaces.Count > 0)
+                {
+                    State.Workspaces.Show(State.Workspaces.GetWorkspaceOrder()[0]);
+                }
+
+                State.Events.Emit("flows:loaded", null);
+            }
+
+            // Complete loading
+            await CompleteLoadAsync();
+        }
+        catch (Exception ex)
+        {
+            await ShowNotificationAsync(
+                State.I18n.Translate("event.importError", new { message = ex.Message }),
+                "error"
+            );
+            await CompleteLoadAsync();
+        }
+    }
+
+    /// <summary>
+    /// Translated from completeLoad() function
+    /// </summary>
+    private async Task CompleteLoadAsync()
+    {
+        // Show UI
+        IsLoading = false;
+        SidebarClosed = false;
+
+        // Show sidebar - translated from RED.sidebar.show(":first", true)
+        sidebarRef?.Show("info", true);
+
+        // End loader
+        await Task.Delay(100); // Translated from setTimeout(..., 100)
+        ReportProgress("", 0);
+
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Setup comms subscriptions - translated from completeLoad() subscriptions
+    /// </summary>
+    private void SetupSubscriptions()
+    {
+        // Subscribe to notifications - translated from RED.comms.subscribe("notification/#", ...)
+        _subscriptions.Add(Comms.Subscribe("notification/#", HandleNotification));
+
+        // Subscribe to status updates - translated from RED.comms.subscribe("status/#", ...)
+        _subscriptions.Add(Comms.Subscribe("status/#", HandleStatusUpdate));
+
+        // Subscribe to event log - translated from RED.comms.subscribe("event-log/#", ...)
+        _subscriptions.Add(Comms.Subscribe("event-log/#", HandleEventLog));
+    }
+
+    /// <summary>
+    /// Handle notification messages - translated from notification subscription handler
+    /// </summary>
+    private void HandleNotification(string topic, object? payload)
+    {
+        var parts = topic.Split('/');
+        if (parts.Length < 2) return;
+
+        var notificationId = parts[1];
+
+        // Skip handled elsewhere
+        if (notificationId is "runtime-deploy" or "node" or "flows-run-state")
+            return;
+
+        if (payload is NotificationMessage msg && !string.IsNullOrEmpty(msg.Text))
+        {
+            InvokeAsync(async () =>
+            {
+                await ShowNotificationAsync(
+                    State.I18n.Translate(msg.Text, msg),
+                    msg.Type ?? "info",
+                    msg.Timeout
+                );
+            });
+        }
+    }
+
+    /// <summary>
+    /// Handle status updates - translated from status/# subscription handler
+    /// </summary>
+    private void HandleStatusUpdate(string topic, object? payload)
+    {
+        var parts = topic.Split('/');
+        if (parts.Length < 2) return;
+
+        var nodeId = parts[1];
+        var node = State.Nodes.GetNode(nodeId);
+
+        if (node != null && payload is NodeStatus status)
+        {
+            node.Status = status;
+            node.DirtyStatus = true;
+            node.Dirty = true;
+
+            InvokeAsync(() =>
+            {
+                workspacesRef?.RedrawStatus(node);
+                StateHasChanged();
+            });
+        }
+    }
+
+    /// <summary>
+    /// Handle event log messages
+    /// </summary>
+    private void HandleEventLog(string topic, object? payload)
+    {
+        var id = topic.Length > 9 ? topic.Substring(9) : "";
+        State.EventLog.Log(id, payload);
+    }
+
+    // ============================================================
+    // Helper methods
+    // ============================================================
+
+    private void ReportProgress(string text, int percent)
+    {
+        LoadingMessage = text;
+        LoadingProgress = percent;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private List<string> ParsePluginConfigs(string data)
+    {
+        // Translated from: data.trim().split(/(?=<!-- --- \[red-plugin:\S+\] --- -->)/)
+        if (string.IsNullOrWhiteSpace(data)) return new List<string>();
+
+        var configs = new List<string>();
+        var pattern = @"(?=<!-- --- \[red-plugin:\S+\] --- -->)";
+        var parts = System.Text.RegularExpressions.Regex.Split(data.Trim(), pattern);
+
+        foreach (var part in parts)
+        {
+            if (!string.IsNullOrWhiteSpace(part))
+            {
+                configs.Add(part);
+            }
+        }
+
+        return configs;
+    }
+
+    private List<string> ParseNodeConfigs(string data)
+    {
+        // Translated from: data.trim().split(/(?=<!-- --- \[red-module:\S+\] --- -->)/)
+        if (string.IsNullOrWhiteSpace(data)) return new List<string>();
+
+        var configs = new List<string>();
+        var pattern = @"(?=<!-- --- \[red-module:\S+\] --- -->)";
+        var parts = System.Text.RegularExpressions.Regex.Split(data.Trim(), pattern);
+
+        foreach (var part in parts)
+        {
+            if (!string.IsNullOrWhiteSpace(part))
+            {
+                configs.Add(part);
+            }
+        }
+
+        return configs;
+    }
+
+    private Task AppendPluginConfigAsync(string config)
+    {
+        // Store plugin config for later use by node editor
+        State.PluginConfigs.Add(config);
+        return Task.CompletedTask;
+    }
+
+    private Task AppendNodeConfigAsync(string config)
+    {
+        // Store node config for later use by node editor
+        State.NodeConfigs.Add(config);
+        return Task.CompletedTask;
+    }
+
+    private async Task ShowNotificationAsync(string message, string type, int? timeout = null)
+    {
+        if (notificationsRef != null)
+        {
+            await notificationsRef.ShowAsync(message, type, timeout);
+        }
+    }
+
+    private void ToggleMenu()
+    {
+        State.Menu.Toggle();
+        StateHasChanged();
+    }
+
+    private async Task HandleDeploy()
+    {
+        // Delegate to deploy service
+        await State.Deploy.DeployAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Cleanup subscriptions
+        foreach (var sub in _subscriptions)
+        {
+            sub.Dispose();
+        }
+        _subscriptions.Clear();
+
+        // Disconnect comms
+        await Comms.DisconnectAsync();
+    }
+}

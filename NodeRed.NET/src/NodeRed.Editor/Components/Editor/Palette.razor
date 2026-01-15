@@ -1,0 +1,226 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/palette.js
+   ============================================================
+   ORIGINAL CODE (partial - lines 17-130):
+   ------------------------------------------------------------
+   RED.palette = (function() {
+       var exclusion = ['config','unknown','deprecated'];
+       var coreCategories = [
+           'subflows', 'common', 'function', 'network', 'input',
+           'output', 'sequence', 'parser', 'storage', 'analysis',
+           'social', 'advanced'
+       ];
+       var categoryContainers = {};
+       ...
+   })();
+   ------------------------------------------------------------
+   TRANSLATION:
+   - jQuery DOM manipulation → Blazor component rendering
+   - Category containers → Blazor components with state
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+<div id="red-ui-palette" class="red-ui-palette">
+    @* Palette header with search *@
+    <div id="red-ui-palette-search" class="red-ui-palette-search @(IsHidden ? "hide" : "")">
+        <div class="red-ui-searchBox">
+            <input type="text" 
+                   placeholder="@State.I18n.Translate("palette.filter")"
+                   @bind="FilterText"
+                   @bind:event="oninput"
+                   @onkeyup="HandleFilterChange" />
+            @if (!string.IsNullOrEmpty(FilterText))
+            {
+                <button class="red-ui-searchBox-clear" @onclick="ClearFilter">
+                    <i class="fa fa-times"></i>
+                </button>
+            }
+        </div>
+    </div>
+
+    @* Spinner shown during loading *@
+    <div class="red-ui-palette-spinner @(IsLoading ? "" : "hide")">
+        <img src="images/spin.svg" alt="Loading..." />
+    </div>
+
+    @* Palette scroll container *@
+    <div class="red-ui-palette-scroll @(IsLoading ? "hide" : "")">
+        <div id="red-ui-palette-container" class="red-ui-palette-container">
+            @foreach (var category in GetVisibleCategories())
+            {
+                <div id="red-ui-palette-container-@category.Id" 
+                     class="red-ui-palette-category @(category.IsOpen ? "red-ui-palette-open" : "red-ui-palette-closed")">
+                    
+                    @* Category header *@
+                    <div id="red-ui-palette-header-@category.Id" 
+                         class="red-ui-palette-header"
+                         @onclick="() => ToggleCategory(category)">
+                        <i class="fa @(category.IsOpen ? "fa-angle-down expanded" : "fa-angle-right")"></i>
+                        <span>@category.Label</span>
+                        <span class="red-ui-palette-category-count">(@category.NodeCount)</span>
+                    </div>
+                    
+                    @* Category content *@
+                    <div class="red-ui-palette-content @(category.IsOpen ? "" : "hide")" 
+                         id="red-ui-palette-base-category-@category.Id">
+                        @foreach (var nodeType in GetNodesInCategory(category.Id))
+                        {
+                            <PaletteNode NodeType="@nodeType" 
+                                        OnDragStart="@(e => HandleDragStart(e, nodeType))" />
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    // ============================================================
+    // MAPPING NOTES:
+    // - var exclusion → Exclusion
+    // - var coreCategories → CoreCategories
+    // - var categoryContainers → _categories
+    // - paletteState.filter → FilterText
+    // - paletteState.collapsed → collapsed categories tracked in _categories
+    // ============================================================
+
+    // Exclusion list - translated from exclusion array
+    private static readonly HashSet<string> Exclusion = new() { "config", "unknown", "deprecated" };
+
+    // Core categories - translated from coreCategories array
+    private static readonly List<string> CoreCategories = new()
+    {
+        "subflows", "common", "function", "network", "input",
+        "output", "sequence", "parser", "storage", "analysis",
+        "social", "advanced"
+    };
+
+    private List<PaletteCategory> _categories = new();
+    private string FilterText = "";
+    private bool IsLoading = true;
+    private bool IsHidden = false;
+
+    protected override void OnInitialized()
+    {
+        // Initialize categories
+        foreach (var cat in CoreCategories)
+        {
+            _categories.Add(new PaletteCategory
+            {
+                Id = cat,
+                Label = FormatCategoryLabel(cat),
+                IsOpen = true,
+                NodeCount = 0
+            });
+        }
+
+        // Subscribe to node list changes
+        State.Events.On("nodes:list", _ => RefreshPalette());
+        State.Events.On("flows:loaded", _ => 
+        {
+            IsLoading = false;
+            RefreshPalette();
+        });
+    }
+
+    private void RefreshPalette()
+    {
+        // Count nodes per category
+        foreach (var category in _categories)
+        {
+            category.NodeCount = GetNodesInCategory(category.Id).Count;
+        }
+        StateHasChanged();
+    }
+
+    private List<PaletteCategory> GetVisibleCategories()
+    {
+        return _categories
+            .Where(c => c.NodeCount > 0 || !string.IsNullOrEmpty(FilterText))
+            .ToList();
+    }
+
+    private List<NodeTypeInfo> GetNodesInCategory(string category)
+    {
+        // Get all node types in this category
+        var nodes = new List<NodeTypeInfo>();
+        
+        // TODO: Filter based on actual node definitions
+        // For now, return mock data for structure
+        
+        return nodes
+            .Where(n => MatchesFilter(n))
+            .ToList();
+    }
+
+    private bool MatchesFilter(NodeTypeInfo node)
+    {
+        if (string.IsNullOrEmpty(FilterText)) return true;
+        
+        var filter = FilterText.ToLowerInvariant();
+        return node.Type.ToLowerInvariant().Contains(filter) ||
+               (node.Label?.ToLowerInvariant().Contains(filter) ?? false);
+    }
+
+    private void ToggleCategory(PaletteCategory category)
+    {
+        category.IsOpen = !category.IsOpen;
+        StateHasChanged();
+    }
+
+    private void HandleFilterChange(KeyboardEventArgs e)
+    {
+        RefreshPalette();
+    }
+
+    private void ClearFilter()
+    {
+        FilterText = "";
+        RefreshPalette();
+    }
+
+    private void HandleDragStart(DragEventArgs e, NodeTypeInfo nodeType)
+    {
+        // Set drag data for node creation
+        // This will be handled by the workspace to create a new node
+    }
+
+    private string FormatCategoryLabel(string category)
+    {
+        // Translated from label formatting in createCategoryContainer
+        var translated = State.I18n.Translate($"palette.label.{category}");
+        if (translated == $"palette.label.{category}")
+        {
+            // Fallback to formatted category name
+            return System.Globalization.CultureInfo.CurrentCulture.TextInfo
+                .ToTitleCase(category.Replace("_", " "));
+        }
+        return translated;
+    }
+
+    // ============================================================
+    // Supporting types
+    // ============================================================
+
+    public class PaletteCategory
+    {
+        public string Id { get; set; } = "";
+        public string Label { get; set; } = "";
+        public bool IsOpen { get; set; } = true;
+        public int NodeCount { get; set; }
+    }
+
+    public class NodeTypeInfo
+    {
+        public string Type { get; set; } = "";
+        public string? Label { get; set; }
+        public string? Category { get; set; }
+        public string? Color { get; set; }
+        public string? Icon { get; set; }
+        public int Inputs { get; set; }
+        public int Outputs { get; set; }
+    }
+}

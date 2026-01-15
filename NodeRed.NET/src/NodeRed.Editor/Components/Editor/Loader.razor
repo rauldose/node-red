@@ -1,0 +1,44 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/red.js
+   LINES: 958-981 (loader object)
+   ============================================================
+   ORIGINAL CODE:
+   ------------------------------------------------------------
+   var loader = {
+       init: function() {
+           var wrapper = $('<div id="red-ui-loading-progress"></div>').hide();
+           var container = $('<div>').appendTo(wrapper);
+           var label = $('<div>',{class:"red-ui-loading-bar-label"}).appendTo(container);
+           var bar = $('<div>',{class:"red-ui-loading-bar"}).appendTo(container);
+           var fill =$('<span>').appendTo(bar);
+           return wrapper;
+       },
+       start: function(text, prcnt) { ... },
+       reportProgress: function(text, prcnt) { ... },
+       end: function() { ... }
+   }
+   ------------------------------------------------------------
+   TRANSLATION:
+   - jQuery DOM creation → Blazor component
+   - width percentage → CSS width binding
+   ============================================================ *@
+
+<div id="red-ui-loading-progress" class="@(IsVisible ? "" : "hide")">
+    <div>
+        <div class="red-ui-loading-bar-label">@Message</div>
+        <div class="red-ui-loading-bar">
+            <span style="width: @(Progress)%;"></span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Progress { get; set; }
+
+    [Parameter]
+    public string Message { get; set; } = "";
+
+    [Parameter]
+    public bool IsVisible { get; set; } = true;
+}

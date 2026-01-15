@@ -1,10 +1,16 @@
 using NodeRed.Editor.Components;
+using NodeRed.Editor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Register NodeRed.NET editor services
+builder.Services.AddSingleton<EditorState>();
+builder.Services.AddScoped<IEditorComms>(sp => EditorCommsFactory.Create("/comms"));
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
 

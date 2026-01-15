@@ -1,0 +1,178 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/sidebar.js
+   ============================================================
+   ORIGINAL CODE (partial):
+   ------------------------------------------------------------
+   RED.sidebar = (function() {
+       var tabs;
+       var sidebarSeparator = {};
+       function init() { ... }
+       function addTab(id, content, closeable) { ... }
+       function removeTab(id) { ... }
+       function show(id, doNotActivate) { ... }
+       ...
+   })();
+   ------------------------------------------------------------
+   TRANSLATION:
+   - jQuery tabs → Blazor tab component
+   - Tab content → Child components
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+<div id="red-ui-sidebar" class="red-ui-sidebar @(IsCollapsed ? "collapsed" : "")">
+    @* Sidebar tabs *@
+    <ul class="red-ui-sidebar-tabs">
+        @foreach (var tab in Tabs)
+        {
+            <li class="@(ActiveTabId == tab.Id ? "active" : "")"
+                @onclick="() => ShowTab(tab.Id)">
+                <a href="#" title="@tab.Label">
+                    <i class="fa @tab.Icon"></i>
+                    @if (!IsCollapsed)
+                    {
+                        <span>@tab.Label</span>
+                    }
+                </a>
+                @if (tab.Closeable)
+                {
+                    <button class="red-ui-sidebar-tab-close" 
+                            @onclick:stopPropagation="true"
+                            @onclick="() => CloseTab(tab.Id)">
+                        <i class="fa fa-times"></i>
+                    </button>
+                }
+            </li>
+        }
+    </ul>
+
+    @* Sidebar content *@
+    <div class="red-ui-sidebar-content">
+        @switch (ActiveTabId)
+        {
+            case "info":
+                <SidebarInfo />
+                break;
+            case "debug":
+                <SidebarDebug />
+                break;
+            case "config":
+                <SidebarConfig />
+                break;
+            case "context":
+                <SidebarContext />
+                break;
+            case "help":
+                <SidebarHelp />
+                break;
+            default:
+                @* Custom tab content *@
+                @if (_customTabContent.TryGetValue(ActiveTabId, out var content))
+                {
+                    @content
+                }
+                break;
+        }
+    </div>
+</div>
+
+@code {
+    // ============================================================
+    // MAPPING NOTES:
+    // - var tabs → Tabs list
+    // - show(id) → ShowTab(id)
+    // - addTab() → AddTab()
+    // - removeTab() → CloseTab()
+    // ============================================================
+
+    private List<SidebarTab> Tabs = new();
+    private string ActiveTabId = "info";
+    private bool IsCollapsed = false;
+    private Dictionary<string, RenderFragment> _customTabContent = new();
+
+    protected override void OnInitialized()
+    {
+        // Initialize default tabs - translated from sidebar.js init()
+        Tabs.Add(new SidebarTab { Id = "info", Label = "Info", Icon = "fa-info", Closeable = false });
+        Tabs.Add(new SidebarTab { Id = "debug", Label = "Debug", Icon = "fa-bug", Closeable = false });
+        Tabs.Add(new SidebarTab { Id = "config", Label = "Config", Icon = "fa-cog", Closeable = true });
+        Tabs.Add(new SidebarTab { Id = "context", Label = "Context", Icon = "fa-database", Closeable = true });
+        Tabs.Add(new SidebarTab { Id = "help", Label = "Help", Icon = "fa-book", Closeable = true });
+    }
+
+    public void Show(string tabId, bool doNotActivate = false)
+    {
+        if (!doNotActivate)
+        {
+            ActiveTabId = tabId;
+        }
+        IsCollapsed = false;
+        StateHasChanged();
+    }
+
+    public void ShowTab(string tabId)
+    {
+        if (ActiveTabId == tabId && !IsCollapsed)
+        {
+            // Toggle collapse if clicking active tab
+            IsCollapsed = true;
+        }
+        else
+        {
+            ActiveTabId = tabId;
+            IsCollapsed = false;
+        }
+        StateHasChanged();
+    }
+
+    public void AddTab(string id, string label, string icon, RenderFragment content, bool closeable = true)
+    {
+        if (!Tabs.Any(t => t.Id == id))
+        {
+            Tabs.Add(new SidebarTab
+            {
+                Id = id,
+                Label = label,
+                Icon = icon,
+                Closeable = closeable
+            });
+            _customTabContent[id] = content;
+            StateHasChanged();
+        }
+    }
+
+    public void CloseTab(string tabId)
+    {
+        var tab = Tabs.FirstOrDefault(t => t.Id == tabId);
+        if (tab?.Closeable == true)
+        {
+            Tabs.Remove(tab);
+            _customTabContent.Remove(tabId);
+            
+            if (ActiveTabId == tabId)
+            {
+                ActiveTabId = Tabs.FirstOrDefault()?.Id ?? "info";
+            }
+            StateHasChanged();
+        }
+    }
+
+    public void Toggle()
+    {
+        IsCollapsed = !IsCollapsed;
+        StateHasChanged();
+    }
+
+    // ============================================================
+    // Supporting types
+    // ============================================================
+
+    public class SidebarTab
+    {
+        public string Id { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Icon { get; set; } = "";
+        public bool Closeable { get; set; }
+    }
+}

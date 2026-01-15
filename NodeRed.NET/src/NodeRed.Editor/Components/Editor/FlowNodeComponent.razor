@@ -1,0 +1,147 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/view.js
+   ============================================================
+   Flow node rendering component - translated from node rendering in view.js
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+
+<g class="red-ui-flow-node @(IsSelected ? "selected" : "") @(Node.Dirty ? "dirty" : "")"
+   transform="translate(@Node.X, @Node.Y)"
+   @onmousedown="OnMouseDown"
+   @ondblclick="OnDoubleClick">
+    
+    @* Node body *@
+    <rect class="red-ui-flow-node-body"
+          width="@NodeWidth"
+          height="@NodeHeight"
+          rx="5" ry="5"
+          fill="@GetNodeColor()" />
+    
+    @* Input port *@
+    @if (Node.Inputs > 0)
+    {
+        <rect class="red-ui-flow-port red-ui-flow-port-input"
+              x="-5" y="@((NodeHeight / 2) - 5)"
+              width="10" height="10"
+              rx="3" ry="3" />
+    }
+    
+    @* Output ports *@
+    @for (int i = 0; i < Node.Outputs; i++)
+    {
+        var portY = GetOutputPortY(i, Node.Outputs);
+        <rect class="red-ui-flow-port red-ui-flow-port-output"
+              x="@(NodeWidth - 5)" y="@portY"
+              width="10" height="10"
+              rx="3" ry="3" />
+    }
+    
+    @* Node icon *@
+    <g transform="translate(5, @((NodeHeight / 2) - 8))">
+        <image href="@GetNodeIcon()" width="16" height="16" />
+    </g>
+    
+    @* Node label *@
+    @((MarkupString)$"<text class=\"red-ui-flow-node-label\" x=\"30\" y=\"{(NodeHeight / 2) + 4}\" fill=\"{GetLabelColor()}\">{System.Net.WebUtility.HtmlEncode(GetNodeLabel())}</text>")
+    
+    @* Status indicator *@
+    @if (Node.Status != null)
+    {
+        <g class="red-ui-flow-node-status" transform="translate(5, @(NodeHeight - 8))">
+            <circle r="4" fill="@GetStatusColor()" />
+            @if (!string.IsNullOrEmpty(Node.Status.Text))
+            {
+                @((MarkupString)$"<text x=\"10\" y=\"4\" class=\"red-ui-flow-node-status-label\">{System.Net.WebUtility.HtmlEncode(Node.Status.Text)}</text>")
+            }
+        </g>
+    }
+    
+    @* Selection highlight *@
+    @if (IsSelected)
+    {
+        <rect class="red-ui-flow-node-selected"
+              x="-2" y="-2"
+              width="@(NodeWidth + 4)" height="@(NodeHeight + 4)"
+              rx="7" ry="7"
+              fill="none"
+              stroke="#ff7f0e"
+              stroke-width="2" />
+    }
+</g>
+
+@code {
+    [Parameter]
+    public FlowNode Node { get; set; } = null!;
+
+    [Parameter]
+    public int NodeWidth { get; set; } = 100;
+
+    [Parameter]
+    public int NodeHeight { get; set; } = 30;
+
+    [Parameter]
+    public bool IsSelected { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnMouseDown { get; set; }
+
+    [Parameter]
+    public EventCallback OnDoubleClick { get; set; }
+
+    private string GetNodeColor()
+    {
+        // Default colors based on node type category
+        return Node.Type switch
+        {
+            "inject" => "#a6bbcf",
+            "debug" => "#87a980",
+            "function" => "#fdd0a2",
+            "change" => "#e2d96e",
+            "switch" => "#e2d96e",
+            "http in" or "http response" => "#c0d0e0",
+            "mqtt in" or "mqtt out" => "#d3d3d3",
+            _ => "#d3d3d3"
+        };
+    }
+
+    private string GetLabelColor()
+    {
+        return "#000";
+    }
+
+    private string GetNodeIcon()
+    {
+        // Return icon path based on node type
+        return $"icons/{Node.Type.Replace(" ", "-")}.svg";
+    }
+
+    private string GetNodeLabel()
+    {
+        return !string.IsNullOrEmpty(Node.Name) ? Node.Name : Node.Type;
+    }
+
+    private double GetOutputPortY(int portIndex, int totalPorts)
+    {
+        if (totalPorts == 1)
+        {
+            return (NodeHeight / 2.0) - 5;
+        }
+
+        var spacing = NodeHeight / (totalPorts + 1.0);
+        return spacing * (portIndex + 1) - 5;
+    }
+
+    private string GetStatusColor()
+    {
+        return Node.Status?.Fill switch
+        {
+            "red" => "#c00",
+            "green" => "#5a8",
+            "yellow" => "#F9DF31",
+            "blue" => "#53A3F3",
+            "grey" or "gray" => "#d3d3d3",
+            _ => Node.Status?.Fill ?? "#d3d3d3"
+        };
+    }
+}

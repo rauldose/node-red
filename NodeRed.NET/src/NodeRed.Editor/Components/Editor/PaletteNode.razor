@@ -1,0 +1,33 @@
+@* Palette node component *@
+@using NodeRed.Editor.Services
+
+<div class="red-ui-palette-node" 
+     draggable="true"
+     @ondragstart="OnDragStart"
+     style="background-color: @(NodeType.Color ?? "#d3d3d3")">
+    <div class="red-ui-palette-icon-container">
+        @if (!string.IsNullOrEmpty(NodeType.Icon))
+        {
+            <img src="@NodeType.Icon" alt="" />
+        }
+    </div>
+    <div class="red-ui-palette-label">
+        @(NodeType.Label ?? NodeType.Type)
+    </div>
+    @if (NodeType.Inputs > 0)
+    {
+        <div class="red-ui-palette-port red-ui-palette-port-input"></div>
+    }
+    @if (NodeType.Outputs > 0)
+    {
+        <div class="red-ui-palette-port red-ui-palette-port-output"></div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Palette.NodeTypeInfo NodeType { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<DragEventArgs> OnDragStart { get; set; }
+}

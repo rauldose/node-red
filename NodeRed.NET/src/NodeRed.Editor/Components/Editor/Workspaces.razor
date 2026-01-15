@@ -1,0 +1,475 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/view.js
+   ============================================================
+   ORIGINAL CODE (partial - lines 32-120):
+   ------------------------------------------------------------
+   RED.view = (function() {
+       var space_width = 8000,
+           space_height = 8000,
+           lineCurveScale = 0.75,
+           scaleFactor = 1,
+           node_width = 100,
+           node_height = 30,
+           dblClickInterval = 650;
+       ...
+       var gridSize = 20;
+       var snapGrid = false;
+       ...
+   })();
+   ------------------------------------------------------------
+   TRANSLATION:
+   - D3.js SVG rendering → Blazor SVG markup
+   - jQuery event handlers → Blazor event callbacks
+   - Mouse/touch events → @onmouse*/ontouch* handlers
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+@inject IJSRuntime JS
+
+<div id="red-ui-workspace-chart" 
+     class="red-ui-workspace-chart"
+     @onmousedown="HandleMouseDown"
+     @onmousemove="HandleMouseMove"
+     @onmouseup="HandleMouseUp"
+     @onwheel="HandleWheel"
+     @ref="_chartElement">
+    
+    <svg class="red-ui-workspace-chart-svg"
+         width="@SpaceWidth" 
+         height="@SpaceHeight"
+         viewBox="0 0 @SpaceWidth @SpaceHeight">
+        
+        <g transform="scale(@ScaleFactor)">
+            @* Event layer - translated from eventLayer *@
+            <g class="red-ui-workspace-chart-event-layer">
+                @* Background *@
+                <rect class="red-ui-workspace-chart-background" 
+                      width="@SpaceWidth" 
+                      height="@SpaceHeight"
+                      fill="transparent" />
+                
+                @* Grid layer - translated from gridLayer *@
+                @if (ShowGrid)
+                {
+                    <g class="red-ui-workspace-chart-grid">
+                        @for (int x = 0; x < SpaceWidth; x += GridSize)
+                        {
+                            <line x1="@x" y1="0" x2="@x" y2="@SpaceHeight" 
+                                  stroke="#e0e0e0" stroke-width="0.5" />
+                        }
+                        @for (int y = 0; y < SpaceHeight; y += GridSize)
+                        {
+                            <line x1="0" y1="@y" x2="@SpaceWidth" y2="@y" 
+                                  stroke="#e0e0e0" stroke-width="0.5" />
+                        }
+                    </g>
+                }
+                
+                @* Group layer *@
+                <g class="red-ui-workspace-chart-group-layer">
+                    @foreach (var group in ActiveGroups)
+                    {
+                        <NodeGroupComponent Group="@group" 
+                                           OnClick="@(() => SelectGroup(group))" />
+                    }
+                </g>
+                
+                @* Link/wire layer *@
+                <g class="red-ui-workspace-chart-link-layer">
+                    @foreach (var link in ActiveLinks)
+                    {
+                        <WireComponent Link="@link" 
+                                      LineCurveScale="@LineCurveScale"
+                                      IsSelected="@SelectedLinks.Contains(link)"
+                                      OnClick="@(() => SelectLink(link))" />
+                    }
+                    
+                    @* Drag lines while connecting *@
+                    @foreach (var dragLine in DragLines)
+                    {
+                        <WireComponent Link="@dragLine" 
+                                      LineCurveScale="@LineCurveScale"
+                                      IsDragging="true" />
+                    }
+                </g>
+                
+                @* Junction layer *@
+                <g class="red-ui-workspace-chart-junction-layer">
+                    @foreach (var junction in ActiveJunctions)
+                    {
+                        <JunctionComponent Junction="@junction"
+                                          OnClick="@(() => SelectJunction(junction))" />
+                    }
+                </g>
+                
+                @* Node layer *@
+                <g class="red-ui-workspace-chart-node-layer">
+                    @foreach (var node in ActiveNodes)
+                    {
+                        <FlowNodeComponent Node="@node" 
+                                          NodeWidth="@NodeWidth"
+                                          NodeHeight="@NodeHeight"
+                                          IsSelected="@MovingSet.Has(node)"
+                                          OnMouseDown="@(e => HandleNodeMouseDown(e, node))"
+                                          OnDoubleClick="@(() => EditNode(node))" />
+                    }
+                </g>
+                
+                @* Selection lasso *@
+                @if (Lasso != null)
+                {
+                    <rect class="red-ui-workspace-lasso"
+                          x="@Lasso.X" y="@Lasso.Y"
+                          width="@Lasso.Width" height="@Lasso.Height"
+                          fill="rgba(100, 149, 237, 0.2)"
+                          stroke="#6495ed"
+                          stroke-width="1"
+                          stroke-dasharray="5,5" />
+                }
+            </g>
+        </g>
+    </svg>
+</div>
+
+@code {
+    // ============================================================
+    // MAPPING NOTES:
+    // - space_width, space_height → SpaceWidth, SpaceHeight
+    // - lineCurveScale → LineCurveScale
+    // - scaleFactor → ScaleFactor
+    // - node_width, node_height → NodeWidth, NodeHeight
+    // - gridSize → GridSize
+    // - snapGrid → SnapGrid
+    // - activeNodes, activeLinks → ActiveNodes, ActiveLinks
+    // - movingSet → MovingSet
+    // - mouse_mode → _mouseMode
+    // ============================================================
+
+    private ElementReference _chartElement;
+
+    // Canvas dimensions - translated from space_width, space_height
+    private int SpaceWidth = 8000;
+    private int SpaceHeight = 8000;
+    
+    // Rendering parameters - translated from view.js constants
+    private double LineCurveScale = 0.75;
+    private double ScaleFactor = 1.0;
+    private int NodeWidth = 100;
+    private int NodeHeight = 30;
+    private int GridSize = 20;
+    private bool SnapGrid = false;
+    private bool ShowGrid = true;
+
+    // Active elements for current flow
+    private List<FlowNode> ActiveNodes = new();
+    private List<NodeLink> ActiveLinks = new();
+    private List<Junction> ActiveJunctions = new();
+    private List<NodeGroup> ActiveGroups = new();
+    
+    // Selection state - translated from movingSet, selectedLinks
+    private NodeMovingSet MovingSet = new();
+    private HashSet<NodeLink> SelectedLinks = new();
+    private List<NodeLink> DragLines = new();
+    
+    // Mouse state - translated from mouse_mode, mousedown_*, etc.
+    private MouseMode _mouseMode = MouseMode.None;
+    private (double X, double Y)? _mousePosition;
+    private FlowNode? _mousedownNode;
+    private NodeLink? _mousedownLink;
+    private LassoRect? Lasso;
+
+    protected override void OnInitialized()
+    {
+        // Subscribe to flow changes
+        State.Events.On("flows:loaded", _ => RefreshView());
+        State.Events.On("workspace:change", _ => RefreshView());
+    }
+
+    /// <summary>
+    /// Refresh the view with current flow data.
+    /// Translated from various update functions in view.js
+    /// </summary>
+    private void RefreshView()
+    {
+        var activeWorkspace = State.Workspaces.Active();
+        
+        ActiveNodes = State.Nodes.GetNodes()
+            .Where(n => n.Z == activeWorkspace)
+            .ToList();
+            
+        ActiveLinks = State.Nodes.GetLinks()
+            .Where(l => l.Source?.Z == activeWorkspace)
+            .ToList();
+            
+        ActiveJunctions = State.Nodes.GetJunctions()
+            .Where(j => j.Z == activeWorkspace)
+            .ToList();
+            
+        ActiveGroups = State.Nodes.GetGroups()
+            .Where(g => g.Z == activeWorkspace)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    public void Redraw(bool updateActive = false)
+    {
+        if (updateActive)
+        {
+            RefreshView();
+        }
+        StateHasChanged();
+    }
+
+    public void RedrawStatus(FlowNode node)
+    {
+        // Trigger re-render for the specific node
+        StateHasChanged();
+    }
+
+    // ============================================================
+    // Mouse event handlers - translated from view.js event handlers
+    // ============================================================
+
+    private void HandleMouseDown(MouseEventArgs e)
+    {
+        // Translated from chart.on('mousedown', ...)
+        if (e.Button == 0) // Left click
+        {
+            if (e.ShiftKey)
+            {
+                // Start lasso selection
+                _mouseMode = MouseMode.Lasso;
+                Lasso = new LassoRect { X = e.OffsetX, Y = e.OffsetY, Width = 0, Height = 0 };
+            }
+            else
+            {
+                // Clear selection
+                MovingSet.Clear();
+                SelectedLinks.Clear();
+            }
+        }
+    }
+
+    private void HandleMouseMove(MouseEventArgs e)
+    {
+        _mousePosition = (e.OffsetX / ScaleFactor, e.OffsetY / ScaleFactor);
+
+        switch (_mouseMode)
+        {
+            case MouseMode.Lasso:
+                if (Lasso != null)
+                {
+                    Lasso.Width = e.OffsetX - Lasso.X;
+                    Lasso.Height = e.OffsetY - Lasso.Y;
+                }
+                break;
+
+            case MouseMode.Moving:
+                if (_mousedownNode != null && _mousePosition.HasValue)
+                {
+                    foreach (var item in MovingSet.GetAll())
+                    {
+                        item.Node.X += e.MovementX / ScaleFactor;
+                        item.Node.Y += e.MovementY / ScaleFactor;
+                        
+                        if (SnapGrid)
+                        {
+                            item.Node.X = Math.Round(item.Node.X / GridSize) * GridSize;
+                            item.Node.Y = Math.Round(item.Node.Y / GridSize) * GridSize;
+                        }
+                    }
+                }
+                break;
+
+            case MouseMode.Joining:
+                // Update drag line endpoint
+                if (DragLines.Count > 0 && _mousePosition.HasValue)
+                {
+                    // Drag line will be rendered to mouse position
+                }
+                break;
+        }
+
+        StateHasChanged();
+    }
+
+    private void HandleMouseUp(MouseEventArgs e)
+    {
+        switch (_mouseMode)
+        {
+            case MouseMode.Lasso:
+                if (Lasso != null)
+                {
+                    // Select all nodes within lasso
+                    SelectNodesInLasso(Lasso);
+                    Lasso = null;
+                }
+                break;
+
+            case MouseMode.Moving:
+                // Finalize node positions
+                State.Nodes.SetDirty(true);
+                break;
+
+            case MouseMode.Joining:
+                // Complete wire connection
+                DragLines.Clear();
+                break;
+        }
+
+        _mouseMode = MouseMode.None;
+        _mousedownNode = null;
+        _mousedownLink = null;
+        StateHasChanged();
+    }
+
+    private void HandleWheel(WheelEventArgs e)
+    {
+        // Zoom - translated from chart.on('wheel', ...)
+        if (e.CtrlKey)
+        {
+            var delta = e.DeltaY > 0 ? -0.1 : 0.1;
+            ScaleFactor = Math.Clamp(ScaleFactor + delta, 0.25, 2.0);
+            StateHasChanged();
+        }
+    }
+
+    private void HandleNodeMouseDown(MouseEventArgs e, FlowNode node)
+    {
+        _mousedownNode = node;
+
+        if (e.Button == 0) // Left click
+        {
+            if (!MovingSet.Has(node))
+            {
+                if (!e.CtrlKey && !e.ShiftKey)
+                {
+                    MovingSet.Clear();
+                }
+                MovingSet.Add(node);
+            }
+            _mouseMode = MouseMode.Moving;
+        }
+
+        StateHasChanged();
+    }
+
+    private void SelectNode(FlowNode node)
+    {
+        MovingSet.Clear();
+        MovingSet.Add(node);
+        SelectedLinks.Clear();
+        StateHasChanged();
+    }
+
+    private void SelectLink(NodeLink link)
+    {
+        MovingSet.Clear();
+        SelectedLinks.Clear();
+        SelectedLinks.Add(link);
+        StateHasChanged();
+    }
+
+    private void SelectGroup(NodeGroup group)
+    {
+        // Select all nodes in group
+        MovingSet.Clear();
+        // TODO: Get nodes in group
+        StateHasChanged();
+    }
+
+    private void SelectJunction(Junction junction)
+    {
+        // TODO: Handle junction selection
+        StateHasChanged();
+    }
+
+    private void SelectNodesInLasso(LassoRect lasso)
+    {
+        var minX = Math.Min(lasso.X, lasso.X + lasso.Width);
+        var maxX = Math.Max(lasso.X, lasso.X + lasso.Width);
+        var minY = Math.Min(lasso.Y, lasso.Y + lasso.Height);
+        var maxY = Math.Max(lasso.Y, lasso.Y + lasso.Height);
+
+        foreach (var node in ActiveNodes)
+        {
+            if (node.X >= minX && node.X + NodeWidth <= maxX &&
+                node.Y >= minY && node.Y + NodeHeight <= maxY)
+            {
+                MovingSet.Add(node);
+            }
+        }
+    }
+
+    private void EditNode(FlowNode node)
+    {
+        State.Events.Emit("node:edit", node);
+    }
+
+    // ============================================================
+    // Supporting types
+    // ============================================================
+
+    private enum MouseMode
+    {
+        None,
+        Moving,
+        Joining,
+        Lasso,
+        Slicing
+    }
+
+    private class LassoRect
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+    }
+
+    /// <summary>
+    /// Moving set - translated from movingSet in view.js
+    /// </summary>
+    private class NodeMovingSet
+    {
+        private readonly HashSet<string> _ids = new();
+        private readonly List<MovingSetItem> _items = new();
+
+        public void Add(FlowNode node)
+        {
+            if (!_ids.Contains(node.Id))
+            {
+                _ids.Add(node.Id);
+                _items.Add(new MovingSetItem { Node = node });
+            }
+        }
+
+        public void Remove(FlowNode node)
+        {
+            if (_ids.Contains(node.Id))
+            {
+                _ids.Remove(node.Id);
+                _items.RemoveAll(i => i.Node.Id == node.Id);
+            }
+        }
+
+        public void Clear()
+        {
+            _ids.Clear();
+            _items.Clear();
+        }
+
+        public bool Has(FlowNode node) => _ids.Contains(node.Id);
+        public int Count => _items.Count;
+        public List<MovingSetItem> GetAll() => _items.ToList();
+    }
+
+    private class MovingSetItem
+    {
+        public FlowNode Node { get; set; } = null!;
+        public double Dx { get; set; }
+        public double Dy { get; set; }
+    }
+}

@@ -1,0 +1,46 @@
+@* Help sidebar tab *@
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+<div class="red-ui-sidebar-help">
+    <div class="red-ui-sidebar-header">
+        <span>Help</span>
+    </div>
+    <div class="red-ui-sidebar-help-content">
+        @if (!string.IsNullOrEmpty(HelpContent))
+        {
+            @((MarkupString)HelpContent)
+        }
+        else
+        {
+            <p>Select a node to see its help documentation.</p>
+        }
+    </div>
+</div>
+
+@code {
+    private string? HelpContent;
+
+    protected override void OnInitialized()
+    {
+        State.Events.On("node:selected", obj =>
+        {
+            if (obj is FlowNode node)
+            {
+                // Load help content for node type
+                LoadHelpContent(node.Type);
+            }
+            else
+            {
+                HelpContent = null;
+            }
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void LoadHelpContent(string nodeType)
+    {
+        // TODO: Load help content from server
+        HelpContent = $"<h3>{nodeType}</h3><p>Help documentation for {nodeType} node.</p>";
+    }
+}

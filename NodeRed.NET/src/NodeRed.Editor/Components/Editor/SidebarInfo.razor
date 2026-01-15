@@ -1,0 +1,63 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/tab-info.js
+   ============================================================
+   Info sidebar tab
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+<div class="red-ui-sidebar-info">
+    <div class="red-ui-sidebar-header">
+        <span>Information</span>
+    </div>
+    <div class="red-ui-sidebar-info-content">
+        @if (SelectedNode != null)
+        {
+            <div class="red-ui-info-section">
+                <h4>Node</h4>
+                <table>
+                    <tr>
+                        <td>Type</td>
+                        <td>@SelectedNode.Type</td>
+                    </tr>
+                    <tr>
+                        <td>ID</td>
+                        <td><code>@SelectedNode.Id</code></td>
+                    </tr>
+                    @if (!string.IsNullOrEmpty(SelectedNode.Name))
+                    {
+                        <tr>
+                            <td>Name</td>
+                            <td>@SelectedNode.Name</td>
+                        </tr>
+                    }
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="red-ui-info-section">
+                <p>Select a node or flow to see information</p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private FlowNode? SelectedNode;
+
+    protected override void OnInitialized()
+    {
+        State.Events.On("node:selected", obj =>
+        {
+            SelectedNode = obj as FlowNode;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    public void Refresh()
+    {
+        StateHasChanged();
+    }
+}

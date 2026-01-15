@@ -1,0 +1,74 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/tray.js
+   ============================================================
+   Editor tray for node configuration dialogs
+   ============================================================ *@
+
+<div id="red-ui-editor-tray" class="red-ui-tray @(IsOpen ? "open" : "")">
+    @if (IsOpen && CurrentPanel != null)
+    {
+        <div class="red-ui-tray-header">
+            <span class="red-ui-tray-titlebar">
+                <span class="red-ui-tray-titlebar-title">@CurrentPanel.Title</span>
+            </span>
+            <div class="red-ui-tray-toolbar">
+                @if (CurrentPanel.ShowDone)
+                {
+                    <button class="red-ui-tray-button primary" @onclick="HandleDone">
+                        Done
+                    </button>
+                }
+                @if (CurrentPanel.ShowCancel)
+                {
+                    <button class="red-ui-tray-button" @onclick="HandleCancel">
+                        Cancel
+                    </button>
+                }
+            </div>
+        </div>
+        <div class="red-ui-tray-body">
+            @CurrentPanel.Content
+        </div>
+    }
+</div>
+
+@code {
+    private bool IsOpen = false;
+    private TrayPanel? CurrentPanel;
+
+    public void Show(TrayPanel panel)
+    {
+        CurrentPanel = panel;
+        IsOpen = true;
+        StateHasChanged();
+    }
+
+    public void Close()
+    {
+        IsOpen = false;
+        CurrentPanel = null;
+        StateHasChanged();
+    }
+
+    private void HandleDone()
+    {
+        CurrentPanel?.OnDone?.Invoke();
+        Close();
+    }
+
+    private void HandleCancel()
+    {
+        CurrentPanel?.OnCancel?.Invoke();
+        Close();
+    }
+
+    public class TrayPanel
+    {
+        public string Title { get; set; } = "";
+        public RenderFragment? Content { get; set; }
+        public bool ShowDone { get; set; } = true;
+        public bool ShowCancel { get; set; } = true;
+        public Action? OnDone { get; set; }
+        public Action? OnCancel { get; set; }
+    }
+}

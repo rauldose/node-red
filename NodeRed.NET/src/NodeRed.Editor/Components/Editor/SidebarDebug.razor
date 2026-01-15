@@ -1,0 +1,84 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/tab-debug.js
+   ============================================================
+   Debug sidebar tab
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+@inject IEditorComms Comms
+@implements IDisposable
+
+<div class="red-ui-sidebar-debug">
+    <div class="red-ui-sidebar-header">
+        <span>Debug Messages</span>
+        <button class="red-ui-button" @onclick="ClearMessages" title="Clear">
+            <i class="fa fa-trash"></i>
+        </button>
+    </div>
+    <div class="red-ui-sidebar-debug-content">
+        @if (DebugMessages.Count == 0)
+        {
+            <div class="red-ui-debug-empty">
+                No debug messages
+            </div>
+        }
+        else
+        {
+            @foreach (var msg in DebugMessages)
+            {
+                <div class="red-ui-debug-msg red-ui-debug-msg-@msg.Level">
+                    <span class="red-ui-debug-msg-date">@msg.Timestamp.ToString("HH:mm:ss.fff")</span>
+                    <span class="red-ui-debug-msg-topic">@msg.Topic</span>
+                    <span class="red-ui-debug-msg-payload">@msg.Payload</span>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private List<DebugMessage> DebugMessages = new();
+    private IDisposable? _subscription;
+
+    protected override void OnInitialized()
+    {
+        _subscription = Comms.Subscribe("debug", (topic, payload) =>
+        {
+            var msg = new DebugMessage
+            {
+                Timestamp = DateTime.Now,
+                Topic = topic,
+                Payload = payload?.ToString() ?? ""
+            };
+
+            DebugMessages.Insert(0, msg);
+
+            // Keep only last 100 messages
+            if (DebugMessages.Count > 100)
+            {
+                DebugMessages.RemoveAt(DebugMessages.Count - 1);
+            }
+
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void ClearMessages()
+    {
+        DebugMessages.Clear();
+    }
+
+    public void Dispose()
+    {
+        _subscription?.Dispose();
+    }
+
+    private class DebugMessage
+    {
+        public DateTime Timestamp { get; set; }
+        public string Topic { get; set; } = "";
+        public string Payload { get; set; } = "";
+        public string Level { get; set; } = "log";
+    }
+}

@@ -1,0 +1,81 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/contextMenu.js
+   ============================================================
+   Context menu component for right-click actions
+   ============================================================ *@
+
+@inject IJSRuntime JS
+
+<div id="red-ui-context-menu" 
+     class="red-ui-context-menu @(IsVisible ? "" : "hide")"
+     style="left: @(X)px; top: @(Y)px;">
+    @if (Items.Count > 0)
+    {
+        <ul>
+            @foreach (var item in Items)
+            {
+                @if (item.IsSeparator)
+                {
+                    <li class="separator"></li>
+                }
+                else
+                {
+                    <li class="@(item.Disabled ? "disabled" : "")" 
+                        @onclick="() => HandleItemClick(item)">
+                        @if (!string.IsNullOrEmpty(item.Icon))
+                        {
+                            <i class="fa @item.Icon"></i>
+                        }
+                        <span>@item.Label</span>
+                        @if (!string.IsNullOrEmpty(item.Shortcut))
+                        {
+                            <span class="shortcut">@item.Shortcut</span>
+                        }
+                    </li>
+                }
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private bool IsVisible = false;
+    private double X = 0;
+    private double Y = 0;
+    private List<ContextMenuItem> Items = new();
+
+    public void Show(double x, double y, List<ContextMenuItem> items)
+    {
+        X = x;
+        Y = y;
+        Items = items;
+        IsVisible = true;
+        StateHasChanged();
+    }
+
+    public void Hide()
+    {
+        IsVisible = false;
+        Items.Clear();
+        StateHasChanged();
+    }
+
+    private void HandleItemClick(ContextMenuItem item)
+    {
+        if (!item.Disabled)
+        {
+            item.OnClick?.Invoke();
+            Hide();
+        }
+    }
+
+    public class ContextMenuItem
+    {
+        public string Label { get; set; } = "";
+        public string? Icon { get; set; }
+        public string? Shortcut { get; set; }
+        public bool Disabled { get; set; }
+        public bool IsSeparator { get; set; }
+        public Action? OnClick { get; set; }
+    }
+}
