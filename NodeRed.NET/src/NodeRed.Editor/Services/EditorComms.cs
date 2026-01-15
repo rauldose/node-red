@@ -59,6 +59,7 @@ public class EditorComms : IEditorComms, IAsyncDisposable
     private int _reconnectAttempts = 0;
     private bool _active = false;
     private readonly ConcurrentDictionary<string, List<Action<string, object?>>> _subscriptions = new();
+    private readonly object _subscriptionLock = new();
     private readonly string _hubUrl;
     private CancellationTokenSource? _reconnectCts;
 
@@ -111,7 +112,7 @@ public class EditorComms : IEditorComms, IAsyncDisposable
         {
             OnConnectionStateChanged?.Invoke(false);
             
-            if (_active && !_reconnectCts?.IsCancellationRequested == true)
+            if (_active && _reconnectCts?.IsCancellationRequested != true)
             {
                 // Attempt manual reconnection
                 await Task.Delay(TimeSpan.FromSeconds(Math.Min(_reconnectAttempts * 2, 30)));
@@ -177,7 +178,7 @@ public class EditorComms : IEditorComms, IAsyncDisposable
             _ => new List<Action<string, object?>> { callback },
             (_, list) =>
             {
-                list.Add(callback);
+                lock (_subscriptionLock) { list.Add(callback); }
                 return list;
             }
         );
@@ -198,10 +199,13 @@ public class EditorComms : IEditorComms, IAsyncDisposable
         }
         else if (_subscriptions.TryGetValue(topic, out var list))
         {
-            list.Remove(callback);
-            if (list.Count == 0)
-            {
-                _subscriptions.TryRemove(topic, out _);
+            lock (_subscriptionLock) 
+            { 
+                list.Remove(callback); 
+                if (list.Count == 0)
+                {
+                    _subscriptions.TryRemove(topic, out _);
+                }
             }
         }
     }
@@ -255,7 +259,10 @@ public class EditorComms : IEditorComms, IAsyncDisposable
 
             if (System.Text.RegularExpressions.Regex.IsMatch(topic, regexPattern))
             {
-                foreach (var callback in subscription.Value.ToList())
+                List<Action<string, object?>> callbacksCopy;
+                lock (_subscriptionLock) { callbacksCopy = subscription.Value.ToList(); }
+                
+                foreach (var callback in callbacksCopy)
                 {
                     try
                     {

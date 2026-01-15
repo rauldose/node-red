@@ -59,13 +59,14 @@ public class EditorState
 public class EditorEvents
 {
     private readonly ConcurrentDictionary<string, List<Action<object?>>> _handlers = new();
+    private readonly object _lockObj = new();
 
     public void On(string eventName, Action<object?> handler)
     {
         _handlers.AddOrUpdate(
             eventName,
             _ => new List<Action<object?>> { handler },
-            (_, list) => { list.Add(handler); return list; }
+            (_, list) => { lock (_lockObj) { list.Add(handler); } return list; }
         );
     }
 
@@ -77,7 +78,7 @@ public class EditorEvents
         }
         else if (_handlers.TryGetValue(eventName, out var list))
         {
-            list.Remove(handler);
+            lock (_lockObj) { list.Remove(handler); }
         }
     }
 
@@ -85,7 +86,10 @@ public class EditorEvents
     {
         if (_handlers.TryGetValue(eventName, out var list))
         {
-            foreach (var handler in list.ToList())
+            List<Action<object?>> handlersCopy;
+            lock (_lockObj) { handlersCopy = list.ToList(); }
+            
+            foreach (var handler in handlersCopy)
             {
                 try
                 {
