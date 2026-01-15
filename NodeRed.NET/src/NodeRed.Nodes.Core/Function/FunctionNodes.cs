@@ -701,13 +701,16 @@ public class DelayNode : BaseNode
                     case "queue":
                         if (_drop && _queue.Count > 0)
                         {
-                            // Drop this message
+                            // Drop this message - call done immediately
+                            done(null);
                         }
                         else
                         {
+                            // Queue the message with its callbacks for later processing
+                            // done will be called by StartRateProcessing when the message is sent
                             _queue.Enqueue((msg, send, done));
                             StartRateProcessing();
-                            return; // Don't call done yet
+                            return; // Don't call done here - it will be called by the rate processor
                         }
                         break;
                         

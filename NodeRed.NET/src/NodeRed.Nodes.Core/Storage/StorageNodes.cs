@@ -392,7 +392,18 @@ public class WatchNode : BaseNode
             ["type"] = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(eventType))
         };
         
-        _ = ReceiveAsync(msg);
+        // Fire and forget with proper exception handling
+        Task.Run(async () =>
+        {
+            try
+            {
+                await ReceiveAsync(msg);
+            }
+            catch (Exception ex)
+            {
+                Error($"File event handler error: {ex.Message}");
+            }
+        });
     }
     
     private void OnRenamedEvent(RenamedEventArgs e)
@@ -410,7 +421,18 @@ public class WatchNode : BaseNode
             ["oldPath"] = JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(e.OldFullPath))
         };
         
-        _ = ReceiveAsync(msg);
+        // Fire and forget with proper exception handling
+        Task.Run(async () =>
+        {
+            try
+            {
+                await ReceiveAsync(msg);
+            }
+            catch (Exception ex)
+            {
+                Error($"File renamed handler error: {ex.Message}");
+            }
+        });
     }
     
     public override async Task CloseAsync(bool removed = false)

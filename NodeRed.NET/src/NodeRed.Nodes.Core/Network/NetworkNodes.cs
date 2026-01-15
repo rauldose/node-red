@@ -476,7 +476,18 @@ public class TcpInNode : BaseNode
                     while (!_cts.Token.IsCancellationRequested)
                     {
                         var client = await _listener.AcceptTcpClientAsync(_cts.Token);
-                        _ = HandleClientAsync(client, dataType);
+                        // Handle client in background with proper exception handling
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await HandleClientAsync(client, dataType);
+                            }
+                            catch (Exception ex)
+                            {
+                                Error($"TCP client handler error: {ex.Message}");
+                            }
+                        });
                     }
                 }
                 catch (OperationCanceledException)
