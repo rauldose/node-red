@@ -112,10 +112,59 @@
             {
                 Id = cat,
                 Label = FormatCategoryLabel(cat),
-                IsOpen = true,
+                IsOpen = cat == "common" || cat == "function" || cat == "network",
                 NodeCount = 0
             });
         }
+
+        // Add mock nodes for demonstration (translated from core nodes)
+        _nodeTypes.Add(new NodeTypeInfo { Type = "inject", Label = "inject", Category = "common", Color = "#a6bbcf", Icon = "fa-clock", Inputs = 0, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "debug", Label = "debug", Category = "common", Color = "#87a980", Icon = "fa-bug", Inputs = 1, Outputs = 0 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "complete", Label = "complete", Category = "common", Color = "#a6bbcf", Icon = "fa-check", Inputs = 0, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "catch", Label = "catch", Category = "common", Color = "#a6bbcf", Icon = "fa-warning", Inputs = 0, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "status", Label = "status", Category = "common", Color = "#a6bbcf", Icon = "fa-info-circle", Inputs = 0, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "link in", Label = "link in", Category = "common", Color = "#ddd", Icon = "fa-arrow-left", Inputs = 0, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "link out", Label = "link out", Category = "common", Color = "#ddd", Icon = "fa-arrow-right", Inputs = 1, Outputs = 0 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "link call", Label = "link call", Category = "common", Color = "#ddd", Icon = "fa-share", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "comment", Label = "comment", Category = "common", Color = "#fff", Icon = "fa-comment", Inputs = 0, Outputs = 0 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "junction", Label = "junction", Category = "common", Color = "#999", Icon = "fa-circle", Inputs = 1, Outputs = 1 });
+
+        _nodeTypes.Add(new NodeTypeInfo { Type = "function", Label = "function", Category = "function", Color = "#fdd0a2", Icon = "fa-code", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "switch", Label = "switch", Category = "function", Color = "#e2d96e", Icon = "fa-random", Inputs = 1, Outputs = 2 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "change", Label = "change", Category = "function", Color = "#e2d96e", Icon = "fa-pencil", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "range", Label = "range", Category = "function", Color = "#e2d96e", Icon = "fa-arrows-h", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "template", Label = "template", Category = "function", Color = "#e2c96e", Icon = "fa-file-text-o", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "delay", Label = "delay", Category = "function", Color = "#e6e0f8", Icon = "fa-clock-o", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "trigger", Label = "trigger", Category = "function", Color = "#e6e0f8", Icon = "fa-crosshairs", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "exec", Label = "exec", Category = "function", Color = "#fdd0a2", Icon = "fa-terminal", Inputs = 1, Outputs = 3 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "rbe", Label = "filter", Category = "function", Color = "#e2d96e", Icon = "fa-filter", Inputs = 1, Outputs = 1 });
+
+        _nodeTypes.Add(new NodeTypeInfo { Type = "mqtt in", Label = "mqtt in", Category = "network", Color = "#d8bfd8", Icon = "fa-sign-in", Inputs = 0, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "mqtt out", Label = "mqtt out", Category = "network", Color = "#d8bfd8", Icon = "fa-sign-out", Inputs = 1, Outputs = 0 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "http in", Label = "http in", Category = "network", Color = "#d8bfd8", Icon = "fa-globe", Inputs = 0, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "http response", Label = "http response", Category = "network", Color = "#d8bfd8", Icon = "fa-reply", Inputs = 1, Outputs = 0 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "http request", Label = "http request", Category = "network", Color = "#d8bfd8", Icon = "fa-cloud", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "websocket in", Label = "websocket in", Category = "network", Color = "#d8bfd8", Icon = "fa-sign-in", Inputs = 0, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "websocket out", Label = "websocket out", Category = "network", Color = "#d8bfd8", Icon = "fa-sign-out", Inputs = 1, Outputs = 0 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "tcp in", Label = "tcp in", Category = "network", Color = "#c7c7c7", Icon = "fa-sign-in", Inputs = 0, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "tcp out", Label = "tcp out", Category = "network", Color = "#c7c7c7", Icon = "fa-sign-out", Inputs = 1, Outputs = 0 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "udp in", Label = "udp in", Category = "network", Color = "#c7c7c7", Icon = "fa-sign-in", Inputs = 0, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "udp out", Label = "udp out", Category = "network", Color = "#c7c7c7", Icon = "fa-sign-out", Inputs = 1, Outputs = 0 });
+
+        _nodeTypes.Add(new NodeTypeInfo { Type = "csv", Label = "csv", Category = "parser", Color = "#DEBD5C", Icon = "fa-table", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "html", Label = "html", Category = "parser", Color = "#DEBD5C", Icon = "fa-code", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "json", Label = "json", Category = "parser", Color = "#DEBD5C", Icon = "fa-list-alt", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "xml", Label = "xml", Category = "parser", Color = "#DEBD5C", Icon = "fa-file-code-o", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "yaml", Label = "yaml", Category = "parser", Color = "#DEBD5C", Icon = "fa-file-text-o", Inputs = 1, Outputs = 1 });
+
+        _nodeTypes.Add(new NodeTypeInfo { Type = "split", Label = "split", Category = "sequence", Color = "#e2d96e", Icon = "fa-expand", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "join", Label = "join", Category = "sequence", Color = "#e2d96e", Icon = "fa-compress", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "sort", Label = "sort", Category = "sequence", Color = "#e2d96e", Icon = "fa-sort", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "batch", Label = "batch", Category = "sequence", Color = "#e2d96e", Icon = "fa-th-large", Inputs = 1, Outputs = 1 });
+
+        _nodeTypes.Add(new NodeTypeInfo { Type = "file", Label = "file", Category = "storage", Color = "#ff9966", Icon = "fa-file", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "file in", Label = "file in", Category = "storage", Color = "#ff9966", Icon = "fa-file-o", Inputs = 1, Outputs = 1 });
+        _nodeTypes.Add(new NodeTypeInfo { Type = "watch", Label = "watch", Category = "storage", Color = "#ff9966", Icon = "fa-eye", Inputs = 0, Outputs = 1 });
 
         // Subscribe to node list changes
         State.Events.On("nodes:list", _ => RefreshPalette());
@@ -124,7 +173,13 @@
             IsLoading = false;
             RefreshPalette();
         });
+        
+        // Initial refresh
+        RefreshPalette();
+        IsLoading = false;
     }
+
+    private List<NodeTypeInfo> _nodeTypes = new();
 
     private void RefreshPalette()
     {
@@ -146,13 +201,8 @@
     private List<NodeTypeInfo> GetNodesInCategory(string category)
     {
         // Get all node types in this category
-        var nodes = new List<NodeTypeInfo>();
-        
-        // TODO: Filter based on actual node definitions
-        // For now, return mock data for structure
-        
-        return nodes
-            .Where(n => MatchesFilter(n))
+        return _nodeTypes
+            .Where(n => n.Category == category && MatchesFilter(n))
             .ToList();
     }
 

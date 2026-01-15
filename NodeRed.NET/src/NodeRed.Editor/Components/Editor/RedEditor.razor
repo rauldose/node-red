@@ -173,26 +173,27 @@
             ApiRootUrl += "/";
         }
 
-        // Start loading sequence - translated from loader.start()
-        ReportProgress("...", 0);
-
+        // For demo purposes, skip actual API calls and show UI immediately
+        // In production, this would load from the API
         try
         {
-            // Load theme - translated from $.getJSON("theme")
-            await LoadThemeAsync();
-
-            // Initialize i18n - translated from RED.i18n.init()
-            await State.I18n.InitAsync(ApiRootUrl);
-
-            // Initialize settings - translated from RED.settings.init()
-            await State.Settings.InitAsync(ApiRootUrl);
-
-            // Load editor - translated from loadEditor()
-            await LoadEditorAsync();
+            // Initialize with defaults (no API server needed for demo)
+            State.Theme = new ThemeSettings();
+            
+            // Add a default workspace
+            State.Workspaces.Add(new Workspace { Id = "flow1", Label = "Flow 1" });
+            
+            // Complete loading immediately
+            IsLoading = false;
+            SidebarClosed = false;
+            
+            StateHasChanged();
         }
         catch (Exception ex)
         {
             await ShowNotificationAsync($"Failed to initialize editor: {ex.Message}", "error");
+            IsLoading = false;
+            StateHasChanged();
         }
     }
 

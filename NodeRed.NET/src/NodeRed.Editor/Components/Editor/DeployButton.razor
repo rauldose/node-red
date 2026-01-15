@@ -20,53 +20,18 @@
 @using NodeRed.Editor.Services
 @inject EditorState State
 
-<span class="red-ui-deploy-button-group @(IsDeploying ? "deploying" : "") @(HasChanges ? "has-changes" : "")">
-    <button id="red-ui-header-button-deploy" 
-            class="red-ui-deploy-button @DeploymentType"
-            @onclick="HandleDeploy"
-            disabled="@(!HasChanges || IsDeploying)">
-        <span>
+<span class="red-ui-deploy-button-group">
+    <a id="red-ui-header-button-deploy" 
+       class="button red-ui-deploy-button @(HasChanges ? "" : "disabled")"
+       @onclick="HandleDeploy">
+        <span class="red-ui-deploy-button-content">
             @if (IsDeploying)
             {
-                <img src="images/spin.svg" alt="Deploying..." />
-            }
-            else
-            {
-                <img src="@GetDeployIcon()" alt="" />
+                <span style="margin-right: 8px;">⟳</span>
             }
             @State.I18n.Translate("deploy.deploy")
         </span>
-    </button>
-    
-    @* Deploy type dropdown *@
-    <button id="red-ui-header-button-deploy-options"
-            class="red-ui-deploy-button-options"
-            @onclick="ToggleDropdown">
-        <i class="fa fa-caret-down"></i>
-    </button>
-    
-    @if (ShowDropdown)
-    {
-        <div class="red-ui-deploy-dropdown">
-            <ul>
-                <li class="@(DeploymentType == "full" ? "active" : "")" 
-                    @onclick="@(() => SetDeploymentType("full"))">
-                    <img src="images/deploy-full-o.svg" alt="" />
-                    <span>@State.I18n.Translate("deploy.full")</span>
-                </li>
-                <li class="@(DeploymentType == "nodes" ? "active" : "")" 
-                    @onclick="@(() => SetDeploymentType("nodes"))">
-                    <img src="images/deploy-nodes-o.svg" alt="" />
-                    <span>@State.I18n.Translate("deploy.modifiedNodes")</span>
-                </li>
-                <li class="@(DeploymentType == "flows" ? "active" : "")" 
-                    @onclick="@(() => SetDeploymentType("flows"))">
-                    <img src="images/deploy-flows-o.svg" alt="" />
-                    <span>@State.I18n.Translate("deploy.modifiedFlows")</span>
-                </li>
-            </ul>
-        </div>
-    }
+    </a>
 </span>
 
 @code {
@@ -74,37 +39,14 @@
     public EventCallback OnDeploy { get; set; }
 
     private string DeploymentType = "full";
-    private bool ShowDropdown = false;
     private bool IsDeploying = false;
     private bool HasChanges => State.Nodes.IsDirty();
-
-    private string GetDeployIcon()
-    {
-        return DeploymentType switch
-        {
-            "nodes" => "images/deploy-nodes-o.svg",
-            "flows" => "images/deploy-flows-o.svg",
-            _ => "images/deploy-full-o.svg"
-        };
-    }
-
-    private void ToggleDropdown()
-    {
-        ShowDropdown = !ShowDropdown;
-    }
-
-    private void SetDeploymentType(string type)
-    {
-        DeploymentType = type;
-        ShowDropdown = false;
-    }
 
     private async Task HandleDeploy()
     {
         if (IsDeploying || !HasChanges) return;
 
         IsDeploying = true;
-        ShowDropdown = false;
         StateHasChanged();
 
         try

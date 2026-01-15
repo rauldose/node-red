@@ -558,9 +558,10 @@ public class EditorWorkspaces
 {
     private string _activeWorkspace = "";
     private int _workspaceIndex = 0;
+    private readonly List<Workspace> _workspaces = new();
     private readonly List<string> _workspaceOrder = new();
 
-    public int Count => _workspaceOrder.Count;
+    public int Count => _workspaces.Count;
 
     public void Show(string id, bool force = false)
     {
@@ -570,6 +571,33 @@ public class EditorWorkspaces
     public string Active() => _activeWorkspace;
 
     public List<string> GetWorkspaceOrder() => _workspaceOrder.ToList();
+
+    public List<Workspace> GetAll() => _workspaces.ToList();
+
+    public void Add(Workspace ws)
+    {
+        _workspaces.Add(ws);
+        _workspaceOrder.Add(ws.Id);
+        if (string.IsNullOrEmpty(_activeWorkspace))
+        {
+            _activeWorkspace = ws.Id;
+        }
+    }
+
+    public Workspace? Get(string id) => _workspaces.FirstOrDefault(w => w.Id == id);
+}
+
+/// <summary>
+/// Workspace (flow tab) model
+/// </summary>
+public class Workspace
+{
+    public string Id { get; set; } = "";
+    public string Type { get; set; } = "tab";
+    public string Label { get; set; } = "";
+    public bool Disabled { get; set; }
+    public string Info { get; set; } = "";
+    public string Env { get; set; } = "";
 }
 
 // ============================================================

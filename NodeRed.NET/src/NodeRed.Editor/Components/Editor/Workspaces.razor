@@ -27,6 +27,26 @@
 @inject EditorState State
 @inject IJSRuntime JS
 
+@* Workspace tabs - translated from workspaceTabs *@
+<div id="red-ui-workspace-tabs">
+    @foreach (var ws in State.Workspaces.GetAll())
+    {
+        <div class="red-ui-tab @(State.Workspaces.Active() == ws.Id ? "active" : "")"
+             @onclick="() => State.Workspaces.Show(ws.Id)">
+            <span>@(string.IsNullOrEmpty(ws.Label) ? "Flow" : ws.Label)</span>
+        </div>
+    }
+    @if (!State.Workspaces.GetAll().Any())
+    {
+        <div class="red-ui-tab active">
+            <span>Flow 1</span>
+        </div>
+    }
+    <div class="red-ui-tab" style="opacity: 0.6; cursor: pointer;" title="Add new flow">
+        <span>+</span>
+    </div>
+</div>
+
 <div id="red-ui-workspace-chart" 
      class="red-ui-workspace-chart"
      @onmousedown="HandleMouseDown"
@@ -130,6 +150,10 @@
             </g>
         </g>
     </svg>
+</div>
+
+<div id="red-ui-workspace-footer">
+    <span>NodeRed.NET v1.0</span>
 </div>
 
 @code {
