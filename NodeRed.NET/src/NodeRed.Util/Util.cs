@@ -121,8 +121,6 @@ namespace NodeRed.Util
     /// </remarks>
     public static class Util
     {
-        private static readonly Random _random = new();
-
         /// <summary>
         /// Safely returns the object constructor name.
         /// </summary>
@@ -140,10 +138,8 @@ namespace NodeRed.Util
         public static string GenerateId()
         {
             var bytes = new byte[8];
-            lock (_random)
-            {
-                _random.NextBytes(bytes);
-            }
+            // Use Random.Shared which is thread-safe in .NET 6+
+            Random.Shared.NextBytes(bytes);
             return BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant();
         }
 

@@ -342,6 +342,10 @@ namespace NodeRed.Util
         /// <summary>
         /// Get the current locale from environment variables.
         /// </summary>
+        /// <summary>
+        /// Get the current locale from environment variables.
+        /// Note: This extracts only the first 2 characters, matching the original Node-RED behavior.
+        /// </summary>
         private static string? GetCurrentLocale()
         {
             string[] envVars = { "LC_ALL", "LC_MESSAGES", "LANG" };
@@ -350,6 +354,7 @@ namespace NodeRed.Util
                 var val = Environment.GetEnvironmentVariable(name);
                 if (!string.IsNullOrEmpty(val))
                 {
+                    // Original Node-RED uses val.substring(0, 2) - we match this behavior exactly
                     return val.Substring(0, Math.Min(2, val.Length));
                 }
             }

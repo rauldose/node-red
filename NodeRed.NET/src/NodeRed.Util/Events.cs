@@ -324,9 +324,8 @@ namespace NodeRed.Util
                     ? "(unknown)"
                     : $"{callerFilePath}:{callerLineNumber}";
 
-                // Log warning about deprecated event
-                // Note: In the full implementation, this would use Log.Warn
-                Console.WriteLine($"[RED.events] Deprecated use of \"{eventName}\" event from \"{location}\". Use \"{replacement}\" instead.");
+                // Log warning about deprecated event using the Log utility
+                Log.Warn($"[RED.events] Deprecated use of \"{eventName}\" event from \"{location}\". Use \"{replacement}\" instead.");
             }
         }
     }
