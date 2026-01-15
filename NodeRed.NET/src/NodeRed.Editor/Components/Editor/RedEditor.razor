@@ -89,27 +89,50 @@
             <Loader Progress="@LoadingProgress" Message="@LoadingMessage" />
         }
 
-        @* Workspace area *@
-        <div id="red-ui-workspace">
-            <Workspaces @ref="workspacesRef" />
-        </div>
-
-        @* Editor stack for tray dialogs *@
-        <div id="red-ui-editor-stack" tabindex="-1">
-            <EditorTray @ref="editorTrayRef" />
-        </div>
-
         @* Palette panel *@
-        <div id="red-ui-palette">
+        <div class="red-ui-palette-wrapper" style="position: absolute; top: 0; bottom: 0; left: 0; width: @(PaletteWidth)px; z-index: 10;">
             <Palette @ref="paletteRef" />
         </div>
 
-        @* Sidebar panel *@
-        <div id="red-ui-sidebar">
-            <Sidebar @ref="sidebarRef" />
+        @* Palette separator/handle - translated from palette resize behavior *@
+        <div id="red-ui-palette-separator" 
+             class="red-ui-panel-separator"
+             style="left: @(PaletteWidth)px;"
+             @onmousedown="OnPaletteHandleMouseDown"
+             @onmousedown:stopPropagation="true">
+            <div class="red-ui-panel-separator-grip">
+                <i class="fa fa-ellipsis-v"></i>
+            </div>
         </div>
 
-        <div id="red-ui-sidebar-separator"></div>
+        @* Workspace area *@
+        <div id="red-ui-workspace" style="left: @(PaletteWidth + 7)px; right: @(SidebarClosed ? 7 : SidebarWidth + 7)px;">
+            <Workspaces @ref="workspacesRef" />
+        </div>
+
+        @* Editor stack for tray dialogs - positioned left of sidebar *@
+        <div id="red-ui-editor-stack" tabindex="-1" style="right: @(SidebarClosed ? 8 : SidebarWidth + 8)px;">
+            <EditorTray @ref="editorTrayRef" />
+        </div>
+
+        @* Sidebar separator/handle - translated from sidebarSeparator in sidebar.js *@
+        <div id="red-ui-sidebar-separator" 
+             class="red-ui-panel-separator @(SidebarClosed ? "collapsed" : "")"
+             style="right: @(SidebarClosed ? 0 : SidebarWidth)px;"
+             @onmousedown="OnSidebarHandleMouseDown"
+             @onmousedown:stopPropagation="true">
+            <div class="red-ui-panel-separator-grip">
+                <i class="fa fa-ellipsis-v"></i>
+            </div>
+            <div class="red-ui-sidebar-control-right" @onclick="ToggleSidebar" @onclick:stopPropagation="true">
+                <i class="fa @(SidebarClosed ? "fa-chevron-left" : "fa-chevron-right")"></i>
+            </div>
+        </div>
+
+        @* Sidebar panel *@
+        <div class="red-ui-sidebar-wrapper @(SidebarClosed ? "collapsed" : "")" style="position: absolute; top: 0; bottom: 0; right: 0; width: @(SidebarClosed ? 0 : SidebarWidth)px; z-index: 10; overflow: hidden;">
+            <Sidebar @ref="sidebarRef" />
+        </div>
     </div>
 
     @* Plugin and node configs *@
@@ -146,6 +169,17 @@
     private bool SidebarClosed = true;
     private bool ShowHeaderShade = false;
     private bool ShowFullShade = false;
+
+    // ============================================================
+    // Panel resize state - translated from sidebarSeparator and palette resize
+    // ============================================================
+    private int SidebarWidth = 315;
+    private int PaletteWidth = 180;
+    private bool _isResizingSidebar = false;
+    private bool _isResizingPalette = false;
+    private int _resizeStartX = 0;
+    private int _resizeStartWidth = 0;
+    private DotNetObjectReference<RedEditor>? _dotNetRef;
 
     // Component references
     private Workspaces? workspacesRef;
@@ -601,6 +635,109 @@
         await State.Deploy.DeployAsync();
     }
 
+    // ============================================================
+    // Sidebar toggle - translated from RED.menu.toggleSelected("menu-item-sidebar")
+    // ============================================================
+    private void ToggleSidebar()
+    {
+        SidebarClosed = !SidebarClosed;
+        State.Events.Emit("sidebar:resize", null);
+        StateHasChanged();
+    }
+
+    // ============================================================
+    // Panel resize handlers - translated from setupSidebarSeparator()
+    // ============================================================
+    
+    /// <summary>
+    /// Handle mousedown on sidebar resize handle
+    /// Translated from: $(d).draggable({ start: ... })
+    /// </summary>
+    private async Task OnSidebarHandleMouseDown(MouseEventArgs e)
+    {
+        _isResizingSidebar = true;
+        _resizeStartX = (int)e.ClientX;
+        _resizeStartWidth = SidebarWidth;
+        
+        // Register global mouse events via JS
+        _dotNetRef = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("startPanelResize", _dotNetRef, "sidebar");
+    }
+
+    /// <summary>
+    /// Handle mousedown on palette resize handle
+    /// </summary>
+    private async Task OnPaletteHandleMouseDown(MouseEventArgs e)
+    {
+        _isResizingPalette = true;
+        _resizeStartX = (int)e.ClientX;
+        _resizeStartWidth = PaletteWidth;
+        
+        // Register global mouse events via JS
+        _dotNetRef = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("startPanelResize", _dotNetRef, "palette");
+    }
+
+    /// <summary>
+    /// Called from JavaScript when mouse moves during resize
+    /// </summary>
+    [JSInvokable]
+    public void OnPanelResizeMove(string panel, int clientX)
+    {
+        var delta = clientX - _resizeStartX;
+        
+        if (panel == "sidebar")
+        {
+            // Sidebar moves from right, so delta is inverted
+            var newWidth = Math.Max(150, Math.Min(600, _resizeStartWidth - delta));
+            SidebarWidth = newWidth;
+            
+            // If resizing from collapsed state
+            if (SidebarClosed && newWidth > 150)
+            {
+                SidebarClosed = false;
+            }
+        }
+        else if (panel == "palette")
+        {
+            // Palette moves from left
+            var newWidth = Math.Max(100, Math.Min(400, _resizeStartWidth + delta));
+            PaletteWidth = newWidth;
+        }
+        
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Called from JavaScript when mouse is released after resize
+    /// </summary>
+    [JSInvokable]
+    public void OnPanelResizeEnd(string panel)
+    {
+        if (panel == "sidebar")
+        {
+            _isResizingSidebar = false;
+            
+            // Close sidebar if dragged too small - translated from sidebarSeparator.closing
+            if (SidebarWidth < 150)
+            {
+                SidebarClosed = true;
+                SidebarWidth = 315; // Reset to default
+            }
+            
+            State.Events.Emit("sidebar:resize", null);
+        }
+        else if (panel == "palette")
+        {
+            _isResizingPalette = false;
+        }
+        
+        _dotNetRef?.Dispose();
+        _dotNetRef = null;
+        
+        InvokeAsync(StateHasChanged);
+    }
+
     public async ValueTask DisposeAsync()
     {
         // Cleanup subscriptions
@@ -609,6 +746,10 @@
             sub.Dispose();
         }
         _subscriptions.Clear();
+
+        // Cleanup DotNetObjectReference
+        _dotNetRef?.Dispose();
+        _dotNetRef = null;
 
         // Disconnect comms
         await Comms.DisconnectAsync();

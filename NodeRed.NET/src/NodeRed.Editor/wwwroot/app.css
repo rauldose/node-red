@@ -292,18 +292,22 @@ span.red-ui-header-logo a:hover {
 /* ===========================================
    Palette (from palette.scss)
    =========================================== */
+.red-ui-palette-wrapper {
+    background: var(--red-ui-primary-background);
+    border-right: 1px solid var(--red-ui-primary-border-color);
+    overflow: hidden;
+}
+
 #red-ui-palette {
     position: absolute;
     top: 0px;
     bottom: 0px;
     left: 0px;
+    right: 0px;
     background: var(--red-ui-primary-background);
-    width: var(--red-ui-palette-width);
     text-align: center;
-    border-right: 1px solid var(--red-ui-primary-border-color);
     user-select: none;
-    transition: width 0.2s ease-in-out;
-    z-index: 10;
+    overflow: hidden;
 }
 
 .red-ui-palette-search {
@@ -554,16 +558,25 @@ span.red-ui-header-logo a:hover {
 /* ===========================================
    Sidebar (from sidebar.scss)
    =========================================== */
+.red-ui-sidebar-wrapper {
+    background: var(--red-ui-primary-background);
+    border-left: 1px solid var(--red-ui-primary-border-color);
+    position: relative;
+}
+
+.red-ui-sidebar-wrapper.collapsed {
+    width: 0 !important;
+    border-left: none;
+}
+
 #red-ui-sidebar {
     position: absolute;
     top: 0px;
     right: 0px;
     bottom: 0px;
-    width: var(--red-ui-sidebar-width);
+    left: 0px;
     background: var(--red-ui-primary-background);
     box-sizing: border-box;
-    z-index: 10;
-    border-left: 1px solid var(--red-ui-primary-border-color);
 }
 
 #red-ui-sidebar-tabs {
@@ -621,14 +634,88 @@ span.red-ui-header-logo a:hover {
     padding: 0 10px;
 }
 
-#red-ui-sidebar-separator {
+/* ===========================================
+   Panel Separators / Resize Handles
+   Translated from sidebar.scss setupSidebarSeparator()
+   =========================================== */
+.red-ui-panel-separator {
     position: absolute;
-    top: 5px;
-    right: var(--red-ui-sidebar-width);
-    bottom: 10px;
+    top: 0;
+    bottom: 0;
     width: 7px;
     background-color: var(--red-ui-primary-background);
     cursor: col-resize;
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.red-ui-panel-separator:hover {
+    background-color: var(--red-ui-secondary-background-hover);
+}
+
+.red-ui-panel-separator-grip {
+    color: var(--red-ui-grip-color);
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.red-ui-panel-separator:hover .red-ui-panel-separator-grip {
+    opacity: 1;
+}
+
+#red-ui-palette-separator {
+    border-right: 1px solid var(--red-ui-primary-border-color);
+}
+
+#red-ui-sidebar-separator {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 7px;
+    background-color: var(--red-ui-primary-background);
+    cursor: col-resize;
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-left: 1px solid var(--red-ui-primary-border-color);
+}
+
+#red-ui-sidebar-separator:hover {
+    background-color: var(--red-ui-secondary-background-hover);
+}
+
+#red-ui-sidebar-separator.collapsed {
+    right: 0 !important;
+}
+
+.red-ui-sidebar-control-right {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 40px;
+    background: var(--red-ui-primary-background);
+    border: 1px solid var(--red-ui-primary-border-color);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    color: var(--red-ui-secondary-text-color);
+}
+
+#red-ui-sidebar-separator:hover .red-ui-sidebar-control-right {
+    opacity: 1;
+}
+
+.red-ui-sidebar-control-right:hover {
+    background: var(--red-ui-secondary-background-hover);
 }
 
 /* ===========================================
@@ -795,27 +882,33 @@ span.red-ui-header-logo a:hover {
 #red-ui-editor-stack {
     position: absolute;
     top: 0;
-    right: 0;
     bottom: 0;
-    width: 0;
+    width: 500px;
     z-index: 50;
+    pointer-events: none;
+}
+
+#red-ui-editor-stack > * {
+    pointer-events: auto;
 }
 
 .red-ui-tray {
     position: absolute;
     top: 0;
-    right: 0;
+    left: 0;
     bottom: 0;
-    width: 500px;
+    width: 100%;
     background: var(--red-ui-secondary-background);
     border-left: 1px solid var(--red-ui-primary-border-color);
     box-shadow: -2px 0 10px var(--red-ui-shadow);
     transform: translateX(100%);
     transition: transform 0.2s ease-in-out;
+    pointer-events: none;
 }
 
 .red-ui-tray.open {
     transform: translateX(0);
+    pointer-events: auto;
 }
 
 .red-ui-tray-header {

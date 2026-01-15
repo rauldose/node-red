@@ -21,47 +21,49 @@
 @using NodeRed.Editor.Services
 @inject EditorState State
 
-<div id="red-ui-sidebar-tabs">
-    @foreach (var tab in Tabs)
-    {
-        <span class="red-ui-sidebar-tab @(ActiveTabId == tab.Id ? "active" : "")"
-              @onclick="() => ShowTab(tab.Id)"
-              title="@tab.Label">
-            <i class="fa @tab.Icon"></i>
-        </span>
-    }
-</div>
+<div id="red-ui-sidebar">
+    <div id="red-ui-sidebar-tabs">
+        @foreach (var tab in Tabs)
+        {
+            <span class="red-ui-sidebar-tab @(ActiveTabId == tab.Id ? "active" : "")"
+                  @onclick="() => ShowTab(tab.Id)"
+                  title="@tab.Label">
+                <i class="fa @tab.Icon"></i>
+            </span>
+        }
+    </div>
 
-<div id="red-ui-sidebar-content">
-    @switch (ActiveTabId)
-    {
-        case "info":
-            <SidebarInfo />
-            break;
-        case "debug":
-            <SidebarDebug />
-            break;
-        case "config":
-            <SidebarConfig />
-            break;
-        case "context":
-            <SidebarContext />
-            break;
-        case "help":
-            <SidebarHelp />
-            break;
-        default:
-            @* Custom tab content *@
-            @if (_customTabContent.TryGetValue(ActiveTabId, out var content))
-            {
-                @content
-            }
-            break;
-    }
-</div>
+    <div id="red-ui-sidebar-content">
+        @switch (ActiveTabId)
+        {
+            case "info":
+                <SidebarInfo />
+                break;
+            case "debug":
+                <SidebarDebug />
+                break;
+            case "config":
+                <SidebarConfig />
+                break;
+            case "context":
+                <SidebarContext />
+                break;
+            case "help":
+                <SidebarHelp />
+                break;
+            default:
+                @* Custom tab content *@
+                @if (_customTabContent.TryGetValue(ActiveTabId, out var content))
+                {
+                    @content
+                }
+                break;
+        }
+    </div>
 
-<div id="red-ui-sidebar-footer">
-    <span style="font-size: 11px; color: var(--red-ui-tertiary-text-color);">NodeRed.NET</span>
+    <div id="red-ui-sidebar-footer">
+        <span style="font-size: 11px; color: var(--red-ui-tertiary-text-color);">NodeRed.NET</span>
+    </div>
 </div>
 
 @code {
