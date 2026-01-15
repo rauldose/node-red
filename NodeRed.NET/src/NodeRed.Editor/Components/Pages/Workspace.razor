@@ -1,0 +1,129 @@
+@page "/workspace"
+@using MudBlazor
+@rendermode InteractiveServer
+
+<PageTitle>NodeRed.NET - Flow Editor</PageTitle>
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" />
+        <MudText Typo="Typo.h6">NodeRed.NET</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.CloudUpload">
+            Deploy
+        </MudButton>
+    </MudAppBar>
+    
+    <MudDrawer @bind-Open="@_paletteOpen" Elevation="2" Width="280px">
+        <MudDrawerHeader>
+            <MudText Typo="Typo.h6">Node Palette</MudText>
+        </MudDrawerHeader>
+        <MudNavMenu>
+            <MudText Typo="Typo.subtitle2" Class="px-4 mud-text-secondary">Common</MudText>
+            <MudNavLink Icon="@Icons.Material.Filled.PlayArrow">Inject</MudNavLink>
+            <MudNavLink Icon="@Icons.Material.Filled.BugReport">Debug</MudNavLink>
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.subtitle2" Class="px-4 mud-text-secondary">Function</MudText>
+            <MudNavLink Icon="@Icons.Material.Filled.Functions">Function</MudNavLink>
+            <MudNavLink Icon="@Icons.Material.Filled.SwapHoriz">Change</MudNavLink>
+            <MudNavLink Icon="@Icons.Material.Filled.CallSplit">Switch</MudNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+    
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.False" Class="pa-0" Style="height: 100vh;">
+            <MudGrid Spacing="0" Style="height: 100%;">
+                <MudItem xs="12" Style="height: calc(100% - 200px); border: 1px solid #ddd; background: #f5f5f5; position: relative;">
+                    <MudText Typo="Typo.h4" Align="Align.Center" Style="padding-top: 100px; color: #999;">
+                        Flow Workspace
+                    </MudText>
+                    <MudText Align="Align.Center" Style="color: #999;">
+                        Drag nodes from the palette to start building your flow
+                    </MudText>
+                    
+                    @if (_demoNodes.Any())
+                    {
+                        <MudPaper Class="pa-4 ma-4" Style="position: absolute; top: 20px; left: 20px; min-width: 150px;">
+                            <MudText Typo="Typo.subtitle2" Style="color: #888;">inject</MudText>
+                            <MudText Typo="Typo.body2">timestamp</MudText>
+                            <div style="position: absolute; right: -5px; top: 50%; width: 10px; height: 10px; background: #888; border-radius: 50%;"></div>
+                        </MudPaper>
+                        
+                        <MudPaper Class="pa-4 ma-4" Style="position: absolute; top: 20px; left: 220px; min-width: 150px;">
+                            <MudText Typo="Typo.subtitle2" Style="color: #888;">debug</MudText>
+                            <MudText Typo="Typo.body2">msg.payload</MudText>
+                            <div style="position: absolute; left: -5px; top: 50%; width: 10px; height: 10px; background: #888; border-radius: 50%;"></div>
+                        </MudPaper>
+                        
+                        <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                            <line x1="182" y1="66" x2="220" y2="66" stroke="#888" stroke-width="2" />
+                        </svg>
+                    }
+                </MudItem>
+                
+                <MudItem xs="12" Style="height: 200px; border-top: 1px solid #ddd;">
+                    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+                        <MudTabPanel Icon="@Icons.Material.Filled.Info" Text="Info">
+                            <MudText Typo="Typo.body1">
+                                <strong>NodeRed.NET</strong> - A flow-based programming tool inspired by Node-RED
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="mt-2">
+                                Select a node to view its information
+                            </MudText>
+                        </MudTabPanel>
+                        
+                        <MudTabPanel Icon="@Icons.Material.Filled.BugReport" Text="Debug">
+                            @if (_debugMessages.Any())
+                            {
+                                @foreach (var msg in _debugMessages)
+                                {
+                                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                                        <MudText Typo="Typo.caption">@msg.Timestamp.ToString("HH:mm:ss.fff")</MudText>
+                                        <MudText Typo="Typo.body2">@msg.Message</MudText>
+                                    </MudAlert>
+                                }
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    No debug messages yet
+                                </MudText>
+                            }
+                        </MudTabPanel>
+                    </MudTabs>
+                </MudItem>
+            </MudGrid>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _paletteOpen = true;
+    private List<DemoNode> _demoNodes = new() 
+    { 
+        new DemoNode { Type = "inject", Label = "timestamp" },
+        new DemoNode { Type = "debug", Label = "msg.payload" }
+    };
+    
+    private List<DebugMessage> _debugMessages = new()
+    {
+        new DebugMessage { Timestamp = DateTimeOffset.Now, Message = "Welcome to NodeRed.NET!" }
+    };
+
+    private class DemoNode
+    {
+        public string Type { get; set; } = "";
+        public string Label { get; set; } = "";
+    }
+    
+    private class DebugMessage
+    {
+        public DateTimeOffset Timestamp { get; set; }
+        public string Message { get; set; } = "";
+    }
+}
