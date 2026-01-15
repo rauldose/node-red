@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NodeRed.Util\NodeRed.Util.csproj" />
+    <ProjectReference Include="..\NodeRed.Runtime\NodeRed.Runtime.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
