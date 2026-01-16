@@ -29,11 +29,12 @@ public class SubflowManager
     {
         if (nodes == null || nodes.Count == 0) return null;
         
+        var subflowId = Guid.NewGuid().ToString();
         var subflow = new Subflow
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = subflowId,
             Type = "subflow",
-            Name = $"Subflow {DateTime.Now.Ticks % 1000}"
+            Name = $"Subflow {subflowId[..8]}"  // Use first 8 chars of GUID for unique naming
         };
 
         // Record history
