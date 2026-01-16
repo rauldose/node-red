@@ -294,6 +294,7 @@
                     // Clear selection when clicking on empty space
                     MovingSet.Clear();
                     SelectedLinks.Clear();
+                    State.Nodes.ClearSelection();
                 }
                 
                 // Start global mouse tracking for lasso selection
@@ -589,8 +590,10 @@
                 if (!e.CtrlKey && !e.ShiftKey)
                 {
                     MovingSet.Clear();
+                    State.Nodes.ClearSelection();
                 }
                 MovingSet.Add(node);
+                State.Nodes.SelectNode(node);
             }
             _mouseMode = MouseMode.Moving;
             
@@ -654,7 +657,7 @@
             SelectNodesInLasso(Lasso);
             Lasso = null;
         }
-        else if (_mouseMode == MouseMode.Joining)
+        else if (_mouseMode == MouseMode.Joining && !_wireCompleted)
         {
             // Wire creation cancelled (didn't land on a port)
             _wireSourceNode = null;
@@ -662,6 +665,8 @@
             DragLines.Clear();
         }
         
+        // Reset completed flag for next operation
+        _wireCompleted = false;
         _mouseMode = MouseMode.None;
         _mousedownNode = null;
         InvokeAsync(StateHasChanged);
@@ -670,7 +675,9 @@
     private void SelectNode(FlowNode node)
     {
         MovingSet.Clear();
+        State.Nodes.ClearSelection();
         MovingSet.Add(node);
+        State.Nodes.SelectNode(node);
         SelectedLinks.Clear();
         StateHasChanged();
     }
@@ -710,6 +717,7 @@
                 node.Y >= minY && node.Y + NodeHeight <= maxY)
             {
                 MovingSet.Add(node);
+                State.Nodes.SelectNode(node);
             }
         }
     }
@@ -766,6 +774,7 @@
 
     private FlowNode? _wireSourceNode;
     private int _wireSourcePortIndex;
+    private bool _wireCompleted;
 
     /// <summary>
     /// Handle output port drag start - initiates wire creation
@@ -775,6 +784,7 @@
     {
         _wireSourceNode = args.Node;
         _wireSourcePortIndex = args.PortIndex;
+        _wireCompleted = false;
         _mouseMode = MouseMode.Joining;
         
         // Create temporary drag line
@@ -822,6 +832,9 @@
                 // Add to state
                 State.Nodes.AddLink(newLink);
                 State.Nodes.SetDirty(true);
+                
+                // Mark wire as completed so OnGlobalMouseUp doesn't reset state
+                _wireCompleted = true;
                 
                 // Refresh the view
                 RefreshView();
