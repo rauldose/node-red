@@ -1,24 +1,24 @@
 @namespace NodeRed.Editor.Components.Common
 
-@* 
-    Translated from: @node-red/editor-client/src/js/ui/common/toggleButton.js
-    Toggle button component with optional icon and label
-*@
+@* Syncfusion Blazor Switch Component Wrapper *@
+@* Replaces custom toggleButton with Syncfusion Switch *@
 
-<button class="red-ui-toggleButton @(Value ? "selected" : "") @CssClass"
-        disabled="@Disabled"
-        title="@Title"
-        @onclick="OnClick">
-    @if (!string.IsNullOrEmpty(CurrentIcon))
-    {
-        <i class="fa @CurrentIcon"></i>
-    }
-    @if (!string.IsNullOrEmpty(CurrentLabel))
-    {
-        <span>@CurrentLabel</span>
-    }
-    @ChildContent
-</button>
+<SfSwitch @bind-Checked="@Value" 
+          Disabled="@Disabled"
+          CssClass="@CssClass"
+          ValueChange="@OnValueChange">
+    <label>
+        @if (!string.IsNullOrEmpty(CurrentIcon))
+        {
+            <i class="fa @CurrentIcon"></i>
+        }
+        @if (!string.IsNullOrEmpty(CurrentLabel))
+        {
+            <span>@CurrentLabel</span>
+        }
+        @ChildContent
+    </label>
+</SfSwitch>
 
 @code {
     [Parameter] public bool Value { get; set; }
@@ -38,11 +38,9 @@
     private string? CurrentIcon => Value ? (IconOn ?? Icon) : (IconOff ?? Icon);
     private string? CurrentLabel => Value ? (LabelOn ?? Label) : (LabelOff ?? Label);
 
-    private async Task OnClick()
+    private async Task OnValueChange(ChangeEventArgs<bool> args)
     {
-        if (Disabled) return;
-        
-        Value = !Value;
+        Value = args.Checked;
         await ValueChanged.InvokeAsync(Value);
         await OnChange.InvokeAsync(Value);
     }

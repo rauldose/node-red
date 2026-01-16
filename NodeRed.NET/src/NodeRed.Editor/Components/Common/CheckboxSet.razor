@@ -1,25 +1,18 @@
 @namespace NodeRed.Editor.Components.Common
 
-@* 
-    Translated from: @node-red/editor-client/src/js/ui/common/checkboxSet.js
-    Checkbox set component with multi-select support
-*@
+@* Syncfusion Blazor CheckBox Component Wrapper *@
+@* Replaces custom checkboxSet with Syncfusion CheckBox *@
 
 <div class="red-ui-checkboxSet @(Inline ? "red-ui-checkboxSet-inline" : "")">
     @foreach (var option in Options)
     {
-        <label class="red-ui-checkboxSet-item @(IsSelected(option.Value) ? "selected" : "")">
-            <input type="checkbox" 
-                   value="@option.Value" 
-                   checked="@IsSelected(option.Value)"
-                   disabled="@Disabled"
-                   @onchange="e => OnOptionChanged(option.Value, (bool)e.Value!)" />
-            @if (!string.IsNullOrEmpty(option.Icon))
-            {
-                <i class="fa @option.Icon"></i>
-            }
-            <span>@option.Label</span>
-        </label>
+        <SfCheckBox @key="option.Value"
+                    Label="@option.Label"
+                    Checked="@IsSelected(option.Value)"
+                    Disabled="@Disabled"
+                    ValueChange="@((args) => OnOptionChanged(option.Value, args.Checked))"
+                    CssClass="red-ui-checkboxSet-item">
+        </SfCheckBox>
     }
 </div>
 
@@ -70,3 +63,15 @@
         });
     }
 }
+
+<style>
+    .red-ui-checkboxSet {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .red-ui-checkboxSet-inline {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+</style>

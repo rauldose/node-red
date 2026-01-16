@@ -1,59 +1,63 @@
-@* ============================================================
-   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/common/editableList.js
-   ============================================================
-   TRANSLATION: JavaScript editableList to Blazor component
-   ============================================================ *@
+@* Syncfusion Blazor ListView Component Wrapper *@
+@* Replaces custom editableList with Syncfusion ListView *@
 
-@using Microsoft.AspNetCore.Components
 @typeparam TItem
 
 <div class="red-ui-editableList @Class">
-    <div class="red-ui-editableList-header">
-        @if (!string.IsNullOrEmpty(Header))
-        {
-            <span class="red-ui-editableList-header-text">@Header</span>
-        }
-        @if (Addable)
-        {
-            <button class="red-ui-editableList-addBtn" @onclick="AddItem">
-                <i class="fa fa-plus"></i> @AddLabel
-            </button>
-        }
-    </div>
-    <div class="red-ui-editableList-container">
-        <ul class="red-ui-editableList-list">
-            @if (Items != null)
+    @if (!string.IsNullOrEmpty(Header) || Addable)
+    {
+        <div class="red-ui-editableList-header">
+            @if (!string.IsNullOrEmpty(Header))
             {
-                @foreach (var (item, index) in Items.Select((x, i) => (x, i)))
-                {
-                    <li class="red-ui-editableList-item" draggable="@Sortable.ToString().ToLower()"
-                        @ondragstart="() => DragStart(index)"
-                        @ondragover:preventDefault="true"
-                        @ondrop="() => Drop(index)">
-                        @if (Sortable)
-                        {
-                            <span class="red-ui-editableList-item-handle">
-                                <i class="fa fa-bars"></i>
-                            </span>
-                        }
-                        <div class="red-ui-editableList-item-content">
-                            @ItemTemplate?.Invoke(item)
-                        </div>
-                        @if (Removable)
-                        {
-                            <button class="red-ui-editableList-item-remove" @onclick="() => RemoveItem(index)">
-                                <i class="fa fa-times"></i>
-                            </button>
-                        }
-                    </li>
-                }
+                <span class="red-ui-editableList-header-text">@Header</span>
             }
-        </ul>
-        @if (Items == null || !Items.Any())
-        {
-            <div class="red-ui-editableList-empty">@EmptyText</div>
-        }
-    </div>
+            @if (Addable)
+            {
+                <SfButton CssClass="red-ui-editableList-addBtn" IconCss="fa fa-plus" OnClick="@AddItem">
+                    @AddLabel
+                </SfButton>
+            }
+        </div>
+    }
+    <SfListView @ref="ListRef"
+                DataSource="@Items"
+                TValue="TItem"
+                ShowCheckBox="false"
+                CssClass="red-ui-editableList-list">
+        <ListViewFieldSettings TValue="TItem" Id="Id" Text="Text" />
+        <ListViewTemplates TValue="TItem">
+            <Template>
+                @{
+                    var item = context as TItem;
+                }
+                <div class="red-ui-editableList-item-container">
+                    @if (Sortable)
+                    {
+                        <span class="red-ui-editableList-item-handle">
+                            <i class="fa fa-bars"></i>
+                        </span>
+                    }
+                    <div class="red-ui-editableList-item-content">
+                        @if (ItemTemplate != null && item != null)
+                        {
+                            @ItemTemplate(item)
+                        }
+                    </div>
+                    @if (Removable)
+                    {
+                        <SfButton CssClass="red-ui-editableList-item-remove" 
+                                  IconCss="fa fa-times" 
+                                  OnClick="@(() => RemoveItem(item!))">
+                        </SfButton>
+                    }
+                </div>
+            </Template>
+        </ListViewTemplates>
+    </SfListView>
+    @if (Items == null || !Items.Any())
+    {
+        <div class="red-ui-editableList-empty">@EmptyText</div>
+    }
 </div>
 
 <style>
@@ -73,11 +77,74 @@
     .red-ui-editableList-header-text {
         font-weight: 500;
     }
-    .red-ui-editableList-addBtn {
-        padding: 4px 10px;
-        font-size: 12px;
-        border: 1px solid #ccc;
-        background: white;
+    .red-ui-editableList-item-container {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+    }
+    .red-ui-editableList-item-handle {
+        cursor: move;
+        margin-right: 8px;
+        color: #999;
+    }
+    .red-ui-editableList-item-content {
+        flex: 1;
+    }
+    .red-ui-editableList-empty {
+        padding: 20px;
+        text-align: center;
+        color: #999;
+    }
+</style>
+
+@code {
+    [Parameter] public List<TItem>? Items { get; set; }
+    [Parameter] public RenderFragment<TItem>? ItemTemplate { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Header { get; set; }
+    [Parameter] public bool Addable { get; set; } = false;
+    [Parameter] public bool Removable { get; set; } = false;
+    [Parameter] public bool Sortable { get; set; } = false;
+    [Parameter] public string AddLabel { get; set; } = "Add";
+    [Parameter] public string EmptyText { get; set; } = "No items";
+    [Parameter] public EventCallback<TItem> OnItemAdded { get; set; }
+    [Parameter] public EventCallback<TItem> OnItemRemoved { get; set; }
+    [Parameter] public EventCallback<(int oldIndex, int newIndex)> OnItemMoved { get; set; }
+
+    private SfListView<TItem>? ListRef;
+
+    private async Task AddItem()
+    {
+        await OnItemAdded.InvokeAsync();
+    }
+
+    private async Task RemoveItem(TItem item)
+    {
+        if (Items != null && Items.Contains(item))
+        {
+            Items.Remove(item);
+            await OnItemRemoved.InvokeAsync(item);
+            StateHasChanged();
+        }
+    }
+
+    public void AddItemToList(TItem item)
+    {
+        if (Items == null)
+        {
+            Items = new List<TItem>();
+        }
+        Items.Add(item);
+        StateHasChanged();
+    }
+
+    public void Clear()
+    {
+        Items?.Clear();
+        StateHasChanged();
+    }
+}
+
         border-radius: 3px;
         cursor: pointer;
     }

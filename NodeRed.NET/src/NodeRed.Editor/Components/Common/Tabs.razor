@@ -1,125 +1,57 @@
 @* ============================================================
-   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/common/tabs.js
-   ============================================================
-   TRANSLATION: JavaScript tabs to Blazor component
+   Syncfusion Blazor Tab Component Wrapper
+   Replaces custom tabs with Syncfusion Tab
    ============================================================ *@
 
-<div class="red-ui-tabs @Class">
-    <ul class="red-ui-tabs-list">
+<SfTab @ref="TabRef" CssClass="@Class" SelectedItem="@GetActiveTabIndex()">
+    <TabAnimationSettings>
+        <TabAnimationPrevious Effect="AnimationEffect.None" />
+        <TabAnimationNext Effect="AnimationEffect.None" />
+    </TabAnimationSettings>
+    <TabEvents Selected="@OnTabSelectedInternal" />
+    <TabItems>
         @foreach (var tab in TabItems)
         {
-            <li class="red-ui-tab @(tab.Id == ActiveTab ? "active" : "") @(tab.Disabled ? "disabled" : "")"
-                @onclick="() => SelectTab(tab)">
-                @if (!string.IsNullOrEmpty(tab.Icon))
-                {
-                    <i class="fa @tab.Icon"></i>
-                }
-                <span class="red-ui-tab-label">@tab.Label</span>
-                @if (tab.Closable && OnTabClose.HasDelegate)
-                {
-                    <button class="red-ui-tab-close" @onclick="() => CloseTab(tab)" @onclick:stopPropagation="true">
-                        <i class="fa fa-times"></i>
-                    </button>
-                }
-            </li>
+            <TabItem Disabled="@tab.Disabled">
+                <ChildContent>
+                    <TabHeader>
+                        @if (!string.IsNullOrEmpty(tab.Icon))
+                        {
+                            <i class="fa @tab.Icon"></i>
+                        }
+                        <span>@tab.Label</span>
+                    </TabHeader>
+                </ChildContent>
+                <ContentTemplate>
+                    <div></div>
+                </ContentTemplate>
+            </TabItem>
         }
         @if (Addable && OnTabAdd.HasDelegate)
         {
-            <li class="red-ui-tab red-ui-tab-add" @onclick="AddTab">
-                <i class="fa fa-plus"></i>
-            </li>
+            <TabItem>
+                <ChildContent>
+                    <TabHeader>
+                        <div @onclick="AddTab" class="add-tab-button">
+                            <i class="fa fa-plus"></i>
+                        </div>
+                    </TabHeader>
+                </ChildContent>
+                <ContentTemplate>
+                    <div></div>
+                </ContentTemplate>
+            </TabItem>
         }
-    </ul>
-    @if (ShowScrollButtons && _showScroll)
-    {
-        <button class="red-ui-tabs-scroll-left" @onclick="ScrollLeft">
-            <i class="fa fa-chevron-left"></i>
-        </button>
-        <button class="red-ui-tabs-scroll-right" @onclick="ScrollRight">
-            <i class="fa fa-chevron-right"></i>
-        </button>
-    }
-</div>
+    </TabItems>
+</SfTab>
 
 <style>
-    .red-ui-tabs {
-        position: relative;
-        display: flex;
-        align-items: stretch;
-        background: #f0f0f0;
-        border-bottom: 1px solid #ccc;
-    }
-    .red-ui-tabs-list {
-        display: flex;
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        flex: 1;
-        overflow-x: auto;
-        scrollbar-width: none;
-    }
-    .red-ui-tabs-list::-webkit-scrollbar {
-        display: none;
-    }
-    .red-ui-tab {
-        display: flex;
-        align-items: center;
-        padding: 8px 15px;
+    .add-tab-button {
         cursor: pointer;
-        border-right: 1px solid #ddd;
-        white-space: nowrap;
-        gap: 6px;
+        padding: 4px 8px;
     }
-    .red-ui-tab:hover {
-        background: #e8e8e8;
-    }
-    .red-ui-tab.active {
-        background: white;
-        border-bottom: 2px solid #8e0000;
-        margin-bottom: -1px;
-    }
-    .red-ui-tab.disabled {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-    .red-ui-tab-label {
-        font-size: 13px;
-    }
-    .red-ui-tab-close {
-        background: none;
-        border: none;
-        padding: 2px 4px;
-        cursor: pointer;
-        color: #888;
-        margin-left: 4px;
-    }
-    .red-ui-tab-close:hover {
-        color: #c00;
-    }
-    .red-ui-tab-add {
-        padding: 8px 12px;
-        color: #666;
-    }
-    .red-ui-tab-add:hover {
-        color: #000;
-    }
-    .red-ui-tabs-scroll-left,
-    .red-ui-tabs-scroll-right {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 30px;
-        background: linear-gradient(to right, #f0f0f0, transparent);
-        border: none;
-        cursor: pointer;
-        z-index: 1;
-    }
-    .red-ui-tabs-scroll-left {
-        left: 0;
-    }
-    .red-ui-tabs-scroll-right {
-        right: 0;
-        background: linear-gradient(to left, #f0f0f0, transparent);
+    .add-tab-button:hover {
+        background-color: #f0f0f0;
     }
 </style>
 
@@ -129,25 +61,33 @@
     [Parameter] public EventCallback<string> ActiveTabChanged { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public bool Addable { get; set; } = false;
-    [Parameter] public bool ShowScrollButtons { get; set; } = false;
     [Parameter] public EventCallback OnTabAdd { get; set; }
     [Parameter] public EventCallback<TabItem> OnTabClose { get; set; }
     [Parameter] public EventCallback<TabItem> OnTabSelected { get; set; }
 
-    private bool _showScroll = false;
+    private SfTab? TabRef;
 
-    private async Task SelectTab(TabItem tab)
+    private int GetActiveTabIndex()
     {
-        if (tab.Disabled) return;
+        if (string.IsNullOrEmpty(ActiveTab))
+            return 0;
         
-        ActiveTab = tab.Id;
-        await ActiveTabChanged.InvokeAsync(tab.Id);
-        await OnTabSelected.InvokeAsync(tab);
+        var index = TabItems.FindIndex(t => t.Id == ActiveTab);
+        return index >= 0 ? index : 0;
     }
 
-    private async Task CloseTab(TabItem tab)
+    private async Task OnTabSelectedInternal(SelectEventArgs args)
     {
-        await OnTabClose.InvokeAsync(tab);
+        if (args.SelectedIndex < TabItems.Count)
+        {
+            var tab = TabItems[args.SelectedIndex];
+            if (!tab.Disabled)
+            {
+                ActiveTab = tab.Id;
+                await ActiveTabChanged.InvokeAsync(tab.Id);
+                await OnTabSelected.InvokeAsync(tab);
+            }
+        }
     }
 
     private async Task AddTab()
@@ -155,19 +95,8 @@
         await OnTabAdd.InvokeAsync();
     }
 
-    private void ScrollLeft()
-    {
-        // Would use JS interop to scroll
-    }
-
-    private void ScrollRight()
-    {
-        // Would use JS interop to scroll
-    }
-
     /// <summary>
-    /// Add a tab.
-    /// Translated from addTab() in tabs.js
+    /// Add a tab. Translated from addTab() in tabs.js
     /// </summary>
     public void AddTabItem(TabItem tab)
     {
@@ -176,8 +105,7 @@
     }
 
     /// <summary>
-    /// Remove a tab.
-    /// Translated from removeTab() in tabs.js
+    /// Remove a tab. Translated from removeTab() in tabs.js
     /// </summary>
     public void RemoveTab(string id)
     {
@@ -186,15 +114,21 @@
     }
 
     /// <summary>
-    /// Activate a tab.
-    /// Translated from activateTab() in tabs.js
+    /// Activate a tab. Translated from activateTab() in tabs.js
     /// </summary>
     public async Task ActivateTab(string id)
     {
         var tab = TabItems.FirstOrDefault(t => t.Id == id);
         if (tab != null)
         {
-            await SelectTab(tab);
+            var index = TabItems.IndexOf(tab);
+            if (TabRef != null)
+            {
+                await TabRef.SelectAsync(index);
+            }
+            ActiveTab = id;
+            await ActiveTabChanged.InvokeAsync(id);
+            await OnTabSelected.InvokeAsync(tab);
         }
     }
 

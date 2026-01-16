@@ -1,22 +1,24 @@
-@* ============================================================
-   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/common/treeList.js
-   ============================================================
-   TRANSLATION: JavaScript treeList to Blazor component
-   ============================================================ *@
+@* Syncfusion Blazor TreeView Component Wrapper *@
+@* Replaces custom treeList with Syncfusion TreeView *@
 
 @typeparam TItem where TItem : class
 
-<div class="red-ui-treeList @Class">
-    @if (Items != null)
-    {
-        @foreach (var item in Items)
-        {
-            <div class="red-ui-treeList-item-container">
-                @RenderTreeItem(item, 0)
-            </div>
-        }
-    }
-</div>
+<SfTreeView @ref="TreeRef" 
+            TValue="TreeNode<TItem>"
+            CssClass="@Class"
+            AllowDragAndDrop="false"
+            ShowCheckBox="false">
+    <TreeViewFieldsSettings DataSource="@Items" 
+                           Id="Id"
+                           Text="Label"
+                           IconCss="Icon"
+                           Child="Children"
+                           Expanded="Expanded" />
+    <TreeViewEvents TValue="TreeNode<TItem>" 
+                   NodeSelected="@OnNodeSelected"
+                   NodeExpanded="@OnNodeExpanded"
+                   NodeCollapsed="@OnNodeCollapsed" />
+</SfTreeView>
 
 @code {
     [Parameter] public IList<TreeNode<TItem>>? Items { get; set; }
@@ -27,77 +29,86 @@
     [Parameter] public EventCallback<TreeNode<TItem>> OnItemExpanded { get; set; }
     [Parameter] public EventCallback<TreeNode<TItem>> OnItemCollapsed { get; set; }
 
-    private TreeNode<TItem>? _selectedItem;
+    private SfTreeView<TreeNode<TItem>>? TreeRef;
 
-    private RenderFragment RenderTreeItem(TreeNode<TItem> node, int depth) => __builder =>
+    private async Task OnNodeSelected(NodeSelectEventArgs args)
     {
-        var hasChildren = node.Children?.Any() == true;
-        var isExpanded = node.Expanded;
-        var isSelected = _selectedItem == node;
-
-        <div class="red-ui-treeList-item @(isSelected ? "selected" : "")"
-             style="padding-left: @(depth * 20)px"
-             @onclick="() => SelectItem(node)">
-            @if (hasChildren)
-            {
-                <span class="red-ui-treeList-item-toggle" @onclick="() => ToggleExpand(node)" @onclick:stopPropagation="true">
-                    <i class="fa @(isExpanded ? "fa-chevron-down" : "fa-chevron-right")"></i>
-                </span>
-            }
-            else
-            {
-                <span class="red-ui-treeList-item-spacer"></span>
-            }
-            
-            @if (node.Icon != null)
-            {
-                <span class="red-ui-treeList-item-icon" style="@(node.IconColor != null ? $"color: {node.IconColor}" : "")">
-                    <i class="fa @node.Icon"></i>
-                </span>
-            }
-            
-            <span class="red-ui-treeList-item-label">
-                @if (ItemTemplate != null && node.Data != null)
-                {
-                    @ItemTemplate(node.Data)
-                }
-                else
-                {
-                    @node.Label
-                }
-            </span>
-            
-            @if (node.Badge != null)
-            {
-                <span class="red-ui-treeList-item-badge">@node.Badge</span>
-            }
-        </div>
-
-        @if (hasChildren && isExpanded)
+        var nodeData = await GetNodeData(args.NodeData.Id);
+        if (nodeData != null)
         {
-            <div class="red-ui-treeList-children">
-                @foreach (var child in node.Children!)
-                {
-                    @RenderTreeItem(child, depth + 1)
-                }
-            </div>
+            await OnItemSelected.InvokeAsync(nodeData);
         }
-    };
+    }
 
-    private async Task ToggleExpand(TreeNode<TItem> node)
+    private async Task OnNodeExpanded(NodeExpandEventArgs args)
     {
-        node.Expanded = !node.Expanded;
+        var nodeData = await GetNodeData(args.NodeData.Id);
+        if (nodeData != null)
+        {
+            await OnItemExpanded.InvokeAsync(nodeData);
+        }
+    }
+
+    private async Task OnNodeCollapsed(NodeExpandEventArgs args)
+    {
+        var nodeData = await GetNodeData(args.NodeData.Id);
+        if (nodeData != null)
+        {
+            await OnItemCollapsed.InvokeAsync(nodeData);
+        }
+    }
+
+    private Task<TreeNode<TItem>?> GetNodeData(string id)
+    {
+        if (Items == null) return Task.FromResult<TreeNode<TItem>?>(null);
         
-        if (node.Expanded)
+        TreeNode<TItem>? FindNode(IEnumerable<TreeNode<TItem>> nodes, string nodeId)
         {
-            await OnItemExpanded.InvokeAsync(node);
-        }
-        else
-        {
-            await OnItemCollapsed.InvokeAsync(node);
+            foreach (var node in nodes)
+            {
+                if (node.Id == nodeId) return node;
+                if (node.Children != null)
+                {
+                    var found = FindNode(node.Children, nodeId);
+                    if (found != null) return found;
+                }
+            }
+            return null;
         }
         
-        StateHasChanged();
+        return Task.FromResult(FindNode(Items, id));
+    }
+
+    public async Task ExpandAll()
+    {
+        if (TreeRef != null)
+        {
+            await TreeRef.ExpandAllAsync();
+        }
+    }
+
+    public async Task CollapseAll()
+    {
+        if (TreeRef != null)
+        {
+            await TreeRef.CollapseAllAsync();
+        }
+    }
+
+    public class TreeNode<T> where T : class
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Label { get; set; } = "";
+        public string? Icon { get; set; }
+        public string? IconColor { get; set; }
+        public string? Badge { get; set; }
+        public bool Expanded { get; set; } = false;
+        public bool Selected { get; set; } = false;
+        public T? Data { get; set; }
+        public List<TreeNode<T>>? Children { get; set; }
+    }
+}
+
     }
 
     private async Task SelectItem(TreeNode<TItem> node)

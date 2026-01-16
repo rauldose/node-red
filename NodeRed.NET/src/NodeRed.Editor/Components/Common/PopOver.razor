@@ -1,83 +1,66 @@
-@* ============================================================
-   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/common/popover.js
-   ============================================================
-   TRANSLATION: JavaScript popover to Blazor component
-   ============================================================ *@
+@* Syncfusion Blazor Tooltip Component Wrapper *@
+@* Replaces custom popover with Syncfusion Tooltip *@
 
-<div class="red-ui-popover-container @(IsVisible ? "visible" : "")" 
-     style="left: @(X)px; top: @(Y)px;">
-    @if (IsVisible)
+<SfTooltip @ref="TooltipRef" 
+           Content="@Content" 
+           Target="@Target"
+           Position="@GetPosition()"
+           IsSticky="@IsSticky"
+           ShowTipPointer="true"
+           CssClass="red-ui-popover">
+    @if (ChildContent != null)
     {
-        <div class="red-ui-popover @Direction">
-            <div class="red-ui-popover-arrow"></div>
-            <div class="red-ui-popover-content">
-                @if (ChildContent != null)
-                {
-                    @ChildContent
-                }
-                else
-                {
-                    @Content
-                }
-            </div>
-        </div>
+        @ChildContent
     }
-</div>
+</SfTooltip>
 
-<style>
-    .red-ui-popover-container {
-        position: fixed;
-        z-index: 3000;
-        pointer-events: none;
-        display: none;
+@code {
+    [Parameter] public string? Content { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string Target { get; set; } = "";
+    [Parameter] public string Direction { get; set; } = "bottom"; // top, bottom, left, right
+    [Parameter] public bool IsSticky { get; set; } = false;
+    [Parameter] public double X { get; set; }
+    [Parameter] public double Y { get; set; }
+    
+    private SfTooltip? TooltipRef;
+    
+    private Position GetPosition()
+    {
+        return Direction.ToLower() switch
+        {
+            "top" => Position.TopCenter,
+            "bottom" => Position.BottomCenter,
+            "left" => Position.LeftCenter,
+            "right" => Position.RightCenter,
+            _ => Position.BottomCenter
+        };
     }
-    .red-ui-popover-container.visible {
-        display: block;
-        pointer-events: auto;
+    
+    public async Task Show()
+    {
+        if (TooltipRef != null)
+        {
+            await TooltipRef.OpenAsync();
+        }
     }
-    .red-ui-popover {
-        background: white;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        max-width: 300px;
+    
+    public async Task Hide()
+    {
+        if (TooltipRef != null)
+        {
+            await TooltipRef.CloseAsync();
+        }
     }
-    .red-ui-popover-arrow {
-        position: absolute;
-        width: 10px;
-        height: 10px;
-        background: white;
-        border: 1px solid #ccc;
-        transform: rotate(45deg);
+    
+    public async Task SetPosition(double x, double y)
+    {
+        X = x;
+        Y = y;
+        StateHasChanged();
     }
-    .red-ui-popover.bottom .red-ui-popover-arrow {
-        top: -6px;
-        left: 50%;
-        margin-left: -5px;
-        border-right: none;
-        border-bottom: none;
-    }
-    .red-ui-popover.top .red-ui-popover-arrow {
-        bottom: -6px;
-        left: 50%;
-        margin-left: -5px;
-        border-left: none;
-        border-top: none;
-    }
-    .red-ui-popover.left .red-ui-popover-arrow {
-        right: -6px;
-        top: 50%;
-        margin-top: -5px;
-        border-left: none;
-        border-bottom: none;
-    }
-    .red-ui-popover.right .red-ui-popover-arrow {
-        left: -6px;
-        top: 50%;
-        margin-top: -5px;
-        border-right: none;
-        border-top: none;
-    }
+}
+
     .red-ui-popover-content {
         padding: 10px 15px;
     }

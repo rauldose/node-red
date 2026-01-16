@@ -1,63 +1,62 @@
-@* Source: @node-red/editor-client/src/js/ui/common/stack.js + checkboxSet.js + toggleButton.js *@
-@* Translated to Blazor for NodeRed.NET *@
+@* Syncfusion Blazor Accordion Component Wrapper *@
+@* Replaces custom stack with Syncfusion Accordion *@
 
-@* Stack component - Accordion-like collapsible sections *@
-
-@if (Type == "stack")
-{
-    <div class="red-ui-stack">
-        @foreach (var stackItem in Sections)
+<SfAccordion ExpandMode="ExpandMode.Multiple" CssClass="red-ui-stack">
+    <AccordionItems>
+        @foreach (var section in Sections)
         {
-            <div class="red-ui-stack-section @(stackItem.Collapsed ? "collapsed" : "")">
-                <div class="red-ui-stack-header" @onclick="() => ToggleSection(stackItem)">
-                    <i class="fa @(stackItem.Collapsed ? "fa-caret-right" : "fa-caret-down")"></i>
-                    <span>@stackItem.Title</span>
-                    @if (!string.IsNullOrEmpty(stackItem.Badge))
-                    {
-                        <span class="red-ui-stack-badge">@stackItem.Badge</span>
-                    }
-                </div>
-                @if (!stackItem.Collapsed)
-                {
-                    <div class="red-ui-stack-content">
-                        @stackItem.Content
+            <AccordionItem Expanded="@(!section.Collapsed)">
+                <HeaderTemplate>
+                    <div>
+                        @section.Title
+                        @if (!string.IsNullOrEmpty(section.Badge))
+                        {
+                            <span class="red-ui-stack-badge">@section.Badge</span>
+                        }
                     </div>
-                }
-            </div>
+                </HeaderTemplate>
+                <ContentTemplate>
+                    @section.Content
+                </ContentTemplate>
+            </AccordionItem>
         }
-    </div>
+    </AccordionItems>
+    <AccordionEvents Expanding="@OnExpanding" Collapsed="@OnCollapsed" />
+</SfAccordion>
+
+@code {
+    [Parameter] public List<StackSection> Sections { get; set; } = new();
+    [Parameter] public EventCallback<StackSection> OnSectionToggle { get; set; }
+
+    private async Task OnExpanding(ExpandEventArgs args)
+    {
+        var section = Sections.ElementAtOrDefault(args.Index);
+        if (section != null)
+        {
+            section.Collapsed = false;
+            await OnSectionToggle.InvokeAsync(section);
+        }
+    }
+
+    private async Task OnCollapsed(CollapseEventArgs args)
+    {
+        var section = Sections.ElementAtOrDefault(args.Index);
+        if (section != null)
+        {
+            section.Collapsed = true;
+            await OnSectionToggle.InvokeAsync(section);
+        }
+    }
+
+    public class StackSection
+    {
+        public string Title { get; set; } = "";
+        public string? Badge { get; set; }
+        public bool Collapsed { get; set; } = false;
+        public RenderFragment? Content { get; set; }
+    }
 }
 
-@* CheckboxSet component *@
-@if (Type == "checkboxset")
-{
-    <div class="red-ui-checkboxset">
-        @foreach (var option in CheckboxOptions)
-        {
-            <label class="red-ui-checkboxset-option @(option.Checked ? "checked" : "")">
-                <input type="checkbox" 
-                       checked="@option.Checked"
-                       @onchange="(e) => OnCheckboxChange(option, (bool)(e.Value ?? false))" />
-                @if (!string.IsNullOrEmpty(option.Icon))
-                {
-                    <i class="fa @option.Icon"></i>
-                }
-                <span>@option.Label</span>
-            </label>
-        }
-    </div>
-}
-
-@* ToggleButton component *@
-@if (Type == "togglebutton")
-{
-    <button class="red-ui-toggleButton @(IsToggled ? "selected" : "")"
-            @onclick="Toggle">
-        @if (!string.IsNullOrEmpty(Icon))
-        {
-            <i class="fa @Icon"></i>
-        }
-        @if (!string.IsNullOrEmpty(Label))
         {
             <span>@Label</span>
         }

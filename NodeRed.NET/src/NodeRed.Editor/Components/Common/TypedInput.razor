@@ -1,63 +1,96 @@
-@* ============================================================
-   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/common/typedInput.js
-   ============================================================
-   TRANSLATION: JavaScript typedInput to Blazor component
-   ============================================================ *@
+@* Syncfusion Blazor ComboBox Component Wrapper for TypedInput *@
+@* Replaces custom typedInput with Syncfusion ComboBox *@
 
 <div class="red-ui-typedInput @Class">
-    <button type="button" class="red-ui-typedInput-type-select" @onclick="ToggleTypeMenu">
-        <span class="red-ui-typedInput-type-icon" style="background-color: @GetTypeColor();">
-            @GetTypeIcon()
-        </span>
-        <i class="fa fa-caret-down"></i>
-    </button>
-    
-    @if (_showTypeMenu)
-    {
-        <div class="red-ui-typedInput-options" @onclick:stopPropagation="true">
-            @foreach (var type in Types)
-            {
-                <div class="red-ui-typedInput-option @(type.Value == SelectedType ? "selected" : "")"
-                     @onclick="() => SelectType(type.Value)">
-                    <span class="red-ui-typedInput-option-icon" style="background-color: @type.Color;">
-                        @type.Label
-                    </span>
-                    <span class="red-ui-typedInput-option-label">@type.Label</span>
-                </div>
-            }
-        </div>
-    }
+    <SfDropDownList @ref="TypeDropdown"
+                    TValue="string"
+                    TItem="TypeOption"
+                    DataSource="@Types"
+                    @bind-Value="@SelectedType"
+                    CssClass="red-ui-typedInput-type-select"
+                    PopupHeight="300px">
+        <DropDownListFieldSettings Value="Value" Text="Label" />
+        <DropDownListTemplates TItem="TypeOption">
+            <ItemTemplate>
+                @{
+                    var type = context as TypeOption;
+                }
+                <span class="red-ui-typedInput-option-icon" style="background-color: @type?.Color;">
+                    @type?.Label
+                </span>
+            </ItemTemplate>
+        </DropDownListTemplates>
+        <DropDownListEvents TValue="string" TItem="TypeOption" ValueChange="@OnTypeChanged" />
+    </SfDropDownList>
     
     <div class="red-ui-typedInput-input-wrap">
         @switch (SelectedType)
         {
             case "bool":
-                <select class="red-ui-typedInput-input" @bind="Value">
-                    <option value="true">true</option>
-                    <option value="false">false</option>
-                </select>
+                <SfDropDownList TValue="string" TItem="string" DataSource="@BoolOptions" @bind-Value="@Value" CssClass="red-ui-typedInput-input" />
                 break;
             case "json":
             case "jsonata":
-                <textarea class="red-ui-typedInput-input" @bind="Value" rows="3"></textarea>
+                <SfTextBox @bind-Value="@Value" Multiline="true" CssClass="red-ui-typedInput-input" />
                 break;
-            case "date":
-                <input type="text" class="red-ui-typedInput-input" placeholder="timestamp" @bind="Value" />
+            default:
+                <SfTextBox @bind-Value="@Value" Placeholder="@GetPlaceholder()" CssClass="red-ui-typedInput-input" />
                 break;
-            case "bin":
-                <input type="text" class="red-ui-typedInput-input" placeholder="[0,1,2,...]" @bind="Value" />
-                break;
-            case "env":
-                <div class="red-ui-typedInput-input-group">
-                    <span class="red-ui-typedInput-prefix">$</span>
-                    <input type="text" class="red-ui-typedInput-input" placeholder="ENV_VAR" @bind="Value" />
-                </div>
-                break;
-            case "flow":
-            case "global":
-                <div class="red-ui-typedInput-input-group">
-                    <span class="red-ui-typedInput-prefix">@(SelectedType).</span>
-                    <input type="text" class="red-ui-typedInput-input" placeholder="variable" @bind="Value" />
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string SelectedType { get; set; } = "str";
+    [Parameter] public EventCallback<string> SelectedTypeChanged { get; set; }
+    [Parameter] public List<TypeOption> Types { get; set; } = GetDefaultTypes();
+    [Parameter] public string? Class { get; set; }
+
+    private SfDropDownList<string, TypeOption>? TypeDropdown;
+    private List<string> BoolOptions = new() { "true", "false" };
+
+    private static List<TypeOption> GetDefaultTypes() => new()
+    {
+        new TypeOption { Value = "str", Label = "string", Color = "#888" },
+        new TypeOption { Value = "num", Label = "number", Color = "#5aa" },
+        new TypeOption { Value = "bool", Label = "boolean", Color = "#8e0" },
+        new TypeOption { Value = "json", Label = "JSON", Color = "#f90" },
+        new TypeOption { Value = "date", Label = "timestamp", Color = "#a6a" },
+        new TypeOption { Value = "jsonata", Label = "JSONata", Color = "#a66" },
+        new TypeOption { Value = "env", Label = "env var", Color = "#aaa" },
+        new TypeOption { Value = "flow", Label = "flow", Color = "#058" },
+        new TypeOption { Value = "global", Label = "global", Color = "#a00" }
+    };
+
+    private async Task OnTypeChanged(ChangeEventArgs<string, TypeOption> args)
+    {
+        SelectedType = args.Value;
+        await SelectedTypeChanged.InvokeAsync(SelectedType);
+    }
+
+    private string GetPlaceholder()
+    {
+        return SelectedType switch
+        {
+            "date" => "timestamp",
+            "bin" => "[0,1,2,...]",
+            "env" => "$ENV_VAR",
+            "flow" => "flow.variable",
+            "global" => "global.variable",
+            _ => ""
+        };
+    }
+
+    public class TypeOption
+    {
+        public string Value { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Color { get; set; } = "#888";
+    }
+}
+
                 </div>
                 break;
             default:
