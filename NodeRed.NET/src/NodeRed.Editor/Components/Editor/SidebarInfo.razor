@@ -83,6 +83,35 @@
                     }
                 }
             </div>
+
+            @* Subflows section - translated from tab-info-outliner.js *@
+            <div class="red-ui-treeList-container">
+                <div class="red-ui-treeList-item red-ui-treeList-item-header" @onclick="() => SubflowsExpanded = !SubflowsExpanded" style="cursor: pointer;">
+                    <i class="fa @(SubflowsExpanded ? "fa-caret-down" : "fa-caret-right")" style="width: 16px;"></i>
+                    <span style="font-weight: bold;">Subflows</span>
+                </div>
+                @if (SubflowsExpanded)
+                {
+                    @if (State.Nodes.GetSubflows().Any())
+                    {
+                        @foreach (var subflow in State.Nodes.GetSubflows())
+                        {
+                            <div class="red-ui-treeList-item @(SelectedOutlineItem == subflow.Id ? "selected" : "")"
+                                 style="padding-left: 20px; cursor: pointer;"
+                                 @onclick="() => SelectSubflow(subflow)">
+                                <i class="fa fa-cube" style="margin-right: 6px; color: #c77;"></i>
+                                <span>@(string.IsNullOrEmpty(subflow.Name) ? "Unnamed Subflow" : subflow.Name)</span>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="red-ui-treeList-item red-ui-info-outline-item-empty" style="padding-left: 20px; color: #888;">
+                            <em>empty</em>
+                        </div>
+                    }
+                }
+            </div>
         </div>
     </div>
 
@@ -98,6 +127,11 @@
                         <i class="fa fa-search"></i>
                     </button>
                 </div>
+            }
+            else if (SelectedSubflow != null)
+            {
+                <i class="fa fa-cube" style="margin-right: 8px; color: #c77;"></i>
+                <span style="font-weight: 500;">@(string.IsNullOrEmpty(SelectedSubflow.Name) ? "Subflow" : SelectedSubflow.Name)</span>
             }
             else if (SelectedWorkspace != null)
             {
@@ -150,6 +184,21 @@
                     </div>
                 }
             }
+            else if (SelectedSubflow != null)
+            {
+                <table class="red-ui-info-table" style="width: 100%; font-size: 12px;">
+                    <tbody>
+                        <tr class="red-ui-help-info-row">
+                            <td style="color: #888; width: 80px;">Subflow</td>
+                            <td><code style="font-size: 11px; background: #f5f5f5; padding: 2px 4px;">@SelectedSubflow.Id</code></td>
+                        </tr>
+                        <tr class="red-ui-help-info-row">
+                            <td style="color: #888;">Name</td>
+                            <td>@(string.IsNullOrEmpty(SelectedSubflow.Name) ? "(unnamed)" : SelectedSubflow.Name)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            }
             else if (SelectedWorkspace != null)
             {
                 <table class="red-ui-info-table" style="width: 100%; font-size: 12px;">
@@ -196,9 +245,11 @@
 @code {
     private FlowNode? SelectedNode;
     private Workspace? SelectedWorkspace;
+    private Subflow? SelectedSubflow;
     private string? SelectedOutlineItem;
     private bool FlowsExpanded = true;
     private bool GroupsExpanded = false;
+    private bool SubflowsExpanded = true;
     private bool ShowFlowNodes = false;
     private bool ShowProperties = false;
 
@@ -232,6 +283,7 @@
         ShowFlowNodes = !ShowFlowNodes;
         SelectedWorkspace = workspace;
         SelectedNode = null;
+        SelectedSubflow = null;
         State.Workspaces.Show(workspace.Id);
         StateHasChanged();
     }
@@ -240,8 +292,19 @@
     {
         SelectedNode = node;
         SelectedWorkspace = null;
+        SelectedSubflow = null;
         SelectedOutlineItem = node.Id;
         State.Events.Emit("node:selected", node);
+        StateHasChanged();
+    }
+
+    private void SelectSubflow(Subflow subflow)
+    {
+        SelectedSubflow = subflow;
+        SelectedWorkspace = null;
+        SelectedNode = null;
+        SelectedOutlineItem = subflow.Id;
+        State.Events.Emit("subflow:selected", subflow);
         StateHasChanged();
     }
 

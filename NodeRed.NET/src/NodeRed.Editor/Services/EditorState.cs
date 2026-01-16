@@ -433,6 +433,8 @@ public class EditorNodes
     public List<string> GetWorkspaceOrder() => _workspacesOrder.ToList();
     public List<NodeGroup> GetGroups() => _groups.ToList();
     public List<Junction> GetJunctions() => _junctions.ToList();
+    public List<Subflow> GetSubflows() => _subflows.Values.ToList();
+    public Subflow? GetSubflow(string id) => _subflows.TryGetValue(id, out var sf) ? sf : null;
 
     public bool IsDirty() => _dirty;
     public void SetDirty(bool dirty) => _dirty = dirty;
