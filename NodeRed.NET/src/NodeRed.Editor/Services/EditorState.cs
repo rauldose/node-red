@@ -529,6 +529,34 @@ public class EditorNodes
     }
 
     /// <summary>
+    /// Add a new link (wire) between nodes.
+    /// Translated from RED.nodes link management in nodes.js
+    /// </summary>
+    public void AddLink(NodeLink link)
+    {
+        // Don't add duplicate links
+        var exists = _links.Any(l => 
+            l.Source?.Id == link.Source?.Id && 
+            l.Target?.Id == link.Target?.Id && 
+            l.SourcePort == link.SourcePort);
+        
+        if (!exists)
+        {
+            _links.Add(link);
+            _dirty = true;
+        }
+    }
+
+    /// <summary>
+    /// Remove a link (wire) between nodes.
+    /// </summary>
+    public void RemoveLink(NodeLink link)
+    {
+        _links.Remove(link);
+        _dirty = true;
+    }
+
+    /// <summary>
     /// Deselect a node.
     /// </summary>
     public void DeselectNode(FlowNode node)

@@ -142,7 +142,9 @@
                                           NodeHeight="@NodeHeight"
                                           IsSelected="@MovingSet.Has(node)"
                                           OnMouseDown="@(e => HandleNodeMouseDown(e, node))"
-                                          OnDoubleClick="@(() => EditNode(node))" />
+                                          OnDoubleClick="@(() => EditNode(node))"
+                                          OnOutputPortDragStart="@HandleOutputPortDragStart"
+                                          OnInputPortDrop="@HandleInputPortDrop" />
                     }
                 </g>
                 
@@ -633,6 +635,72 @@
             Y = e.ClientY,
             Workspace = workspace
         });
+    }
+
+    // ============================================================
+    // Wiring handlers - translated from port interactions in view.js
+    // ============================================================
+
+    private FlowNode? _wireSourceNode;
+    private int _wireSourcePortIndex;
+
+    /// <summary>
+    /// Handle output port drag start - initiates wire creation
+    /// Translated from port mousedown in view.js
+    /// </summary>
+    private void HandleOutputPortDragStart((FlowNode Node, int PortIndex) args)
+    {
+        _wireSourceNode = args.Node;
+        _wireSourcePortIndex = args.PortIndex;
+        _mouseMode = MouseMode.Joining;
+        
+        // Create temporary drag line
+        var dragLine = new NodeLink
+        {
+            Source = args.Node,
+            Target = null,
+            SourcePort = args.PortIndex
+        };
+        DragLines.Clear();
+        DragLines.Add(dragLine);
+        
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Handle input port drop - completes wire creation
+    /// Translated from port mouseup in view.js
+    /// </summary>
+    private void HandleInputPortDrop(FlowNode targetNode)
+    {
+        if (_wireSourceNode != null && _mouseMode == MouseMode.Joining)
+        {
+            // Don't connect a node to itself
+            if (_wireSourceNode.Id != targetNode.Id)
+            {
+                // Create new link
+                var newLink = new NodeLink
+                {
+                    Source = _wireSourceNode,
+                    Target = targetNode,
+                    SourcePort = _wireSourcePortIndex
+                };
+                
+                // Add to state
+                State.Nodes.AddLink(newLink);
+                State.Nodes.SetDirty(true);
+                
+                // Refresh the view
+                RefreshView();
+            }
+        }
+        
+        // Clear wire state
+        _wireSourceNode = null;
+        _wireSourcePortIndex = 0;
+        _mouseMode = MouseMode.None;
+        DragLines.Clear();
+        StateHasChanged();
     }
 
     // ============================================================
