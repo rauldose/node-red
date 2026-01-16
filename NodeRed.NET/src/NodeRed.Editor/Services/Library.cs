@@ -127,6 +127,7 @@ public class Library
     /// <summary>
     /// Import nodes from JSON string.
     /// Translated from importNodes() in library.js
+    /// Note: Full import implementation requires EditorState integration.
     /// </summary>
     public LibraryImportResult ImportNodes(string json, bool replaceAll = false)
     {
@@ -139,6 +140,12 @@ public class Library
             }
 
             var result = new LibraryImportResult { Success = true };
+
+            // TODO: Full implementation would:
+            // 1. Parse tabs/flows, subflows, and nodes from JSON
+            // 2. Generate new IDs for pasted nodes
+            // 3. Add to EditorState
+            // 4. Create wires between nodes
 
             return result;
         }

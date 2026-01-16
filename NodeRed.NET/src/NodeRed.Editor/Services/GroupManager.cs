@@ -62,9 +62,14 @@ public class GroupManager
     /// <summary>
     /// Ungroup nodes.
     /// Translated from ungroup() in group.js
+    /// Note: Full implementation requires EditorNodes access to get nodes in group.
     /// </summary>
     public List<FlowNode> Ungroup(NodeGroup group)
     {
+        // TODO: Full implementation would:
+        // 1. Get all nodes in the group
+        // 2. Remove group from state
+        // 3. Return the ungrouped nodes
         var nodes = new List<FlowNode>();
 
         // Record history

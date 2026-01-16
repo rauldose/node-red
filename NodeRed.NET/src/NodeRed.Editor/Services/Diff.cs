@@ -85,9 +85,11 @@ public class Diff
     /// <summary>
     /// Compare current flow with deployed flow.
     /// Translated from compareCurrentWithDeployed() in diff.js
+    /// Note: Full implementation requires tracking of last deployed state.
     /// </summary>
     public DiffResult CompareCurrentWithDeployed()
     {
+        // TODO: Full implementation would compare current editor state with last deployed state
         // For now, return empty diff (no changes)
         return new DiffResult();
     }

@@ -24,9 +24,14 @@ public class SubflowManager
     /// <summary>
     /// Create a subflow from selected nodes.
     /// Translated from createSubflow() in subflow.js
+    /// Note: Full implementation requires EditorState integration to move nodes into subflow workspace.
     /// </summary>
     public Subflow? CreateSubflow(string name, IEnumerable<FlowNode>? nodes = null)
     {
+        // TODO: Full implementation would:
+        // 1. Calculate input/output ports from external connections
+        // 2. Create subflow workspace
+        // 3. Move nodes into subflow workspace
         var subflow = new Subflow
         {
             Id = Guid.NewGuid().ToString(),
@@ -40,9 +45,11 @@ public class SubflowManager
     /// <summary>
     /// Convert subflow to regular nodes.
     /// Translated from convertToNodes() in subflow.js
+    /// Note: Full implementation requires EditorNodes access to get subflow nodes.
     /// </summary>
     public List<FlowNode> ConvertToNodes(Subflow subflow)
     {
+        // TODO: Full implementation would clone nodes from subflow workspace to current flow
         var convertedNodes = new List<FlowNode>();
         return convertedNodes;
     }
@@ -50,11 +57,15 @@ public class SubflowManager
     /// <summary>
     /// Delete a subflow.
     /// Translated from delete() in subflow.js
+    /// Note: Full implementation requires EditorNodes integration.
     /// </summary>
     public void DeleteSubflow(string subflowId)
     {
-        // Subflow deletion would need to be coordinated with EditorNodes
-        // For now, this is a placeholder
+        // TODO: Full implementation would:
+        // 1. Check for instances in use
+        // 2. Delete subflow nodes
+        // 3. Remove subflow workspace
+        // 4. Remove subflow definition
     }
 
     /// <summary>
@@ -68,9 +79,11 @@ public class SubflowManager
 
     /// <summary>
     /// Get subflow instance count.
+    /// Note: Full implementation requires EditorNodes access to count subflow instances.
     /// </summary>
     public int GetInstanceCount(string subflowId)
     {
+        // TODO: Full implementation would count nodes with type "subflow:{subflowId}"
         return 0;
     }
 
