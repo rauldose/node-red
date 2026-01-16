@@ -1,0 +1,88 @@
+@namespace NodeRed.Editor.Components.Editor
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/touch/radialMenu.js
+    Touch-friendly radial menu for mobile devices
+*@
+
+<div class="red-ui-radialMenu @(IsVisible ? "visible" : "")"
+     style="left: @(CenterX)px; top: @(CenterY)px;">
+    
+    @if (IsVisible)
+    {
+        <div class="red-ui-radialMenu-center" @onclick="Close">
+            <i class="fa fa-times"></i>
+        </div>
+        
+        @for (int i = 0; i < Items.Count; i++)
+        {
+            var item = Items[i];
+            var angle = GetAngle(i);
+            var x = Math.Cos(angle * Math.PI / 180) * Radius;
+            var y = Math.Sin(angle * Math.PI / 180) * Radius;
+            
+            <button class="red-ui-radialMenu-item @(item.Disabled ? "disabled" : "")"
+                    style="transform: translate(@(x)px, @(y)px)"
+                    disabled="@item.Disabled"
+                    title="@item.Label"
+                    @onclick="() => OnItemClick(item)">
+                <i class="fa @item.Icon"></i>
+            </button>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+    [Parameter] public double CenterX { get; set; }
+    [Parameter] public double CenterY { get; set; }
+    [Parameter] public double Radius { get; set; } = 80;
+    [Parameter] public List<RadialMenuItem> Items { get; set; } = new();
+    [Parameter] public EventCallback<RadialMenuItem> OnSelect { get; set; }
+
+    public class RadialMenuItem
+    {
+        public string Id { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Icon { get; set; } = "fa-circle";
+        public bool Disabled { get; set; }
+        public Action? OnClick { get; set; }
+    }
+
+    private double GetAngle(int index)
+    {
+        var count = Items.Count;
+        var angleStep = 360.0 / count;
+        return -90 + (index * angleStep); // Start from top
+    }
+
+    private async Task OnItemClick(RadialMenuItem item)
+    {
+        if (item.Disabled) return;
+
+        item.OnClick?.Invoke();
+        await OnSelect.InvokeAsync(item);
+        await Close();
+    }
+
+    private async Task Close()
+    {
+        IsVisible = false;
+        await IsVisibleChanged.InvokeAsync(false);
+    }
+
+    public void Show(double x, double y)
+    {
+        CenterX = x;
+        CenterY = y;
+        IsVisible = true;
+        StateHasChanged();
+    }
+
+    public void Hide()
+    {
+        IsVisible = false;
+        StateHasChanged();
+    }
+}

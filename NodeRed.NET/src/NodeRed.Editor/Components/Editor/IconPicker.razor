@@ -1,0 +1,185 @@
+@namespace NodeRed.Editor.Components.Editor
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/editors/iconPicker.js
+    Icon picker component with Font Awesome icons and node icons
+*@
+
+<div class="red-ui-iconPicker @(IsOpen ? "open" : "")">
+    <button class="red-ui-iconPicker-button" @onclick="TogglePicker">
+        <span class="red-ui-iconPicker-preview" style="background-color: @NodeColor">
+            @if (!string.IsNullOrEmpty(Value))
+            {
+                @if (Value.StartsWith("fa-"))
+                {
+                    <i class="fa @Value"></i>
+                }
+                else
+                {
+                    <span>@Value</span>
+                }
+            }
+        </span>
+        <i class="fa fa-caret-down"></i>
+    </button>
+    
+    @if (IsOpen)
+    {
+        <div class="red-ui-iconPicker-popup">
+            <div class="red-ui-iconPicker-search">
+                <input type="text" 
+                       placeholder="Search icons..." 
+                       @bind="SearchFilter"
+                       @bind:event="oninput" />
+            </div>
+            
+            <div class="red-ui-iconPicker-categories">
+                @foreach (var category in FilteredCategories)
+                {
+                    <div class="red-ui-iconPicker-category">
+                        <div class="red-ui-iconPicker-category-header">@category.Name</div>
+                        <div class="red-ui-iconPicker-icons">
+                            @foreach (var icon in category.Icons)
+                            {
+                                <button class="red-ui-iconPicker-icon @(Value == icon.Value ? "selected" : "")"
+                                        title="@icon.Name"
+                                        @onclick="() => SelectIcon(icon.Value)">
+                                    @if (icon.Value.StartsWith("fa-"))
+                                    {
+                                        <i class="fa @icon.Value"></i>
+                                    }
+                                    else
+                                    {
+                                        <span>@icon.Display</span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            
+            <div class="red-ui-iconPicker-actions">
+                <button class="red-ui-button red-ui-button-small" @onclick="Close">Cancel</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string NodeColor { get; set; } = "#A6BBCF";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool IsOpen { get; set; }
+    private string SearchFilter { get; set; } = "";
+
+    public class IconInfo
+    {
+        public string Name { get; set; } = "";
+        public string Value { get; set; } = "";
+        public string? Display { get; set; }
+    }
+
+    public class IconCategory
+    {
+        public string Name { get; set; } = "";
+        public List<IconInfo> Icons { get; set; } = new();
+    }
+
+    private static readonly List<IconCategory> AllCategories = new()
+    {
+        new IconCategory
+        {
+            Name = "Node-RED",
+            Icons = new List<IconInfo>
+            {
+                new() { Name = "Arrow Right", Value = "arrow-right", Display = "→" },
+                new() { Name = "Inject", Value = "inject", Display = "⊳" },
+                new() { Name = "Debug", Value = "debug", Display = "🐛" },
+                new() { Name = "Function", Value = "function", Display = "ƒ" },
+                new() { Name = "Switch", Value = "switch", Display = "⚡" }
+            }
+        },
+        new IconCategory
+        {
+            Name = "Font Awesome",
+            Icons = new List<IconInfo>
+            {
+                new() { Name = "User", Value = "fa-user" },
+                new() { Name = "Home", Value = "fa-home" },
+                new() { Name = "Cog", Value = "fa-cog" },
+                new() { Name = "Database", Value = "fa-database" },
+                new() { Name = "Cloud", Value = "fa-cloud" },
+                new() { Name = "Envelope", Value = "fa-envelope" },
+                new() { Name = "Bell", Value = "fa-bell" },
+                new() { Name = "Lock", Value = "fa-lock" },
+                new() { Name = "Key", Value = "fa-key" },
+                new() { Name = "Search", Value = "fa-search" },
+                new() { Name = "Filter", Value = "fa-filter" },
+                new() { Name = "List", Value = "fa-list" },
+                new() { Name = "Plus", Value = "fa-plus" },
+                new() { Name = "Minus", Value = "fa-minus" },
+                new() { Name = "Check", Value = "fa-check" },
+                new() { Name = "Times", Value = "fa-times" },
+                new() { Name = "Edit", Value = "fa-edit" },
+                new() { Name = "Trash", Value = "fa-trash" },
+                new() { Name = "Save", Value = "fa-save" },
+                new() { Name = "Download", Value = "fa-download" },
+                new() { Name = "Upload", Value = "fa-upload" },
+                new() { Name = "File", Value = "fa-file" },
+                new() { Name = "Folder", Value = "fa-folder" },
+                new() { Name = "Globe", Value = "fa-globe" },
+                new() { Name = "Link", Value = "fa-link" },
+                new() { Name = "Chain Broken", Value = "fa-chain-broken" },
+                new() { Name = "Random", Value = "fa-random" },
+                new() { Name = "Refresh", Value = "fa-refresh" },
+                new() { Name = "Clock", Value = "fa-clock-o" },
+                new() { Name = "Calendar", Value = "fa-calendar" }
+            }
+        }
+    };
+
+    private IEnumerable<IconCategory> FilteredCategories
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(SearchFilter))
+                return AllCategories;
+
+            var filter = SearchFilter.ToLowerInvariant();
+            return AllCategories
+                .Select(c => new IconCategory
+                {
+                    Name = c.Name,
+                    Icons = c.Icons.Where(i => i.Name.ToLowerInvariant().Contains(filter) ||
+                                               i.Value.ToLowerInvariant().Contains(filter)).ToList()
+                })
+                .Where(c => c.Icons.Any());
+        }
+    }
+
+    private void TogglePicker()
+    {
+        IsOpen = !IsOpen;
+        if (IsOpen)
+        {
+            SearchFilter = "";
+        }
+    }
+
+    private async Task SelectIcon(string icon)
+    {
+        Value = icon;
+        await ValueChanged.InvokeAsync(Value);
+        IsOpen = false;
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await OnClose.InvokeAsync();
+    }
+}

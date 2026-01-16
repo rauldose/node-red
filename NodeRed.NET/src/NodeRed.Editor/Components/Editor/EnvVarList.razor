@@ -1,0 +1,134 @@
+@namespace NodeRed.Editor.Components.Editor
+@inject EditorState EditorState
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/editors/envVarList.js
+    Environment variable list editor for flows and subflows
+*@
+
+<div class="red-ui-envVarList">
+    <div class="red-ui-envVarList-header">
+        <span class="label">Environment Variables</span>
+        <button class="red-ui-button red-ui-button-small" @onclick="AddVariable">
+            <i class="fa fa-plus"></i> add
+        </button>
+    </div>
+    
+    <div class="red-ui-envVarList-items">
+        @foreach (var variable in Variables)
+        {
+            <div class="red-ui-envVarList-item">
+                <input type="text" 
+                       class="red-ui-envVarList-name"
+                       placeholder="name"
+                       value="@variable.Name"
+                       @onchange="e => OnNameChange(variable, e)" />
+                
+                <select class="red-ui-envVarList-type"
+                        value="@variable.Type"
+                        @onchange="e => OnTypeChange(variable, e)">
+                    <option value="str">string</option>
+                    <option value="num">number</option>
+                    <option value="bool">boolean</option>
+                    <option value="json">JSON</option>
+                    <option value="env">env var</option>
+                    <option value="cred">credential</option>
+                </select>
+                
+                @if (variable.Type == "bool")
+                {
+                    <select class="red-ui-envVarList-value"
+                            value="@variable.Value"
+                            @onchange="e => OnValueChange(variable, e)">
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                    </select>
+                }
+                else if (variable.Type == "cred")
+                {
+                    <input type="password" 
+                           class="red-ui-envVarList-value"
+                           placeholder="value"
+                           value="@variable.Value"
+                           @onchange="e => OnValueChange(variable, e)" />
+                }
+                else
+                {
+                    <input type="text" 
+                           class="red-ui-envVarList-value"
+                           placeholder="value"
+                           value="@variable.Value"
+                           @onchange="e => OnValueChange(variable, e)" />
+                }
+                
+                <button class="red-ui-button red-ui-button-small"
+                        title="Remove"
+                        @onclick="() => RemoveVariable(variable)">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+        }
+    </div>
+    
+    @if (!Variables.Any())
+    {
+        <div class="red-ui-envVarList-empty">
+            No environment variables defined
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<EnvVariable> Variables { get; set; } = new();
+    [Parameter] public EventCallback<List<EnvVariable>> VariablesChanged { get; set; }
+    [Parameter] public EventCallback OnChange { get; set; }
+
+    public class EnvVariable
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Name { get; set; } = "";
+        public string Value { get; set; } = "";
+        public string Type { get; set; } = "str";
+    }
+
+    private async Task AddVariable()
+    {
+        Variables.Add(new EnvVariable());
+        await NotifyChange();
+    }
+
+    private async Task RemoveVariable(EnvVariable variable)
+    {
+        Variables.Remove(variable);
+        await NotifyChange();
+    }
+
+    private async Task OnNameChange(EnvVariable variable, ChangeEventArgs e)
+    {
+        variable.Name = e.Value?.ToString() ?? "";
+        await NotifyChange();
+    }
+
+    private async Task OnTypeChange(EnvVariable variable, ChangeEventArgs e)
+    {
+        variable.Type = e.Value?.ToString() ?? "str";
+        // Reset value when type changes
+        if (variable.Type == "bool")
+        {
+            variable.Value = "false";
+        }
+        await NotifyChange();
+    }
+
+    private async Task OnValueChange(EnvVariable variable, ChangeEventArgs e)
+    {
+        variable.Value = e.Value?.ToString() ?? "";
+        await NotifyChange();
+    }
+
+    private async Task NotifyChange()
+    {
+        await VariablesChanged.InvokeAsync(Variables);
+        await OnChange.InvokeAsync();
+    }
+}

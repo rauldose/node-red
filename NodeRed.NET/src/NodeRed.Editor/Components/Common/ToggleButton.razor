@@ -1,0 +1,49 @@
+@namespace NodeRed.Editor.Components.Common
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/common/toggleButton.js
+    Toggle button component with optional icon and label
+*@
+
+<button class="red-ui-toggleButton @(Value ? "selected" : "") @CssClass"
+        disabled="@Disabled"
+        title="@Title"
+        @onclick="OnClick">
+    @if (!string.IsNullOrEmpty(CurrentIcon))
+    {
+        <i class="fa @CurrentIcon"></i>
+    }
+    @if (!string.IsNullOrEmpty(CurrentLabel))
+    {
+        <span>@CurrentLabel</span>
+    }
+    @ChildContent
+</button>
+
+@code {
+    [Parameter] public bool Value { get; set; }
+    [Parameter] public EventCallback<bool> ValueChanged { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? IconOn { get; set; }
+    [Parameter] public string? IconOff { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? LabelOn { get; set; }
+    [Parameter] public string? LabelOff { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback<bool> OnChange { get; set; }
+
+    private string? CurrentIcon => Value ? (IconOn ?? Icon) : (IconOff ?? Icon);
+    private string? CurrentLabel => Value ? (LabelOn ?? Label) : (LabelOff ?? Label);
+
+    private async Task OnClick()
+    {
+        if (Disabled) return;
+        
+        Value = !Value;
+        await ValueChanged.InvokeAsync(Value);
+        await OnChange.InvokeAsync(Value);
+    }
+}

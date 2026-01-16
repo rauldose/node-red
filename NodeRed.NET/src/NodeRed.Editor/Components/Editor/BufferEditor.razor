@@ -1,0 +1,146 @@
+@namespace NodeRed.Editor.Components.Editor
+@inject EditorState EditorState
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/editors/buffer.js
+    Buffer (binary) editor for displaying and editing Buffer/Uint8Array data
+*@
+
+<div class="red-ui-bufferEditor">
+    <div class="red-ui-bufferEditor-toolbar">
+        <select @bind="DisplayMode" class="red-ui-bufferEditor-mode">
+            <option value="hex">Hex</option>
+            <option value="binary">Binary</option>
+            <option value="decimal">Decimal</option>
+            <option value="ascii">ASCII</option>
+        </select>
+        <span class="red-ui-bufferEditor-info">
+            @Data.Length bytes
+        </span>
+        <button class="red-ui-button red-ui-button-small" @onclick="CopyToClipboard">
+            <i class="fa fa-copy"></i> Copy
+        </button>
+    </div>
+    
+    <div class="red-ui-bufferEditor-content">
+        @if (Data.Length == 0)
+        {
+            <div class="red-ui-bufferEditor-empty">Empty buffer</div>
+        }
+        else
+        {
+            <div class="red-ui-bufferEditor-grid">
+                @* Address column *@
+                <div class="red-ui-bufferEditor-addresses">
+                    @for (int i = 0; i < Data.Length; i += BytesPerRow)
+                    {
+                        <div class="red-ui-bufferEditor-address">@i.ToString("X8")</div>
+                    }
+                </div>
+                
+                @* Hex/Binary/Decimal values *@
+                <div class="red-ui-bufferEditor-values">
+                    @for (int row = 0; row < (Data.Length + BytesPerRow - 1) / BytesPerRow; row++)
+                    {
+                        <div class="red-ui-bufferEditor-row">
+                            @for (int col = 0; col < BytesPerRow; col++)
+                            {
+                                var index = row * BytesPerRow + col;
+                                if (index < Data.Length)
+                                {
+                                    <span class="red-ui-bufferEditor-byte @(index == SelectedIndex ? "selected" : "")"
+                                          @onclick="() => SelectByte(index)">
+                                        @FormatByte(Data[index])
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="red-ui-bufferEditor-byte empty"></span>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+                
+                @* ASCII preview *@
+                <div class="red-ui-bufferEditor-ascii">
+                    @for (int row = 0; row < (Data.Length + BytesPerRow - 1) / BytesPerRow; row++)
+                    {
+                        <div class="red-ui-bufferEditor-row">
+                            @for (int col = 0; col < BytesPerRow; col++)
+                            {
+                                var index = row * BytesPerRow + col;
+                                if (index < Data.Length)
+                                {
+                                    <span class="red-ui-bufferEditor-char @(index == SelectedIndex ? "selected" : "")"
+                                          @onclick="() => SelectByte(index)">
+                                        @GetAsciiChar(Data[index])
+                                    </span>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+    
+    @if (SelectedIndex >= 0 && SelectedIndex < Data.Length)
+    {
+        <div class="red-ui-bufferEditor-detail">
+            <span><strong>Offset:</strong> @SelectedIndex (@("0x" + SelectedIndex.ToString("X")))</span>
+            <span><strong>Value:</strong> @Data[SelectedIndex] (0x@(Data[SelectedIndex].ToString("X2")))</span>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public byte[] Data { get; set; } = Array.Empty<byte>();
+    [Parameter] public EventCallback<byte[]> DataChanged { get; set; }
+    [Parameter] public bool ReadOnly { get; set; } = true;
+
+    private string DisplayMode { get; set; } = "hex";
+    private int BytesPerRow => 16;
+    private int SelectedIndex { get; set; } = -1;
+
+    private string FormatByte(byte b)
+    {
+        return DisplayMode switch
+        {
+            "hex" => b.ToString("X2"),
+            "binary" => Convert.ToString(b, 2).PadLeft(8, '0'),
+            "decimal" => b.ToString().PadLeft(3),
+            "ascii" => GetAsciiChar(b),
+            _ => b.ToString("X2")
+        };
+    }
+
+    private string GetAsciiChar(byte b)
+    {
+        if (b >= 32 && b < 127)
+        {
+            return ((char)b).ToString();
+        }
+        return ".";
+    }
+
+    private void SelectByte(int index)
+    {
+        SelectedIndex = index;
+    }
+
+    private async Task CopyToClipboard()
+    {
+        var text = DisplayMode switch
+        {
+            "hex" => BitConverter.ToString(Data).Replace("-", " "),
+            "binary" => string.Join(" ", Data.Select(b => Convert.ToString(b, 2).PadLeft(8, '0'))),
+            "decimal" => string.Join(" ", Data),
+            "ascii" => string.Join("", Data.Select(b => GetAsciiChar(b))),
+            _ => BitConverter.ToString(Data).Replace("-", " ")
+        };
+        
+        // TODO: Copy to clipboard via JS interop
+        await Task.CompletedTask;
+    }
+}

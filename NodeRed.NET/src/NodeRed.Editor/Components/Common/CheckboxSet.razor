@@ -1,0 +1,72 @@
+@namespace NodeRed.Editor.Components.Common
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/common/checkboxSet.js
+    Checkbox set component with multi-select support
+*@
+
+<div class="red-ui-checkboxSet @(Inline ? "red-ui-checkboxSet-inline" : "")">
+    @foreach (var option in Options)
+    {
+        <label class="red-ui-checkboxSet-item @(IsSelected(option.Value) ? "selected" : "")">
+            <input type="checkbox" 
+                   value="@option.Value" 
+                   checked="@IsSelected(option.Value)"
+                   disabled="@Disabled"
+                   @onchange="e => OnOptionChanged(option.Value, (bool)e.Value!)" />
+            @if (!string.IsNullOrEmpty(option.Icon))
+            {
+                <i class="fa @option.Icon"></i>
+            }
+            <span>@option.Label</span>
+        </label>
+    }
+</div>
+
+@code {
+    [Parameter] public List<CheckboxOption> Options { get; set; } = new();
+    [Parameter] public List<string> SelectedValues { get; set; } = new();
+    [Parameter] public EventCallback<List<string>> SelectedValuesChanged { get; set; }
+    [Parameter] public bool Inline { get; set; } = true;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback<CheckboxChangeEventArgs> OnChange { get; set; }
+
+    public class CheckboxOption
+    {
+        public string Value { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string? Icon { get; set; }
+    }
+
+    public class CheckboxChangeEventArgs
+    {
+        public string Value { get; set; } = "";
+        public bool Checked { get; set; }
+        public List<string> SelectedValues { get; set; } = new();
+    }
+
+    private bool IsSelected(string value) => SelectedValues.Contains(value);
+
+    private async Task OnOptionChanged(string value, bool isChecked)
+    {
+        var newSelection = new List<string>(SelectedValues);
+        
+        if (isChecked && !newSelection.Contains(value))
+        {
+            newSelection.Add(value);
+        }
+        else if (!isChecked && newSelection.Contains(value))
+        {
+            newSelection.Remove(value);
+        }
+
+        SelectedValues = newSelection;
+        await SelectedValuesChanged.InvokeAsync(newSelection);
+        await OnChange.InvokeAsync(new CheckboxChangeEventArgs
+        {
+            Value = value,
+            Checked = isChecked,
+            SelectedValues = newSelection
+        });
+    }
+}
