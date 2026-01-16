@@ -576,12 +576,25 @@ public class EditorWorkspaces
 
     public void Add(Workspace ws)
     {
+        // Prevent duplicate workspaces
+        if (_workspaces.Any(w => w.Id == ws.Id))
+        {
+            return;
+        }
+        
         _workspaces.Add(ws);
         _workspaceOrder.Add(ws.Id);
         if (string.IsNullOrEmpty(_activeWorkspace))
         {
             _activeWorkspace = ws.Id;
         }
+    }
+    
+    public void Clear()
+    {
+        _workspaces.Clear();
+        _workspaceOrder.Clear();
+        _activeWorkspace = "";
     }
 
     public Workspace? Get(string id) => _workspaces.FirstOrDefault(w => w.Id == id);

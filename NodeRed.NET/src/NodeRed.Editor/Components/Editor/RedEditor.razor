@@ -197,7 +197,8 @@
         // Translated from init() check
         if (_initialized)
         {
-            throw new InvalidOperationException("RED already initialised");
+            // Already initialized - skip to avoid duplicate workspaces
+            return;
         }
         _initialized = true;
 
@@ -214,7 +215,8 @@
             // Initialize with defaults (no API server needed for demo)
             State.Theme = new ThemeSettings();
             
-            // Add a default workspace
+            // Clear any existing workspaces and add a default one
+            State.Workspaces.Clear();
             State.Workspaces.Add(new Workspace { Id = "flow1", Label = "Flow 1" });
             
             // Complete loading immediately
