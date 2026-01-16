@@ -1,0 +1,233 @@
+@* Source: @node-red/editor-client/src/js/ui/actionList.js *@
+@* Translated to Blazor for NodeRed.NET - Command palette/action list *@
+
+@inject NodeRed.Editor.Services.Actions ActionsService
+@inject NodeRed.Editor.Services.Keyboard KeyboardService
+
+<div class="red-ui-action-list @(IsOpen ? "open" : "")" @onkeydown="OnKeyDown">
+    <div class="action-list-header">
+        <input type="text" 
+               @bind="SearchText" 
+               @bind:event="oninput"
+               placeholder="Type a command or search..." 
+               @ref="_searchInput" />
+    </div>
+    <div class="action-list-results">
+        @if (FilteredActions.Any())
+        {
+            @foreach (var (action, index) in FilteredActions.Select((a, i) => (a, i)))
+            {
+                <div class="action-list-item @(index == SelectedIndex ? "selected" : "")"
+                     @onclick="() => ExecuteAction(action)"
+                     @onmouseover="() => SelectedIndex = index">
+                    <div class="action-name">
+                        @GetDisplayName(action.Name)
+                    </div>
+                    @if (!string.IsNullOrEmpty(GetShortcut(action.Name)))
+                    {
+                        <div class="action-shortcut">@GetShortcut(action.Name)</div>
+                    }
+                </div>
+            }
+        }
+        else if (!string.IsNullOrEmpty(SearchText))
+        {
+            <div class="action-list-empty">No matching commands found</div>
+        }
+        else
+        {
+            <div class="action-list-hint">Start typing to search for commands</div>
+        }
+    </div>
+    <div class="action-list-footer">
+        <span><kbd>↑↓</kbd> to navigate</span>
+        <span><kbd>Enter</kbd> to select</span>
+        <span><kbd>Esc</kbd> to close</span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    
+    private ElementReference _searchInput;
+    private string SearchText { get; set; } = "";
+    private int SelectedIndex { get; set; } = 0;
+    
+    private List<NodeRed.Editor.Services.ActionDefinition> FilteredActions =>
+        string.IsNullOrEmpty(SearchText)
+            ? ActionsService.List().Take(20).ToList()
+            : ActionsService.List()
+                .Where(a => a.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                           (a.Options.Label?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false))
+                .Take(20)
+                .ToList();
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsOpen && _searchInput.Context != null)
+        {
+            try
+            {
+                // Focus the search input when opened
+                // await _searchInput.FocusAsync(); // Requires JS interop
+            }
+            catch { }
+        }
+    }
+    
+    public void Open()
+    {
+        IsOpen = true;
+        SearchText = "";
+        SelectedIndex = 0;
+        IsOpenChanged.InvokeAsync(true);
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Show the action list (alias for Open)
+    /// </summary>
+    public void Show() => Open();
+    
+    public async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+        await OnClose.InvokeAsync();
+    }
+    
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowUp":
+                SelectedIndex = Math.Max(0, SelectedIndex - 1);
+                break;
+            case "ArrowDown":
+                SelectedIndex = Math.Min(FilteredActions.Count - 1, SelectedIndex + 1);
+                break;
+            case "Enter":
+                if (SelectedIndex >= 0 && SelectedIndex < FilteredActions.Count)
+                {
+                    await ExecuteAction(FilteredActions[SelectedIndex]);
+                }
+                break;
+            case "Escape":
+                await Close();
+                break;
+        }
+    }
+    
+    private async Task ExecuteAction(NodeRed.Editor.Services.ActionDefinition action)
+    {
+        await Close();
+        ActionsService.Invoke(action.Name);
+    }
+    
+    private string GetDisplayName(string actionName)
+    {
+        // Convert "core:undo" to "Undo" or "core:copy-selection-to-internal-clipboard" to "Copy Selection"
+        var name = actionName;
+        if (name.Contains(':'))
+        {
+            name = name.Split(':')[1];
+        }
+        
+        name = name.Replace("-", " ");
+        name = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name);
+        
+        return name;
+    }
+    
+    private string GetShortcut(string actionName)
+    {
+        // Get the keyboard shortcut for this action - returns empty for now
+        return "";
+    }
+}
+
+<style>
+    .red-ui-action-list {
+        position: fixed;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 500px;
+        max-width: 90vw;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        z-index: 10000;
+        display: none;
+    }
+    .red-ui-action-list.open {
+        display: block;
+    }
+    .action-list-header {
+        padding: 8px;
+        border-bottom: 1px solid #ddd;
+    }
+    .action-list-header input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1.1em;
+    }
+    .action-list-header input:focus {
+        outline: none;
+        border-color: #3498db;
+    }
+    .action-list-results {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .action-list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 16px;
+        cursor: pointer;
+    }
+    .action-list-item:hover,
+    .action-list-item.selected {
+        background: #e6f0fa;
+    }
+    .action-name {
+        flex: 1;
+    }
+    .action-shortcut {
+        color: #666;
+        font-size: 0.9em;
+        background: #f0f0f0;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+    .action-list-empty,
+    .action-list-hint {
+        padding: 20px;
+        text-align: center;
+        color: #888;
+    }
+    .action-list-footer {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        padding: 8px;
+        background: #f5f5f5;
+        border-top: 1px solid #ddd;
+        font-size: 0.85em;
+        color: #666;
+        border-radius: 0 0 6px 6px;
+    }
+    .action-list-footer kbd {
+        background: #ddd;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+</style>

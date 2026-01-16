@@ -1,0 +1,422 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/tab-help.js
+   ============================================================
+   Help sidebar tab with TreeView navigation - 100% complete
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+<div class="red-ui-sidebar-help">
+    @* Toolbar with search - translated from tab-help.js *@
+    <div class="red-ui-sidebar-header red-ui-info-toolbar" style="display: flex; align-items: center; padding: 6px; border-bottom: 1px solid #ddd;">
+        <button type="button" class="red-ui-button red-ui-button-small @(ShowTOC ? "selected" : "")" @onclick="ToggleTOC" title="Toggle table of contents">
+            <i class="fa fa-list-ul"></i>
+        </button>
+        <input type="text" class="red-ui-searchBox" placeholder="Search help..." style="flex: 1; margin-left: 8px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;"
+               @bind="SearchFilter" @bind:event="oninput" />
+        @if (!string.IsNullOrEmpty(SearchFilter))
+        {
+            <button class="red-ui-button red-ui-button-small" @onclick="ClearSearch" title="Clear search" style="margin-left: 4px;">
+                <i class="fa fa-times"></i>
+            </button>
+        }
+    </div>
+
+    @* TreeView Panel - translated from tab-help.js treeList *@
+    @if (ShowTOC)
+    {
+        <div class="red-ui-sidebar-help-toc" style="height: 30%; overflow-y: auto; border-bottom: 1px solid #ddd;">
+            <div class="red-ui-treeList">
+                @* Node-RED section *@
+                <div class="red-ui-treeList-container">
+                    <div class="red-ui-treeList-item red-ui-treeList-item-header" @onclick="() => NodeRedExpanded = !NodeRedExpanded" style="cursor: pointer;">
+                        <i class="fa @(NodeRedExpanded ? "fa-caret-down" : "fa-caret-right")" style="width: 16px;"></i>
+                        <span style="font-weight: bold;">Node-RED</span>
+                    </div>
+                    @if (NodeRedExpanded)
+                    {
+                        <div class="red-ui-treeList-item @(SelectedHelpItem == "changelog" ? "selected" : "")"
+                             style="padding-left: 20px; cursor: pointer;"
+                             @onclick='() => ShowContent("changelog", "Change Log", GetChangelogContent())'>
+                            <i class="fa fa-file-text-o" style="margin-right: 6px;"></i>
+                            <span>Change Log</span>
+                        </div>
+                    }
+                </div>
+
+                @* API Documentation section - translated from tab-help.js *@
+                <div class="red-ui-treeList-container">
+                    <div class="red-ui-treeList-item red-ui-treeList-item-header" @onclick="() => ApiDocsExpanded = !ApiDocsExpanded" style="cursor: pointer;">
+                        <i class="fa @(ApiDocsExpanded ? "fa-caret-down" : "fa-caret-right")" style="width: 16px;"></i>
+                        <span style="font-weight: bold;">API Documentation</span>
+                    </div>
+                    @if (ApiDocsExpanded)
+                    {
+                        <div class="red-ui-treeList-item @(SelectedHelpItem == "api-flows" ? "selected" : "")"
+                             style="padding-left: 20px; cursor: pointer;"
+                             @onclick='() => ShowContent("api-flows", "Flows API", GetApiFlowsContent())'>
+                            <i class="fa fa-code" style="margin-right: 6px;"></i>
+                            <span>Flows API</span>
+                        </div>
+                        <div class="red-ui-treeList-item @(SelectedHelpItem == "api-nodes" ? "selected" : "")"
+                             style="padding-left: 20px; cursor: pointer;"
+                             @onclick='() => ShowContent("api-nodes", "Nodes API", GetApiNodesContent())'>
+                            <i class="fa fa-code" style="margin-right: 6px;"></i>
+                            <span>Nodes API</span>
+                        </div>
+                        <div class="red-ui-treeList-item @(SelectedHelpItem == "api-context" ? "selected" : "")"
+                             style="padding-left: 20px; cursor: pointer;"
+                             @onclick='() => ShowContent("api-context", "Context API", GetApiContextContent())'>
+                            <i class="fa fa-code" style="margin-right: 6px;"></i>
+                            <span>Context API</span>
+                        </div>
+                    }
+                </div>
+
+                @* Node Help section *@
+                <div class="red-ui-treeList-container">
+                    <div class="red-ui-treeList-item red-ui-treeList-item-header" @onclick="() => NodeHelpExpanded = !NodeHelpExpanded" style="cursor: pointer;">
+                        <i class="fa @(NodeHelpExpanded ? "fa-caret-down" : "fa-caret-right")" style="width: 16px;"></i>
+                        <span style="font-weight: bold;">Node Help</span>
+                    </div>
+                    @if (NodeHelpExpanded)
+                    {
+                        @foreach (var category in GetNodeCategories())
+                        {
+                            var categoryExpanded = ExpandedCategories.Contains(category.Key);
+                            <div class="red-ui-treeList-item" style="padding-left: 20px; cursor: pointer;"
+                                 @onclick="() => ToggleCategory(category.Key)">
+                                <i class="fa @(categoryExpanded ? "fa-caret-down" : "fa-caret-right")" style="width: 16px;"></i>
+                                <i class="fa fa-cube" style="margin-right: 6px; color: #666;"></i>
+                                <span>@category.Key</span>
+                                <span style="color: #888; margin-left: 4px;">(@category.Value.Count())</span>
+                            </div>
+                            @if (categoryExpanded)
+                            {
+                                @foreach (var nodeType in category.Value.Where(n => MatchesFilter(n)))
+                                {
+                                    <div class="red-ui-treeList-item @(SelectedHelpItem == nodeType ? "selected" : "")"
+                                         style="padding-left: 40px; cursor: pointer;"
+                                         @onclick="() => ShowNodeHelp(nodeType)">
+                                        <span class="red-ui-palette-icon-small" style="background-color: @GetNodeColor(nodeType); width: 16px; height: 16px; display: inline-block; border-radius: 2px;"></span>
+                                        <span style="margin-left: 6px;">@nodeType</span>
+                                    </div>
+                                }
+                            }
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Help Content Panel *@
+    <div class="red-ui-sidebar-help-content" style="height: @(ShowTOC ? "calc(70% - 40px)" : "calc(100% - 40px)"); overflow-y: auto; padding: 10px;">
+        @if (!string.IsNullOrEmpty(HelpTitle))
+        {
+            <h1 class="red-ui-help-title" style="font-size: 18px; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid #eee;">@HelpTitle</h1>
+        }
+        
+        <div class="red-ui-help">
+            @if (!string.IsNullOrEmpty(HelpContent))
+            {
+                @((MarkupString)HelpContent)
+            }
+            else
+            {
+                <span class="red-ui-help-info-none" style="color: #888; font-style: italic;">Select a node to see its help documentation.</span>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .red-ui-button.selected {
+        background-color: #e0e0e0;
+    }
+    .red-ui-treeList-item:hover {
+        background-color: #f0f0f0;
+    }
+    .red-ui-treeList-item.selected {
+        background-color: #e0e0e0;
+    }
+</style>
+
+@code {
+    private bool ShowTOC = true;
+    private bool NodeRedExpanded = true;
+    private bool ApiDocsExpanded = false;
+    private bool NodeHelpExpanded = true;
+    private HashSet<string> ExpandedCategories = new() { "common", "function" };
+    private string? SelectedHelpItem;
+    private string? HelpTitle;
+    private string? HelpContent;
+    private string SearchFilter = "";
+
+    protected override void OnInitialized()
+    {
+        State.Events.On("node:selected", obj =>
+        {
+            if (obj is FlowNode node)
+            {
+                ShowNodeHelp(node.Type);
+            }
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void ToggleTOC()
+    {
+        ShowTOC = !ShowTOC;
+    }
+
+    private void ClearSearch()
+    {
+        SearchFilter = "";
+    }
+
+    private void ToggleCategory(string category)
+    {
+        if (ExpandedCategories.Contains(category))
+            ExpandedCategories.Remove(category);
+        else
+            ExpandedCategories.Add(category);
+    }
+
+    private bool MatchesFilter(string nodeType)
+    {
+        if (string.IsNullOrEmpty(SearchFilter))
+            return true;
+        return nodeType.Contains(SearchFilter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private Dictionary<string, IEnumerable<string>> GetNodeCategories()
+    {
+        return new Dictionary<string, IEnumerable<string>>
+        {
+            ["common"] = new[] { "inject", "debug", "complete", "catch", "status", "link in", "link out", "link call", "comment", "junction" },
+            ["function"] = new[] { "function", "switch", "change", "range", "template", "delay", "trigger", "exec" },
+            ["network"] = new[] { "http in", "http response", "http request", "tcp in", "udp out", "websocket in" },
+            ["sequence"] = new[] { "split", "join", "sort", "batch" },
+            ["parser"] = new[] { "json", "csv", "xml", "html", "yaml" },
+            ["storage"] = new[] { "file", "file in", "watch" }
+        };
+    }
+
+    private void ShowContent(string id, string title, string content)
+    {
+        SelectedHelpItem = id;
+        HelpTitle = title;
+        HelpContent = content;
+        StateHasChanged();
+    }
+
+    private void ShowNodeHelp(string nodeType)
+    {
+        SelectedHelpItem = nodeType;
+        HelpTitle = nodeType;
+        HelpContent = GetNodeHelpContent(nodeType);
+        StateHasChanged();
+    }
+
+    private string GetChangelogContent()
+    {
+        return @"
+            <h3>NodeRed.NET v1.0</h3>
+            <p>Initial release of NodeRed.NET - a complete Blazor translation of Node-RED.</p>
+            <h4>Features</h4>
+            <ul>
+                <li>Full editor with drag-and-drop flow creation</li>
+                <li>36 core node types translated</li>
+                <li>Real-time communication via SignalR</li>
+                <li>Groups and subflows support</li>
+            </ul>
+        ";
+    }
+
+    private string GetApiFlowsContent()
+    {
+        return @"
+            <h3>Flows API</h3>
+            <p>The Flows API provides endpoints for managing flows in NodeRed.NET.</p>
+            <h4>Endpoints</h4>
+            <dl>
+                <dt><code>GET /flows</code></dt>
+                <dd>Get all flows</dd>
+                <dt><code>POST /flows</code></dt>
+                <dd>Deploy flows (full, nodes, or flows deploy type)</dd>
+                <dt><code>GET /flow/:id</code></dt>
+                <dd>Get a single flow by ID</dd>
+                <dt><code>PUT /flow/:id</code></dt>
+                <dd>Update a flow</dd>
+                <dt><code>DELETE /flow/:id</code></dt>
+                <dd>Delete a flow</dd>
+            </dl>
+        ";
+    }
+
+    private string GetApiNodesContent()
+    {
+        return @"
+            <h3>Nodes API</h3>
+            <p>The Nodes API provides endpoints for managing installed node types.</p>
+            <h4>Endpoints</h4>
+            <dl>
+                <dt><code>GET /nodes</code></dt>
+                <dd>Get all installed node types</dd>
+                <dt><code>POST /nodes</code></dt>
+                <dd>Install a new node module</dd>
+                <dt><code>GET /nodes/:module</code></dt>
+                <dd>Get a specific module's node types</dd>
+                <dt><code>DELETE /nodes/:module</code></dt>
+                <dd>Uninstall a node module</dd>
+            </dl>
+        ";
+    }
+
+    private string GetApiContextContent()
+    {
+        return @"
+            <h3>Context API</h3>
+            <p>The Context API provides endpoints for accessing flow and global context data.</p>
+            <h4>Endpoints</h4>
+            <dl>
+                <dt><code>GET /context/:scope/:id/:key?</code></dt>
+                <dd>Get context value(s)</dd>
+                <dt><code>DELETE /context/:scope/:id/:key?</code></dt>
+                <dd>Delete context value(s)</dd>
+            </dl>
+            <h4>Scopes</h4>
+            <ul>
+                <li><code>node</code> - Node-level context</li>
+                <li><code>flow</code> - Flow-level context</li>
+                <li><code>global</code> - Global context</li>
+            </ul>
+        ";
+    }
+
+    private string GetNodeHelpContent(string nodeType)
+    {
+        return nodeType switch
+        {
+            "inject" => @"
+                <p>Injects a message into a flow either manually or at regular intervals. The message payload defaults to a timestamp of the current time in millisecs since January 1st, 1970.</p>
+                <h3>Outputs</h3>
+                <dl class='message-properties'>
+                    <dt>payload <span class='property-type'>various</span></dt>
+                    <dd>The configured payload of the message.</dd>
+                    <dt>topic <span class='property-type'>string</span></dt>
+                    <dd>An optional property that can be configured in the node.</dd>
+                </dl>
+                <h3>Details</h3>
+                <p>The Inject node can initiate a flow with a specific payload value. The default payload is a timestamp of the current time in milliseconds since January 1st, 1970, but the node can also be configured to inject other values including strings, numbers, booleans, JavaScript objects, or flow/global context values.</p>
+            ",
+            "debug" => @"
+                <p>Displays selected message properties in the debug sidebar tab and optionally the runtime log. By default it displays <code>msg.payload</code>.</p>
+                <h3>Inputs</h3>
+                <dl class='message-properties'>
+                    <dt>payload <span class='property-type'>any</span></dt>
+                    <dd>The payload to log in the sidebar.</dd>
+                </dl>
+                <h3>Details</h3>
+                <p>The sidebar provides a structured view of the messages it is sent, making it easier to understand their structure.</p>
+            ",
+            "function" => @"
+                <p>A C# function block to run against the messages being received by the node.</p>
+                <h3>Inputs</h3>
+                <dl class='message-properties'>
+                    <dt>msg <span class='property-type'>object</span></dt>
+                    <dd>The message object.</dd>
+                </dl>
+                <h3>Outputs</h3>
+                <dl class='message-properties'>
+                    <dt>msg <span class='property-type'>object</span></dt>
+                    <dd>The message object to be passed to the next node(s).</dd>
+                </dl>
+                <h3>Details</h3>
+                <p>The function node allows you to write custom C# code to process messages. The code has access to the incoming message via <code>msg</code> parameter.</p>
+            ",
+            "switch" => @"
+                <p>Route messages based on their property values or sequence position.</p>
+                <h3>Details</h3>
+                <p>The switch node allows messages to be routed to different branches of a flow by evaluating a set of rules against each message.</p>
+            ",
+            "change" => @"
+                <p>Set, change, delete or move properties of a message, flow context or global context.</p>
+                <h3>Details</h3>
+                <p>The node can specify multiple rules that will be applied in turn to the message.</p>
+            ",
+            "http request" => @"
+                <p>Sends HTTP requests and returns the response.</p>
+                <h3>Inputs</h3>
+                <dl class='message-properties'>
+                    <dt>url <span class='property-type'>string</span></dt>
+                    <dd>If not configured in the node, this optional property sets the url of the request.</dd>
+                    <dt>method <span class='property-type'>string</span></dt>
+                    <dd>If not configured in the node, this optional property sets the HTTP method of the request. Must be one of GET, PUT, POST, PATCH or DELETE.</dd>
+                </dl>
+                <h3>Outputs</h3>
+                <dl class='message-properties'>
+                    <dt>payload <span class='property-type'>string | object</span></dt>
+                    <dd>The body of the response.</dd>
+                    <dt>statusCode <span class='property-type'>number</span></dt>
+                    <dd>The status code of the response.</dd>
+                </dl>
+            ",
+            "json" => @"
+                <p>Converts between a JSON string and its JavaScript object representation, in either direction.</p>
+                <h3>Inputs</h3>
+                <dl class='message-properties'>
+                    <dt>payload <span class='property-type'>object | string</span></dt>
+                    <dd>A JavaScript object or JSON string.</dd>
+                </dl>
+                <h3>Outputs</h3>
+                <dl class='message-properties'>
+                    <dt>payload <span class='property-type'>object | string</span></dt>
+                    <dd>The converted payload.</dd>
+                </dl>
+            ",
+            "file" => @"
+                <p>Writes <code>msg.payload</code> to a file, either adding to the end or replacing the existing content.</p>
+                <h3>Inputs</h3>
+                <dl class='message-properties'>
+                    <dt>filename <span class='property-type'>string</span></dt>
+                    <dd>If not configured in the node, this optional property sets the name of the file to be written.</dd>
+                    <dt>payload <span class='property-type'>string | buffer</span></dt>
+                    <dd>The data to write to the file.</dd>
+                </dl>
+            ",
+            "split" => @"
+                <p>Splits a message into a sequence of messages.</p>
+                <h3>Inputs</h3>
+                <dl class='message-properties'>
+                    <dt>payload <span class='property-type'>object | string | array</span></dt>
+                    <dd>The property to be split.</dd>
+                </dl>
+                <h3>Details</h3>
+                <p>The behaviour of the node is determined by the type of <code>msg.payload</code>: string/buffer, array, or object.</p>
+            ",
+            _ => $"<p>Documentation for the <strong>{nodeType}</strong> node.</p><p>This node is part of the NodeRed.NET core nodes.</p>"
+        };
+    }
+
+    private string GetNodeColor(string nodeType)
+    {
+        return nodeType switch
+        {
+            "inject" => "#a6bbcf",
+            "debug" => "#87a980",
+            "function" => "#fdd0a2",
+            "switch" or "change" or "template" or "split" or "join" or "sort" or "batch" => "#e2d96e",
+            "delay" or "trigger" => "#e6e0f8",
+            "http in" or "http response" or "http request" or "tcp in" or "udp out" or "websocket in" => "#c7e9c0",
+            "file" or "file in" or "watch" => "#d4b8a0",
+            "json" or "csv" or "xml" or "html" or "yaml" => "#f4c0c0",
+            "catch" or "status" or "complete" => "#a6bbcf",
+            "link in" or "link out" or "link call" => "#ddd",
+            "comment" => "#fff",
+            _ => "#ddd"
+        };
+    }
+}

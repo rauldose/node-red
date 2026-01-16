@@ -1,0 +1,266 @@
+@namespace NodeRed.Editor.Components.Editor
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/editors/expression.js
+    JSONata expression editor with syntax highlighting and testing
+*@
+
+<div class="red-ui-expressionEditor">
+    <div class="red-ui-expressionEditor-toolbar">
+        <button class="red-ui-button red-ui-button-small" 
+                title="Insert function"
+                @onclick="ShowFunctionPicker">
+            <i class="fa fa-code"></i> Functions
+        </button>
+        <button class="red-ui-button red-ui-button-small"
+                title="Test expression"
+                @onclick="TestExpression">
+            <i class="fa fa-play"></i> Test
+        </button>
+        <a href="https://docs.jsonata.org/" target="_blank" class="red-ui-button red-ui-button-small">
+            <i class="fa fa-book"></i> Docs
+        </a>
+    </div>
+    
+    <div class="red-ui-expressionEditor-input">
+        <CodeEditor @ref="_editor"
+                    Value="@Value"
+                    ValueChanged="OnValueChanged"
+                    Language="jsonata"
+                    Height="@Height"
+                    LineNumbers="@LineNumbers" />
+    </div>
+    
+    @if (ShowTest)
+    {
+        <div class="red-ui-expressionEditor-test">
+            <div class="red-ui-expressionEditor-test-header">
+                <span>Test Data (JSON):</span>
+                <button class="red-ui-button red-ui-button-small" @onclick="() => ShowTest = false">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            <textarea class="red-ui-expressionEditor-test-input"
+                      @bind="TestInput"
+                      placeholder='{"msg": {"payload": "test"}}'></textarea>
+            <div class="red-ui-expressionEditor-test-actions">
+                <button class="red-ui-button primary" @onclick="RunTest">
+                    <i class="fa fa-play"></i> Run
+                </button>
+            </div>
+            @if (!string.IsNullOrEmpty(TestResult))
+            {
+                <div class="red-ui-expressionEditor-test-result @(TestError ? "error" : "")">
+                    <pre>@TestResult</pre>
+                </div>
+            }
+        </div>
+    }
+    
+    @if (ShowFunctions)
+    {
+        <div class="red-ui-expressionEditor-functions">
+            <div class="red-ui-expressionEditor-functions-header">
+                <input type="text" 
+                       placeholder="Search functions..."
+                       @bind="FunctionFilter"
+                       @bind:event="oninput" />
+                <button @onclick="() => ShowFunctions = false">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            <div class="red-ui-expressionEditor-functions-list">
+                @foreach (var category in FilteredFunctions)
+                {
+                    <div class="red-ui-expressionEditor-functions-category">
+                        <div class="category-name">@category.Name</div>
+                        @foreach (var func in category.Functions)
+                        {
+                            <div class="function-item" 
+                                 title="@func.Description"
+                                 @onclick="() => InsertFunction(func.Syntax)">
+                                <code>@func.Name</code>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public int Height { get; set; } = 200;
+    [Parameter] public bool LineNumbers { get; set; } = true;
+
+    private CodeEditor? _editor;
+    private bool ShowTest { get; set; }
+    private bool ShowFunctions { get; set; }
+    private string TestInput { get; set; } = @"{""msg"": {""payload"": ""test""}}";
+    private string TestResult { get; set; } = "";
+    private bool TestError { get; set; }
+    private string FunctionFilter { get; set; } = "";
+
+    public class FunctionInfo
+    {
+        public string Name { get; set; } = "";
+        public string Syntax { get; set; } = "";
+        public string Description { get; set; } = "";
+    }
+
+    public class FunctionCategory
+    {
+        public string Name { get; set; } = "";
+        public List<FunctionInfo> Functions { get; set; } = new();
+    }
+
+    private static readonly List<FunctionCategory> AllFunctions = new()
+    {
+        new FunctionCategory
+        {
+            Name = "String",
+            Functions = new List<FunctionInfo>
+            {
+                new() { Name = "$string", Syntax = "$string(arg)", Description = "Convert to string" },
+                new() { Name = "$length", Syntax = "$length(str)", Description = "String length" },
+                new() { Name = "$substring", Syntax = "$substring(str, start, length)", Description = "Extract substring" },
+                new() { Name = "$split", Syntax = "$split(str, separator)", Description = "Split string" },
+                new() { Name = "$join", Syntax = "$join(array, separator)", Description = "Join array to string" },
+                new() { Name = "$trim", Syntax = "$trim(str)", Description = "Trim whitespace" },
+                new() { Name = "$uppercase", Syntax = "$uppercase(str)", Description = "Convert to uppercase" },
+                new() { Name = "$lowercase", Syntax = "$lowercase(str)", Description = "Convert to lowercase" },
+                new() { Name = "$replace", Syntax = "$replace(str, pattern, replacement)", Description = "Replace pattern" }
+            }
+        },
+        new FunctionCategory
+        {
+            Name = "Numeric",
+            Functions = new List<FunctionInfo>
+            {
+                new() { Name = "$number", Syntax = "$number(arg)", Description = "Convert to number" },
+                new() { Name = "$round", Syntax = "$round(num, precision)", Description = "Round number" },
+                new() { Name = "$floor", Syntax = "$floor(num)", Description = "Floor number" },
+                new() { Name = "$ceil", Syntax = "$ceil(num)", Description = "Ceiling number" },
+                new() { Name = "$abs", Syntax = "$abs(num)", Description = "Absolute value" },
+                new() { Name = "$sum", Syntax = "$sum(array)", Description = "Sum of array" },
+                new() { Name = "$average", Syntax = "$average(array)", Description = "Average of array" },
+                new() { Name = "$min", Syntax = "$min(array)", Description = "Minimum value" },
+                new() { Name = "$max", Syntax = "$max(array)", Description = "Maximum value" }
+            }
+        },
+        new FunctionCategory
+        {
+            Name = "Boolean",
+            Functions = new List<FunctionInfo>
+            {
+                new() { Name = "$boolean", Syntax = "$boolean(arg)", Description = "Convert to boolean" },
+                new() { Name = "$not", Syntax = "$not(arg)", Description = "Logical not" },
+                new() { Name = "$exists", Syntax = "$exists(arg)", Description = "Check if exists" }
+            }
+        },
+        new FunctionCategory
+        {
+            Name = "Array",
+            Functions = new List<FunctionInfo>
+            {
+                new() { Name = "$count", Syntax = "$count(array)", Description = "Array length" },
+                new() { Name = "$append", Syntax = "$append(array1, array2)", Description = "Append arrays" },
+                new() { Name = "$sort", Syntax = "$sort(array)", Description = "Sort array" },
+                new() { Name = "$reverse", Syntax = "$reverse(array)", Description = "Reverse array" },
+                new() { Name = "$shuffle", Syntax = "$shuffle(array)", Description = "Shuffle array" },
+                new() { Name = "$distinct", Syntax = "$distinct(array)", Description = "Remove duplicates" },
+                new() { Name = "$filter", Syntax = "$filter(array, function)", Description = "Filter array" },
+                new() { Name = "$map", Syntax = "$map(array, function)", Description = "Map over array" },
+                new() { Name = "$reduce", Syntax = "$reduce(array, function)", Description = "Reduce array" }
+            }
+        },
+        new FunctionCategory
+        {
+            Name = "Object",
+            Functions = new List<FunctionInfo>
+            {
+                new() { Name = "$keys", Syntax = "$keys(object)", Description = "Get object keys" },
+                new() { Name = "$values", Syntax = "$values(object)", Description = "Get object values" },
+                new() { Name = "$merge", Syntax = "$merge([obj1, obj2])", Description = "Merge objects" },
+                new() { Name = "$lookup", Syntax = "$lookup(object, key)", Description = "Lookup value" }
+            }
+        },
+        new FunctionCategory
+        {
+            Name = "Date/Time",
+            Functions = new List<FunctionInfo>
+            {
+                new() { Name = "$now", Syntax = "$now()", Description = "Current timestamp" },
+                new() { Name = "$millis", Syntax = "$millis()", Description = "Current time in ms" },
+                new() { Name = "$fromMillis", Syntax = "$fromMillis(ms)", Description = "Format milliseconds" },
+                new() { Name = "$toMillis", Syntax = "$toMillis(timestamp)", Description = "Parse to milliseconds" }
+            }
+        }
+    };
+
+    private IEnumerable<FunctionCategory> FilteredFunctions
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(FunctionFilter))
+                return AllFunctions;
+
+            var filter = FunctionFilter.ToLowerInvariant();
+            return AllFunctions
+                .Select(c => new FunctionCategory
+                {
+                    Name = c.Name,
+                    Functions = c.Functions.Where(f => 
+                        f.Name.ToLowerInvariant().Contains(filter) ||
+                        f.Description.ToLowerInvariant().Contains(filter)).ToList()
+                })
+                .Where(c => c.Functions.Any());
+        }
+    }
+
+    private async Task OnValueChanged(string value)
+    {
+        Value = value;
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    private void ShowFunctionPicker()
+    {
+        ShowFunctions = !ShowFunctions;
+        ShowTest = false;
+    }
+
+    private void TestExpression()
+    {
+        ShowTest = !ShowTest;
+        ShowFunctions = false;
+    }
+
+    private async Task InsertFunction(string syntax)
+    {
+        if (_editor != null)
+        {
+            var currentValue = await _editor.GetValue();
+            await _editor.SetValue(currentValue + syntax);
+        }
+        ShowFunctions = false;
+    }
+
+    private void RunTest()
+    {
+        try
+        {
+            // In a real implementation, this would evaluate the JSONata expression
+            // For now, just show a placeholder
+            TestResult = "// JSONata evaluation would happen here\n// Expression: " + Value;
+            TestError = false;
+        }
+        catch (Exception ex)
+        {
+            TestResult = "Error: " + ex.Message;
+            TestError = true;
+        }
+    }
+}

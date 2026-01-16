@@ -1,0 +1,142 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/editors/panes/description.js
+   ============================================================
+   Description tab for node editing - markdown editor for node documentation
+   ============================================================ *@
+
+<div class="red-ui-editor-description-pane" style="padding: 12px; height: 100%; display: flex; flex-direction: column;">
+    <div class="form-row" style="margin-bottom: 8px;">
+        <span style="font-weight: 500; color: #666;">Node Description</span>
+        <span style="margin-left: 8px; color: #888; font-size: 12px;">(Markdown supported)</span>
+    </div>
+    
+    @* Toolbar - translated from line 53 *@
+    <div class="red-ui-editor-toolbar" style="display: flex; gap: 4px; margin-bottom: 8px; border-bottom: 1px solid #ddd; padding-bottom: 8px;">
+        <button type="button" class="red-ui-button red-ui-button-small" title="Bold" @onclick="InsertBold">
+            <i class="fa fa-bold"></i>
+        </button>
+        <button type="button" class="red-ui-button red-ui-button-small" title="Italic" @onclick="InsertItalic">
+            <i class="fa fa-italic"></i>
+        </button>
+        <button type="button" class="red-ui-button red-ui-button-small" title="Code" @onclick="InsertCode">
+            <i class="fa fa-code"></i>
+        </button>
+        <button type="button" class="red-ui-button red-ui-button-small" title="Link" @onclick="InsertLink">
+            <i class="fa fa-link"></i>
+        </button>
+        <span style="border-left: 1px solid #ccc; margin: 0 4px;"></span>
+        <button type="button" class="red-ui-button red-ui-button-small" title="Heading 1" @onclick="InsertH1">
+            H1
+        </button>
+        <button type="button" class="red-ui-button red-ui-button-small" title="Heading 2" @onclick="InsertH2">
+            H2
+        </button>
+        <button type="button" class="red-ui-button red-ui-button-small" title="Heading 3" @onclick="InsertH3">
+            H3
+        </button>
+        <span style="border-left: 1px solid #ccc; margin: 0 4px;"></span>
+        <button type="button" class="red-ui-button red-ui-button-small" title="Bullet List" @onclick="InsertBullet">
+            <i class="fa fa-list-ul"></i>
+        </button>
+        <button type="button" class="red-ui-button red-ui-button-small" title="Numbered List" @onclick="InsertNumbered">
+            <i class="fa fa-list-ol"></i>
+        </button>
+        <span style="flex-grow: 1;"></span>
+        <button type="button" 
+                class="red-ui-button red-ui-button-small @(ShowPreview ? "active" : "")" 
+                style="@(ShowPreview ? "background: #c00; color: white;" : "")"
+                title="Preview"
+                @onclick="TogglePreview">
+            <i class="fa fa-eye"></i>
+        </button>
+    </div>
+
+    @* Editor area - translated from lines 54-64 *@
+    <div class="form-row node-text-editor-row" style="flex: 1; position: relative; min-height: 200px;">
+        @if (ShowPreview)
+        {
+            <div class="red-ui-editor-preview" 
+                 style="height: 100%; overflow-y: auto; padding: 12px; background: #fff; border: 1px solid #ccc; border-radius: 3px;">
+                @((MarkupString)RenderMarkdown(Description))
+            </div>
+        }
+        else
+        {
+            <textarea @bind="Description" 
+                      @bind:event="oninput"
+                      placeholder="Enter a description for this node using Markdown..."
+                      style="width: 100%; height: 100%; min-height: 200px; padding: 8px; border: 1px solid #ccc; border-radius: 3px; font-family: monospace; font-size: 13px; resize: none;"></textarea>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string InitialDescription { get; set; } = "";
+    [Parameter] public EventCallback<string> OnDescriptionChanged { get; set; }
+
+    private string Description = "";
+    private bool ShowPreview = false;
+
+    protected override void OnParametersSet()
+    {
+        Description = InitialDescription;
+    }
+
+    private void TogglePreview()
+    {
+        ShowPreview = !ShowPreview;
+    }
+
+    private async Task InsertBold() { Description += "**bold**"; await OnDescriptionChanged.InvokeAsync(Description); }
+    private async Task InsertItalic() { Description += "*italic*"; await OnDescriptionChanged.InvokeAsync(Description); }
+    private async Task InsertCode() { Description += "`code`"; await OnDescriptionChanged.InvokeAsync(Description); }
+    private async Task InsertLink() { Description += "[text](url)"; await OnDescriptionChanged.InvokeAsync(Description); }
+    private async Task InsertH1() { Description += "\n# Heading"; await OnDescriptionChanged.InvokeAsync(Description); }
+    private async Task InsertH2() { Description += "\n## Heading"; await OnDescriptionChanged.InvokeAsync(Description); }
+    private async Task InsertH3() { Description += "\n### Heading"; await OnDescriptionChanged.InvokeAsync(Description); }
+    private async Task InsertBullet() { Description += "\n- item"; await OnDescriptionChanged.InvokeAsync(Description); }
+    private async Task InsertNumbered() { Description += "\n1. item"; await OnDescriptionChanged.InvokeAsync(Description); }
+
+    // Simple markdown to HTML converter - translated from how Node-RED uses marked.js
+    private string RenderMarkdown(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown))
+        {
+            return "<p style='color: #888; font-style: italic;'>No description provided</p>";
+        }
+
+        var html = markdown;
+        
+        // Escape HTML first
+        html = System.Web.HttpUtility.HtmlEncode(html);
+        
+        // Headers
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^### (.+)$", "<h3>$1</h3>", System.Text.RegularExpressions.RegexOptions.Multiline);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^## (.+)$", "<h2>$1</h2>", System.Text.RegularExpressions.RegexOptions.Multiline);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^# (.+)$", "<h1>$1</h1>", System.Text.RegularExpressions.RegexOptions.Multiline);
+        
+        // Bold
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
+        
+        // Italic
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\*(.+?)\*", "<em>$1</em>");
+        
+        // Code
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"`(.+?)`", "<code style='background: #f0f0f0; padding: 2px 4px; border-radius: 3px;'>$1</code>");
+        
+        // Links
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\[(.+?)\]\((.+?)\)", "<a href='$2' target='_blank'>$1</a>");
+        
+        // Lists
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^- (.+)$", "<li>$1</li>", System.Text.RegularExpressions.RegexOptions.Multiline);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^(\d+)\. (.+)$", "<li>$2</li>", System.Text.RegularExpressions.RegexOptions.Multiline);
+        
+        // Paragraphs (simple newline handling)
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\n\n", "</p><p>");
+        html = "<p>" + html + "</p>";
+        
+        return html;
+    }
+
+    public string GetDescription() => Description;
+}

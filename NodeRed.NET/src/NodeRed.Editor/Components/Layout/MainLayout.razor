@@ -1,0 +1,19 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/index.mst
+   ============================================================
+   TRANSLATION:
+   This layout replicates the Node-RED editor-client index.mst template.
+   The original uses Mustache templates for server-side rendering.
+   This Blazor layout provides the full-screen editor experience.
+   ============================================================ *@
+@inherits LayoutComponentBase
+
+<div class="red-ui-editor-container">
+    @Body
+</div>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>

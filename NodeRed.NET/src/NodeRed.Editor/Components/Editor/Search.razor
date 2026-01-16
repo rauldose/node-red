@@ -1,0 +1,452 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/search.js
+   ============================================================
+   TRANSLATION: JavaScript search module to Blazor component
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+<div class="red-ui-search-container @(IsVisible ? "visible" : "")" @onclick="OnBackgroundClick">
+    @if (IsVisible)
+    {
+        <div class="red-ui-search" @onclick:stopPropagation="true">
+            <div class="red-ui-search-header">
+                <input type="text" 
+                       @ref="_searchInput"
+                       class="red-ui-searchBox-input" 
+                       placeholder="Search flows..."
+                       @bind-value="SearchText"
+                       @bind-value:event="oninput"
+                       @onkeydown="OnKeyDown" />
+                <button class="red-ui-search-close" @onclick="Hide">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            <div class="red-ui-search-results-container">
+                <div class="red-ui-search-results">
+                    @if (_results.Count == 0 && !string.IsNullOrEmpty(SearchText))
+                    {
+                        <div class="red-ui-search-empty">No results found</div>
+                    }
+                    else
+                    {
+                        @foreach (var (result, index) in _results.Select((r, i) => (r, i)))
+                        {
+                            <div class="red-ui-search-result @(index == SelectedIndex ? "selected" : "")"
+                                 @onclick="() => SelectResult(result)"
+                                 @ondblclick="() => RevealResult(result)">
+                                <div class="red-ui-search-result-node" 
+                                     style="background-color: @GetNodeColor(result.Type);">
+                                    <i class="fa @GetNodeIcon(result.Type)"></i>
+                                </div>
+                                <div class="red-ui-search-result-description">
+                                    <div class="red-ui-search-result-label">@result.Label</div>
+                                    <div class="red-ui-search-result-type">@result.Type</div>
+                                    <div class="red-ui-search-result-flow">@result.FlowName</div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+            <div class="red-ui-search-toolbar">
+                <span>@_results.Count result(s)</span>
+                <span class="red-ui-search-toolbar-hint">Enter to reveal, Escape to close</span>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .red-ui-search-container {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 2000;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 100px;
+    }
+    .red-ui-search-container.visible {
+        display: flex;
+    }
+    .red-ui-search {
+        background: white;
+        border-radius: 4px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        width: 500px;
+        max-height: 60vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .red-ui-search-header {
+        display: flex;
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+    .red-ui-search-header input {
+        flex: 1;
+        padding: 8px 12px;
+        font-size: 14px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        outline: none;
+    }
+    .red-ui-search-header input:focus {
+        border-color: #8e0000;
+    }
+    .red-ui-search-close {
+        background: none;
+        border: none;
+        padding: 8px 12px;
+        cursor: pointer;
+        color: #666;
+    }
+    .red-ui-search-close:hover {
+        color: #000;
+    }
+    .red-ui-search-results-container {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 100px;
+        max-height: 300px;
+    }
+    .red-ui-search-results {
+        padding: 5px;
+    }
+    .red-ui-search-result {
+        display: flex;
+        padding: 8px;
+        cursor: pointer;
+        border-radius: 3px;
+    }
+    .red-ui-search-result:hover,
+    .red-ui-search-result.selected {
+        background: #f0f0f0;
+    }
+    .red-ui-search-result-node {
+        width: 30px;
+        height: 30px;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+        color: white;
+    }
+    .red-ui-search-result-description {
+        flex: 1;
+    }
+    .red-ui-search-result-label {
+        font-weight: 500;
+    }
+    .red-ui-search-result-type {
+        font-size: 11px;
+        color: #888;
+    }
+    .red-ui-search-result-flow {
+        font-size: 11px;
+        color: #666;
+    }
+    .red-ui-search-empty {
+        padding: 20px;
+        text-align: center;
+        color: #888;
+    }
+    .red-ui-search-toolbar {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background: #f5f5f5;
+        border-top: 1px solid #ddd;
+        font-size: 11px;
+        color: #666;
+    }
+</style>
+
+@code {
+    private ElementReference _searchInput;
+    private string _searchText = "";
+    private List<SearchResult> _results = new();
+    private Dictionary<string, SearchIndexEntry> _index = new();
+
+    public bool IsVisible { get; private set; }
+    public int SelectedIndex { get; private set; }
+
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            _searchText = value;
+            PerformSearch();
+        }
+    }
+
+    /// <summary>
+    /// Show the search dialog.
+    /// Translated from show() in search.js
+    /// </summary>
+    public void Show()
+    {
+        IsVisible = true;
+        _searchText = "";
+        _results.Clear();
+        SelectedIndex = -1;
+        RefreshIndex();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Hide the search dialog.
+    /// Translated from hide() in search.js
+    /// </summary>
+    public void Hide()
+    {
+        IsVisible = false;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Refresh the search index.
+    /// Translated from indexNode() in search.js
+    /// </summary>
+    private void RefreshIndex()
+    {
+        _index.Clear();
+
+        foreach (var node in State.Nodes.GetNodes())
+        {
+            IndexNode(node);
+        }
+
+        foreach (var workspace in State.Workspaces.GetAll())
+        {
+            IndexWorkspace(workspace);
+        }
+    }
+
+    private void IndexNode(FlowNode node)
+    {
+        var label = string.IsNullOrEmpty(node.Name) ? node.Type : node.Name;
+        var searchTerms = new List<string>
+        {
+            node.Id.ToLowerInvariant(),
+            node.Type.ToLowerInvariant(),
+            (node.Name ?? "").ToLowerInvariant()
+        };
+
+        foreach (var prop in node.Properties)
+        {
+            if (prop.Value is string strVal)
+            {
+                searchTerms.Add(strVal.ToLowerInvariant());
+            }
+        }
+
+        foreach (var term in searchTerms.Where(t => !string.IsNullOrEmpty(t)))
+        {
+            if (!_index.ContainsKey(term))
+            {
+                _index[term] = new SearchIndexEntry();
+            }
+            _index[term].Nodes[node.Id] = new SearchResult
+            {
+                Id = node.Id,
+                Type = node.Type,
+                Label = label,
+                FlowName = GetFlowName(node.Z),
+                IsNode = true
+            };
+        }
+    }
+
+    private void IndexWorkspace(Workspace workspace)
+    {
+        var term = workspace.Label.ToLowerInvariant();
+        if (!_index.ContainsKey(term))
+        {
+            _index[term] = new SearchIndexEntry();
+        }
+        _index[term].Nodes[workspace.Id] = new SearchResult
+        {
+            Id = workspace.Id,
+            Type = "flow",
+            Label = workspace.Label,
+            FlowName = "",
+            IsNode = false
+        };
+    }
+
+    /// <summary>
+    /// Perform search.
+    /// Translated from search() in search.js
+    /// </summary>
+    private void PerformSearch()
+    {
+        _results.Clear();
+        SelectedIndex = -1;
+
+        if (string.IsNullOrWhiteSpace(_searchText))
+        {
+            StateHasChanged();
+            return;
+        }
+
+        var searchTerm = _searchText.ToLowerInvariant();
+        var seenIds = new HashSet<string>();
+
+        foreach (var kvp in _index)
+        {
+            if (kvp.Key.Contains(searchTerm))
+            {
+                foreach (var result in kvp.Value.Nodes.Values)
+                {
+                    if (!seenIds.Contains(result.Id))
+                    {
+                        seenIds.Add(result.Id);
+                        _results.Add(result);
+                    }
+                }
+            }
+        }
+
+        // Sort: exact matches first, then by label
+        _results = _results
+            .OrderByDescending(r => r.Label.ToLowerInvariant().StartsWith(searchTerm))
+            .ThenBy(r => r.Label)
+            .Take(50)
+            .ToList();
+
+        if (_results.Count > 0)
+        {
+            SelectedIndex = 0;
+        }
+
+        StateHasChanged();
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                if (SelectedIndex < _results.Count - 1)
+                {
+                    SelectedIndex++;
+                    StateHasChanged();
+                }
+                break;
+            case "ArrowUp":
+                if (SelectedIndex > 0)
+                {
+                    SelectedIndex--;
+                    StateHasChanged();
+                }
+                break;
+            case "Enter":
+                if (SelectedIndex >= 0 && SelectedIndex < _results.Count)
+                {
+                    RevealResult(_results[SelectedIndex]);
+                }
+                break;
+            case "Escape":
+                Hide();
+                break;
+        }
+    }
+
+    private void OnBackgroundClick()
+    {
+        Hide();
+    }
+
+    private void SelectResult(SearchResult result)
+    {
+        SelectedIndex = _results.IndexOf(result);
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Reveal a search result in the editor.
+    /// Translated from reveal() in search.js
+    /// </summary>
+    private void RevealResult(SearchResult result)
+    {
+        if (result.IsNode)
+        {
+            var node = State.Nodes.GetNode(result.Id);
+            if (node != null)
+            {
+                // Switch to the node's flow
+                if (!string.IsNullOrEmpty(node.Z))
+                {
+                    State.Workspaces.Show(node.Z);
+                }
+
+                // Center view on node
+                State.Events.Emit("view:focus-on-node", node);
+            }
+        }
+        else
+        {
+            // It's a flow - switch to it
+            State.Workspaces.Show(result.Id);
+        }
+
+        Hide();
+    }
+
+    private string GetFlowName(string? flowId)
+    {
+        if (string.IsNullOrEmpty(flowId)) return "global";
+        var workspace = State.Workspaces.GetAll().FirstOrDefault(w => w.Id == flowId);
+        return workspace?.Label ?? flowId;
+    }
+
+    private string GetNodeColor(string type)
+    {
+        return type switch
+        {
+            "inject" => "#a6bbcf",
+            "debug" => "#87a980",
+            "function" => "#fdd0a2",
+            "switch" => "#fdd0a2",
+            "change" => "#fdd0a2",
+            "http request" => "#87a980",
+            "flow" => "#8e0000",
+            _ => "#ddd"
+        };
+    }
+
+    private string GetNodeIcon(string type)
+    {
+        return type switch
+        {
+            "inject" => "fa-play",
+            "debug" => "fa-bug",
+            "function" => "fa-code",
+            "flow" => "fa-sitemap",
+            _ => "fa-cube"
+        };
+    }
+
+    private class SearchIndexEntry
+    {
+        public Dictionary<string, SearchResult> Nodes { get; } = new();
+    }
+
+    private class SearchResult
+    {
+        public string Id { get; set; } = "";
+        public string Type { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string FlowName { get; set; } = "";
+        public bool IsNode { get; set; }
+    }
+}

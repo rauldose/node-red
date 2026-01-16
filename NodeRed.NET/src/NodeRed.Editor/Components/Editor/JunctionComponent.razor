@@ -1,0 +1,14 @@
+@* Junction component *@
+@using NodeRed.Editor.Services
+
+<g class="red-ui-flow-junction" transform="translate(@Junction.X, @Junction.Y)">
+    <circle r="5" fill="#999" />
+</g>
+
+@code {
+    [Parameter]
+    public Junction Junction { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+}

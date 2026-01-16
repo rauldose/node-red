@@ -1,0 +1,903 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/view.js
+   ============================================================
+   ORIGINAL CODE (partial - lines 32-120):
+   ------------------------------------------------------------
+   RED.view = (function() {
+       var space_width = 8000,
+           space_height = 8000,
+           lineCurveScale = 0.75,
+           scaleFactor = 1,
+           node_width = 100,
+           node_height = 30,
+           dblClickInterval = 650;
+       ...
+       var gridSize = 20;
+       var snapGrid = false;
+       ...
+   })();
+   ------------------------------------------------------------
+   TRANSLATION:
+   - D3.js SVG rendering → Blazor SVG markup
+   - jQuery event handlers → Blazor event callbacks
+   - Mouse/touch events → @onmouse*/ontouch* handlers
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+@inject IJSRuntime JS
+
+@* Workspace tabs - translated from workspaceTabs *@
+<div id="red-ui-workspace-tabs">
+    @foreach (var ws in State.Workspaces.GetAll())
+    {
+        <div class="red-ui-tab @(State.Workspaces.Active() == ws.Id ? "active" : "")"
+             @onclick="() => SelectWorkspaceTab(ws.Id)"
+             @ondblclick="() => EditWorkspaceTab(ws)"
+             @oncontextmenu="(e) => ShowTabContextMenu(e, ws)"
+             @oncontextmenu:preventDefault="true">
+            <span>@(string.IsNullOrEmpty(ws.Label) ? "Flow" : ws.Label)</span>
+        </div>
+    }
+    @if (!State.Workspaces.GetAll().Any())
+    {
+        <div class="red-ui-tab active">
+            <span>Flow 1</span>
+        </div>
+    }
+    <div class="red-ui-tab" style="opacity: 0.6; cursor: pointer;" title="Add new flow"
+         @onclick="AddNewWorkspace">
+        <span>+</span>
+    </div>
+</div>
+
+<div id="red-ui-workspace-chart" 
+     class="red-ui-workspace-chart"
+     @onmousedown="HandleMouseDown"
+     @onmousemove="HandleMouseMove"
+     @onmouseup="HandleMouseUp"
+     @onwheel="HandleWheel"
+     @oncontextmenu="HandleContextMenu"
+     @oncontextmenu:preventDefault="true"
+     @ondrop="HandleDrop"
+     @ondrop:preventDefault="true"
+     @ondragover="HandleDragOver"
+     @ondragover:preventDefault="true"
+     @ref="_chartElement">
+    
+    <svg class="red-ui-workspace-chart-svg"
+         width="@SpaceWidth" 
+         height="@SpaceHeight"
+         viewBox="0 0 @SpaceWidth @SpaceHeight">
+        
+        <g transform="scale(@ScaleFactor)">
+            @* Event layer - translated from eventLayer *@
+            <g class="red-ui-workspace-chart-event-layer">
+                @* Background *@
+                <rect class="red-ui-workspace-chart-background" 
+                      width="@SpaceWidth" 
+                      height="@SpaceHeight"
+                      fill="transparent" />
+                
+                @* Grid layer - translated from gridLayer *@
+                @if (ShowGrid)
+                {
+                    <g class="red-ui-workspace-chart-grid">
+                        @for (int x = 0; x < SpaceWidth; x += GridSize)
+                        {
+                            <line x1="@x" y1="0" x2="@x" y2="@SpaceHeight" 
+                                  stroke="#e0e0e0" stroke-width="0.5" />
+                        }
+                        @for (int y = 0; y < SpaceHeight; y += GridSize)
+                        {
+                            <line x1="0" y1="@y" x2="@SpaceWidth" y2="@y" 
+                                  stroke="#e0e0e0" stroke-width="0.5" />
+                        }
+                    </g>
+                }
+                
+                @* Group layer *@
+                <g class="red-ui-workspace-chart-group-layer">
+                    @foreach (var group in ActiveGroups)
+                    {
+                        <NodeGroupComponent Group="@group" 
+                                           OnClick="@(() => SelectGroup(group))" />
+                    }
+                </g>
+                
+                @* Link/wire layer *@
+                <g class="red-ui-workspace-chart-link-layer">
+                    @foreach (var link in ActiveLinks)
+                    {
+                        <WireComponent Link="@link" 
+                                      LineCurveScale="@LineCurveScale"
+                                      IsSelected="@SelectedLinks.Contains(link)"
+                                      OnClick="@(() => SelectLink(link))" />
+                    }
+                    
+                    @* Drag lines while connecting *@
+                    @foreach (var dragLine in DragLines)
+                    {
+                        <WireComponent Link="@dragLine" 
+                                      LineCurveScale="@LineCurveScale"
+                                      IsDragging="true" />
+                    }
+                </g>
+                
+                @* Junction layer *@
+                <g class="red-ui-workspace-chart-junction-layer">
+                    @foreach (var junction in ActiveJunctions)
+                    {
+                        <JunctionComponent Junction="@junction"
+                                          OnClick="@(() => SelectJunction(junction))" />
+                    }
+                </g>
+                
+                @* Node layer *@
+                <g class="red-ui-workspace-chart-node-layer">
+                    @foreach (var node in ActiveNodes)
+                    {
+                        <FlowNodeComponent Node="@node" 
+                                          NodeWidth="@NodeWidth"
+                                          NodeHeight="@NodeHeight"
+                                          IsSelected="@MovingSet.Has(node)"
+                                          OnMouseDown="@(e => HandleNodeMouseDown(e, node))"
+                                          OnDoubleClick="@(() => EditNode(node))"
+                                          OnOutputPortDragStart="@HandleOutputPortDragStart"
+                                          OnInputPortDrop="@HandleInputPortDrop" />
+                    }
+                </g>
+                
+                @* Selection lasso *@
+                @if (Lasso != null)
+                {
+                    <rect class="red-ui-workspace-lasso"
+                          x="@Lasso.X" y="@Lasso.Y"
+                          width="@Lasso.Width" height="@Lasso.Height"
+                          fill="rgba(100, 149, 237, 0.2)"
+                          stroke="#6495ed"
+                          stroke-width="1"
+                          stroke-dasharray="5,5" />
+                }
+            </g>
+        </g>
+    </svg>
+</div>
+
+<div id="red-ui-workspace-footer">
+    <span>NodeRed.NET v1.0</span>
+</div>
+
+@code {
+    // ============================================================
+    // MAPPING NOTES:
+    // - space_width, space_height → SpaceWidth, SpaceHeight
+    // - lineCurveScale → LineCurveScale
+    // - scaleFactor → ScaleFactor
+    // - node_width, node_height → NodeWidth, NodeHeight
+    // - gridSize → GridSize
+    // - snapGrid → SnapGrid
+    // - activeNodes, activeLinks → ActiveNodes, ActiveLinks
+    // - movingSet → MovingSet
+    // - mouse_mode → _mouseMode
+    // ============================================================
+
+    private ElementReference _chartElement;
+
+    // Canvas dimensions - translated from space_width, space_height
+    private int SpaceWidth = 8000;
+    private int SpaceHeight = 8000;
+    
+    // Rendering parameters - translated from view.js constants
+    private double LineCurveScale = 0.75;
+    private double ScaleFactor = 1.0;
+    private int NodeWidth = 100;
+    private int NodeHeight = 30;
+    private int GridSize = 20;
+    private bool SnapGrid = false;
+    private bool ShowGrid = true;
+
+    // Active elements for current flow
+    private List<FlowNode> ActiveNodes = new();
+    private List<NodeLink> ActiveLinks = new();
+    private List<Junction> ActiveJunctions = new();
+    private List<NodeGroup> ActiveGroups = new();
+    
+    // Selection state - translated from movingSet, selectedLinks
+    private NodeMovingSet MovingSet = new();
+    private HashSet<NodeLink> SelectedLinks = new();
+    private List<NodeLink> DragLines = new();
+    
+    // Mouse state - translated from mouse_mode, mousedown_*, etc.
+    private MouseMode _mouseMode = MouseMode.None;
+    private (double X, double Y)? _mousePosition;
+    private FlowNode? _mousedownNode;
+    private NodeLink? _mousedownLink;
+    private LassoRect? Lasso;
+
+    protected override void OnInitialized()
+    {
+        // Subscribe to flow changes
+        State.Events.On("flows:loaded", _ => RefreshView());
+        State.Events.On("workspace:change", _ => RefreshView());
+    }
+
+    /// <summary>
+    /// Refresh the view with current flow data.
+    /// Translated from various update functions in view.js
+    /// </summary>
+    private void RefreshView()
+    {
+        var activeWorkspace = State.Workspaces.Active();
+        
+        ActiveNodes = State.Nodes.GetNodes()
+            .Where(n => n.Z == activeWorkspace)
+            .ToList();
+            
+        ActiveLinks = State.Nodes.GetLinks()
+            .Where(l => l.Source?.Z == activeWorkspace)
+            .ToList();
+            
+        ActiveJunctions = State.Nodes.GetJunctions()
+            .Where(j => j.Z == activeWorkspace)
+            .ToList();
+            
+        ActiveGroups = State.Nodes.GetGroups()
+            .Where(g => g.Z == activeWorkspace)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    public void Redraw(bool updateActive = false)
+    {
+        if (updateActive)
+        {
+            RefreshView();
+        }
+        StateHasChanged();
+    }
+
+    public void RedrawStatus(FlowNode node)
+    {
+        // Trigger re-render for the specific node
+        StateHasChanged();
+    }
+
+    // ============================================================
+    // Mouse event handlers - translated from view.js event handlers
+    // ============================================================
+
+    private double _mouseDownX = 0;
+    private double _mouseDownY = 0;
+
+    private void HandleMouseDown(MouseEventArgs e)
+    {
+        // Translated from chart.on('mousedown', ...)
+        if (e.Button == 0) // Left click
+        {
+            _mouseDownX = e.OffsetX;
+            _mouseDownY = e.OffsetY;
+            
+            // Check if we clicked on a node - if so, don't start lasso
+            // The node's own mouse down handler will be called for that
+            var clickedNode = GetNodeAtPosition(e.OffsetX / ScaleFactor, e.OffsetY / ScaleFactor);
+            
+            if (clickedNode == null)
+            {
+                // Only start lasso when clicking on empty space
+                _mouseMode = MouseMode.Lasso;
+                Lasso = new LassoRect { X = e.OffsetX, Y = e.OffsetY, Width = 0, Height = 0 };
+                
+                if (!e.ShiftKey && !e.CtrlKey)
+                {
+                    // Clear selection when clicking on empty space
+                    MovingSet.Clear();
+                    SelectedLinks.Clear();
+                }
+                
+                // Start global mouse tracking for lasso selection
+                if (_dotNetRef != null)
+                {
+                    _ = JS.InvokeVoidAsync("startCanvasInteraction", _dotNetRef, "lasso");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get node at a specific position
+    /// Translated from nodeAtPoint in view.js
+    /// </summary>
+    private FlowNode? GetNodeAtPosition(double x, double y)
+    {
+        foreach (var node in ActiveNodes)
+        {
+            if (x >= node.X && x <= node.X + NodeWidth &&
+                y >= node.Y && y <= node.Y + NodeHeight)
+            {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    private void HandleMouseMove(MouseEventArgs e)
+    {
+        _mousePosition = (e.OffsetX / ScaleFactor, e.OffsetY / ScaleFactor);
+
+        switch (_mouseMode)
+        {
+            case MouseMode.Lasso:
+                if (Lasso != null)
+                {
+                    Lasso.Width = e.OffsetX - Lasso.X;
+                    Lasso.Height = e.OffsetY - Lasso.Y;
+                    StateHasChanged();
+                }
+                break;
+
+            case MouseMode.Moving:
+                if (MovingSet.Count > 0)
+                {
+                    foreach (var item in MovingSet.GetAll())
+                    {
+                        item.Node.X += e.MovementX / ScaleFactor;
+                        item.Node.Y += e.MovementY / ScaleFactor;
+                        
+                        if (SnapGrid)
+                        {
+                            item.Node.X = Math.Round(item.Node.X / GridSize) * GridSize;
+                            item.Node.Y = Math.Round(item.Node.Y / GridSize) * GridSize;
+                        }
+                    }
+                    StateHasChanged();
+                }
+                break;
+
+            case MouseMode.Joining:
+                // Update drag line endpoint
+                if (DragLines.Count > 0 && _mousePosition.HasValue)
+                {
+                    // Drag line will be rendered to mouse position
+                }
+                break;
+        }
+    }
+
+    private void HandleMouseUp(MouseEventArgs e)
+    {
+        switch (_mouseMode)
+        {
+            case MouseMode.Lasso:
+                if (Lasso != null)
+                {
+                    // Select all nodes within lasso
+                    SelectNodesInLasso(Lasso);
+                    Lasso = null;
+                }
+                break;
+
+            case MouseMode.Moving:
+                // Finalize node positions
+                State.Nodes.SetDirty(true);
+                break;
+
+            case MouseMode.Joining:
+                // Complete wire connection
+                DragLines.Clear();
+                break;
+        }
+
+        _mouseMode = MouseMode.None;
+        _mousedownNode = null;
+        _mousedownLink = null;
+        StateHasChanged();
+    }
+
+    private void HandleWheel(WheelEventArgs e)
+    {
+        // Zoom - translated from chart.on('wheel', ...)
+        if (e.CtrlKey)
+        {
+            var delta = e.DeltaY > 0 ? -0.1 : 0.1;
+            ScaleFactor = Math.Clamp(ScaleFactor + delta, 0.25, 2.0);
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Handle right-click for context menu
+    /// Translated from chart.on('contextmenu', ...)
+    /// </summary>
+    private void HandleContextMenu(MouseEventArgs e)
+    {
+        // Emit event for RedEditor to show context menu
+        State.Events.Emit("view:contextmenu", new {
+            X = e.ClientX,
+            Y = e.ClientY,
+            OffsetX = e.OffsetX,
+            OffsetY = e.OffsetY
+        });
+    }
+
+    /// <summary>
+    /// Handle dragover to allow drop
+    /// </summary>
+    private void HandleDragOver(DragEventArgs e)
+    {
+        // Allow drop
+    }
+
+    /// <summary>
+    /// Handle drop from palette
+    /// Translated from chart drop handler
+    /// </summary>
+    private async Task HandleDrop(DragEventArgs e)
+    {
+        // Get node type from JS interop
+        string? nodeType = null;
+        try
+        {
+            nodeType = await JS.InvokeAsync<string>("getDraggedNodeType");
+            await JS.InvokeVoidAsync("clearDraggedNodeType");
+        }
+        catch
+        {
+            // Fallback to internal state
+            nodeType = _draggedNodeType;
+        }
+
+        if (string.IsNullOrEmpty(nodeType))
+            return;
+
+        // Calculate position in canvas coordinates
+        var x = (e.OffsetX / ScaleFactor);
+        var y = (e.OffsetY / ScaleFactor);
+
+        // Snap to grid if enabled
+        if (SnapGrid)
+        {
+            x = Math.Round(x / GridSize) * GridSize;
+            y = Math.Round(y / GridSize) * GridSize;
+        }
+
+        // Get default inputs/outputs for node type
+        var (inputs, outputs) = GetDefaultPortsForNodeType(nodeType);
+
+        // Create new node with proper ports
+        var newNode = new FlowNode
+        {
+            Id = Guid.NewGuid().ToString(),
+            Type = nodeType,
+            X = x,
+            Y = y,
+            Z = State.Workspaces.Active(),
+            Inputs = inputs,
+            Outputs = outputs,
+            Dirty = true
+        };
+
+        // Add to state
+        State.Nodes.Add(newNode);
+        State.Nodes.SetDirty(true);
+
+        // Clear drag state
+        _draggedNodeType = null;
+
+        // Refresh view
+        RefreshView();
+    }
+
+    /// <summary>
+    /// Get default input/output ports for a node type
+    /// Translated from node type definitions
+    /// </summary>
+    private (int inputs, int outputs) GetDefaultPortsForNodeType(string nodeType)
+    {
+        return nodeType switch
+        {
+            "inject" => (0, 1),
+            "debug" => (1, 0),
+            "complete" => (0, 1),
+            "catch" => (0, 1),
+            "status" => (0, 1),
+            "link in" => (0, 1),
+            "link out" => (1, 0),
+            "link call" => (1, 1),
+            "comment" => (0, 0),
+            "junction" => (1, 1),
+            "function" => (1, 1),
+            "switch" => (1, 2),
+            "change" => (1, 1),
+            "range" => (1, 1),
+            "template" => (1, 1),
+            "delay" => (1, 1),
+            "trigger" => (1, 1),
+            "exec" => (1, 3),
+            "rbe" or "filter" => (1, 1),
+            "mqtt in" => (0, 1),
+            "mqtt out" => (1, 0),
+            "http in" => (0, 1),
+            "http response" => (1, 0),
+            "http request" => (1, 1),
+            "websocket in" => (0, 1),
+            "websocket out" => (1, 0),
+            "tcp in" => (0, 1),
+            "tcp out" => (1, 0),
+            "udp in" => (0, 1),
+            "udp out" => (1, 0),
+            "csv" => (1, 1),
+            "html" => (1, 1),
+            "json" => (1, 1),
+            "xml" => (1, 1),
+            "yaml" => (1, 1),
+            "split" => (1, 1),
+            "join" => (1, 1),
+            "sort" => (1, 1),
+            "batch" => (1, 1),
+            "file" => (1, 1),
+            "file in" => (1, 1),
+            "watch" => (0, 1),
+            _ => (1, 1) // Default: 1 input, 1 output
+        };
+    }
+
+    /// <summary>
+    /// Set the node type being dragged from palette
+    /// Called from Palette component
+    /// </summary>
+    public void SetDraggedNodeType(string? nodeType)
+    {
+        _draggedNodeType = nodeType;
+    }
+
+    private string? _draggedNodeType;
+    private DotNetObjectReference<Workspaces>? _dotNetRef;
+    private (double X, double Y) _canvasOffset;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            // Get canvas position for coordinate calculations
+            try
+            {
+                var rect = await JS.InvokeAsync<BoundingRect>("eval", 
+                    "((el) => { var r = el.getBoundingClientRect(); return { x: r.x, y: r.y }; })(document.getElementById('red-ui-workspace-chart'))");
+                _canvasOffset = (rect?.X ?? 0, rect?.Y ?? 0);
+            }
+            catch { }
+        }
+    }
+
+    private class BoundingRect
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+    }
+
+    private async Task HandleNodeMouseDown(MouseEventArgs e, FlowNode node)
+    {
+        _mousedownNode = node;
+
+        if (e.Button == 0) // Left click
+        {
+            if (!MovingSet.Has(node))
+            {
+                if (!e.CtrlKey && !e.ShiftKey)
+                {
+                    MovingSet.Clear();
+                }
+                MovingSet.Add(node);
+            }
+            _mouseMode = MouseMode.Moving;
+            
+            // Start global mouse tracking for smooth dragging
+            if (_dotNetRef != null)
+            {
+                try
+                {
+                    await JS.InvokeVoidAsync("startCanvasInteraction", _dotNetRef, "moving");
+                }
+                catch { }
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Called from JS when mouse moves during global tracking
+    /// </summary>
+    [JSInvokable]
+    public void OnGlobalMouseMove(double clientX, double clientY, double movementX, double movementY)
+    {
+        if (_mouseMode == MouseMode.Moving && MovingSet.Count > 0)
+        {
+            foreach (var item in MovingSet.GetAll())
+            {
+                item.Node.X += movementX / ScaleFactor;
+                item.Node.Y += movementY / ScaleFactor;
+                
+                if (SnapGrid)
+                {
+                    item.Node.X = Math.Round(item.Node.X / GridSize) * GridSize;
+                    item.Node.Y = Math.Round(item.Node.Y / GridSize) * GridSize;
+                }
+            }
+            InvokeAsync(StateHasChanged);
+        }
+        else if (_mouseMode == MouseMode.Lasso && Lasso != null)
+        {
+            var localX = clientX - _canvasOffset.X;
+            var localY = clientY - _canvasOffset.Y;
+            Lasso.Width = localX - Lasso.X;
+            Lasso.Height = localY - Lasso.Y;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>
+    /// Called from JS when mouse up during global tracking
+    /// </summary>
+    [JSInvokable]
+    public void OnGlobalMouseUp(double clientX, double clientY)
+    {
+        if (_mouseMode == MouseMode.Moving)
+        {
+            State.Nodes.SetDirty(true);
+        }
+        else if (_mouseMode == MouseMode.Lasso && Lasso != null)
+        {
+            SelectNodesInLasso(Lasso);
+            Lasso = null;
+        }
+        else if (_mouseMode == MouseMode.Joining)
+        {
+            // Wire creation cancelled (didn't land on a port)
+            _wireSourceNode = null;
+            _wireSourcePortIndex = 0;
+            DragLines.Clear();
+        }
+        
+        _mouseMode = MouseMode.None;
+        _mousedownNode = null;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void SelectNode(FlowNode node)
+    {
+        MovingSet.Clear();
+        MovingSet.Add(node);
+        SelectedLinks.Clear();
+        StateHasChanged();
+    }
+
+    private void SelectLink(NodeLink link)
+    {
+        MovingSet.Clear();
+        SelectedLinks.Clear();
+        SelectedLinks.Add(link);
+        StateHasChanged();
+    }
+
+    private void SelectGroup(NodeGroup group)
+    {
+        // Select all nodes in group
+        MovingSet.Clear();
+        // TODO: Get nodes in group
+        StateHasChanged();
+    }
+
+    private void SelectJunction(Junction junction)
+    {
+        // TODO: Handle junction selection
+        StateHasChanged();
+    }
+
+    private void SelectNodesInLasso(LassoRect lasso)
+    {
+        var minX = Math.Min(lasso.X, lasso.X + lasso.Width);
+        var maxX = Math.Max(lasso.X, lasso.X + lasso.Width);
+        var minY = Math.Min(lasso.Y, lasso.Y + lasso.Height);
+        var maxY = Math.Max(lasso.Y, lasso.Y + lasso.Height);
+
+        foreach (var node in ActiveNodes)
+        {
+            if (node.X >= minX && node.X + NodeWidth <= maxX &&
+                node.Y >= minY && node.Y + NodeHeight <= maxY)
+            {
+                MovingSet.Add(node);
+            }
+        }
+    }
+
+    private void EditNode(FlowNode node)
+    {
+        State.Events.Emit("node:edit", node);
+    }
+
+    // ============================================================
+    // Workspace tab interactions - translated from workspaces.js
+    // ============================================================
+
+    private void SelectWorkspaceTab(string workspaceId)
+    {
+        State.Workspaces.Show(workspaceId);
+        RefreshView();
+    }
+
+    private void AddNewWorkspace()
+    {
+        var newId = Guid.NewGuid().ToString();
+        var flowCount = State.Workspaces.GetAll().Count() + 1;
+        var newWorkspace = new Workspace
+        {
+            Id = newId,
+            Label = $"Flow {flowCount}"
+        };
+        State.Workspaces.Add(newWorkspace);
+        State.Workspaces.Show(newId);
+        State.Nodes.SetDirty(true);
+        RefreshView();
+    }
+
+    private void EditWorkspaceTab(Workspace workspace)
+    {
+        // Emit event for RedEditor to open the flow properties tray
+        State.Events.Emit("workspace:edit", workspace);
+    }
+
+    private void ShowTabContextMenu(MouseEventArgs e, Workspace workspace)
+    {
+        // Emit event for RedEditor to show tab context menu
+        State.Events.Emit("workspace:contextmenu", new {
+            X = e.ClientX,
+            Y = e.ClientY,
+            Workspace = workspace
+        });
+    }
+
+    // ============================================================
+    // Wiring handlers - translated from port interactions in view.js
+    // ============================================================
+
+    private FlowNode? _wireSourceNode;
+    private int _wireSourcePortIndex;
+
+    /// <summary>
+    /// Handle output port drag start - initiates wire creation
+    /// Translated from port mousedown in view.js
+    /// </summary>
+    private async Task HandleOutputPortDragStart((FlowNode Node, int PortIndex) args)
+    {
+        _wireSourceNode = args.Node;
+        _wireSourcePortIndex = args.PortIndex;
+        _mouseMode = MouseMode.Joining;
+        
+        // Create temporary drag line
+        var dragLine = new NodeLink
+        {
+            Source = args.Node,
+            Target = null,
+            SourcePort = args.PortIndex
+        };
+        DragLines.Clear();
+        DragLines.Add(dragLine);
+        
+        // Start global mouse tracking for wiring
+        if (_dotNetRef != null)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("startCanvasInteraction", _dotNetRef, "wiring");
+            }
+            catch { }
+        }
+        
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Handle input port drop - completes wire creation
+    /// Translated from port mouseup in view.js
+    /// </summary>
+    private void HandleInputPortDrop(FlowNode targetNode)
+    {
+        if (_wireSourceNode != null && _mouseMode == MouseMode.Joining)
+        {
+            // Don't connect a node to itself
+            if (_wireSourceNode.Id != targetNode.Id)
+            {
+                // Create new link
+                var newLink = new NodeLink
+                {
+                    Source = _wireSourceNode,
+                    Target = targetNode,
+                    SourcePort = _wireSourcePortIndex
+                };
+                
+                // Add to state
+                State.Nodes.AddLink(newLink);
+                State.Nodes.SetDirty(true);
+                
+                // Refresh the view
+                RefreshView();
+            }
+        }
+        
+        // Clear wire state
+        _wireSourceNode = null;
+        _wireSourcePortIndex = 0;
+        _mouseMode = MouseMode.None;
+        DragLines.Clear();
+        StateHasChanged();
+    }
+
+    // ============================================================
+    // Supporting types
+    // ============================================================
+
+    private enum MouseMode
+    {
+        None,
+        Moving,
+        Joining,
+        Lasso,
+        Slicing
+    }
+
+    private class LassoRect
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+    }
+
+    /// <summary>
+    /// Moving set - translated from movingSet in view.js
+    /// </summary>
+    private class NodeMovingSet
+    {
+        private readonly HashSet<string> _ids = new();
+        private readonly List<MovingSetItem> _items = new();
+
+        public void Add(FlowNode node)
+        {
+            if (!_ids.Contains(node.Id))
+            {
+                _ids.Add(node.Id);
+                _items.Add(new MovingSetItem { Node = node });
+            }
+        }
+
+        public void Remove(FlowNode node)
+        {
+            if (_ids.Contains(node.Id))
+            {
+                _ids.Remove(node.Id);
+                _items.RemoveAll(i => i.Node.Id == node.Id);
+            }
+        }
+
+        public void Clear()
+        {
+            _ids.Clear();
+            _items.Clear();
+        }
+
+        public bool Has(FlowNode node) => _ids.Contains(node.Id);
+        public int Count => _items.Count;
+        public List<MovingSetItem> GetAll() => _items.ToList();
+    }
+
+    private class MovingSetItem
+    {
+        public FlowNode Node { get; set; } = null!;
+        public double Dx { get; set; }
+        public double Dy { get; set; }
+    }
+}

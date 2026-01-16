@@ -1,0 +1,225 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/common/treeList.js
+   ============================================================
+   TRANSLATION: JavaScript treeList to Blazor component
+   ============================================================ *@
+
+@typeparam TItem where TItem : class
+
+<div class="red-ui-treeList @Class">
+    @if (Items != null)
+    {
+        @foreach (var item in Items)
+        {
+            <div class="red-ui-treeList-item-container">
+                @RenderTreeItem(item, 0)
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public IList<TreeNode<TItem>>? Items { get; set; }
+    [Parameter] public RenderFragment<TItem>? ItemTemplate { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public bool AutoExpand { get; set; } = false;
+    [Parameter] public EventCallback<TreeNode<TItem>> OnItemSelected { get; set; }
+    [Parameter] public EventCallback<TreeNode<TItem>> OnItemExpanded { get; set; }
+    [Parameter] public EventCallback<TreeNode<TItem>> OnItemCollapsed { get; set; }
+
+    private TreeNode<TItem>? _selectedItem;
+
+    private RenderFragment RenderTreeItem(TreeNode<TItem> node, int depth) => __builder =>
+    {
+        var hasChildren = node.Children?.Any() == true;
+        var isExpanded = node.Expanded;
+        var isSelected = _selectedItem == node;
+
+        <div class="red-ui-treeList-item @(isSelected ? "selected" : "")"
+             style="padding-left: @(depth * 20)px"
+             @onclick="() => SelectItem(node)">
+            @if (hasChildren)
+            {
+                <span class="red-ui-treeList-item-toggle" @onclick="() => ToggleExpand(node)" @onclick:stopPropagation="true">
+                    <i class="fa @(isExpanded ? "fa-chevron-down" : "fa-chevron-right")"></i>
+                </span>
+            }
+            else
+            {
+                <span class="red-ui-treeList-item-spacer"></span>
+            }
+            
+            @if (node.Icon != null)
+            {
+                <span class="red-ui-treeList-item-icon" style="@(node.IconColor != null ? $"color: {node.IconColor}" : "")">
+                    <i class="fa @node.Icon"></i>
+                </span>
+            }
+            
+            <span class="red-ui-treeList-item-label">
+                @if (ItemTemplate != null && node.Data != null)
+                {
+                    @ItemTemplate(node.Data)
+                }
+                else
+                {
+                    @node.Label
+                }
+            </span>
+            
+            @if (node.Badge != null)
+            {
+                <span class="red-ui-treeList-item-badge">@node.Badge</span>
+            }
+        </div>
+
+        @if (hasChildren && isExpanded)
+        {
+            <div class="red-ui-treeList-children">
+                @foreach (var child in node.Children!)
+                {
+                    @RenderTreeItem(child, depth + 1)
+                }
+            </div>
+        }
+    };
+
+    private async Task ToggleExpand(TreeNode<TItem> node)
+    {
+        node.Expanded = !node.Expanded;
+        
+        if (node.Expanded)
+        {
+            await OnItemExpanded.InvokeAsync(node);
+        }
+        else
+        {
+            await OnItemCollapsed.InvokeAsync(node);
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task SelectItem(TreeNode<TItem> node)
+    {
+        _selectedItem = node;
+        await OnItemSelected.InvokeAsync(node);
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Expand all nodes.
+    /// Translated from expandAll() in treeList.js
+    /// </summary>
+    public void ExpandAll()
+    {
+        if (Items != null)
+        {
+            SetExpandedRecursive(Items, true);
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Collapse all nodes.
+    /// Translated from collapseAll() in treeList.js
+    /// </summary>
+    public void CollapseAll()
+    {
+        if (Items != null)
+        {
+            SetExpandedRecursive(Items, false);
+            StateHasChanged();
+        }
+    }
+
+    private void SetExpandedRecursive(IEnumerable<TreeNode<TItem>> nodes, bool expanded)
+    {
+        foreach (var node in nodes)
+        {
+            node.Expanded = expanded;
+            if (node.Children != null)
+            {
+                SetExpandedRecursive(node.Children, expanded);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get selected item.
+    /// </summary>
+    public TreeNode<TItem>? GetSelected() => _selectedItem;
+
+    /// <summary>
+    /// Clear selection.
+    /// </summary>
+    public void ClearSelection()
+    {
+        _selectedItem = null;
+        StateHasChanged();
+    }
+}
+
+<style>
+    .red-ui-treeList {
+        font-size: 13px;
+    }
+    .red-ui-treeList-item {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        cursor: pointer;
+        border-radius: 2px;
+    }
+    .red-ui-treeList-item:hover {
+        background: #f0f0f0;
+    }
+    .red-ui-treeList-item.selected {
+        background: #e0e0e0;
+    }
+    .red-ui-treeList-item-toggle {
+        width: 16px;
+        text-align: center;
+        color: #888;
+        cursor: pointer;
+    }
+    .red-ui-treeList-item-toggle:hover {
+        color: #000;
+    }
+    .red-ui-treeList-item-spacer {
+        width: 16px;
+    }
+    .red-ui-treeList-item-icon {
+        margin-right: 6px;
+        color: #666;
+    }
+    .red-ui-treeList-item-label {
+        flex: 1;
+    }
+    .red-ui-treeList-item-badge {
+        font-size: 11px;
+        padding: 1px 6px;
+        background: #888;
+        color: white;
+        border-radius: 10px;
+        margin-left: 8px;
+    }
+    .red-ui-treeList-children {
+        margin-left: 0;
+    }
+</style>
+
+@code {
+    public class TreeNode<T>
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string? Label { get; set; }
+        public T? Data { get; set; }
+        public string? Icon { get; set; }
+        public string? IconColor { get; set; }
+        public string? Badge { get; set; }
+        public bool Expanded { get; set; }
+        public List<TreeNode<T>>? Children { get; set; }
+        public TreeNode<T>? Parent { get; set; }
+    }
+}

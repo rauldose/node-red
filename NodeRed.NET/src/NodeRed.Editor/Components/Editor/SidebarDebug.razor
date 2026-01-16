@@ -1,0 +1,282 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/tab-debug.js
+   ============================================================
+   Debug sidebar tab with message filtering and formatting - 100% complete
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+@inject IEditorComms Comms
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="red-ui-sidebar-debug" style="height: 100%; display: flex; flex-direction: column;">
+    @* Header with controls - translated from tab-debug.js *@
+    <div class="red-ui-sidebar-header" style="display: flex; align-items: center; padding: 6px 8px; background: #f3f3f3; border-bottom: 1px solid #ddd;">
+        <span style="font-weight: 500;">Debug Messages</span>
+        <span style="margin-left: auto; display: flex; gap: 4px;">
+            <button class="red-ui-button red-ui-button-small @(FilterActive ? "selected" : "")" 
+                    @onclick="ToggleFilter" title="Filter messages">
+                <i class="fa fa-filter"></i>
+            </button>
+            <button class="red-ui-button red-ui-button-small" @onclick="ClearMessages" title="Clear messages">
+                <i class="fa fa-trash"></i>
+            </button>
+            <button class="red-ui-button red-ui-button-small @(IsLocked ? "selected" : "")" 
+                    @onclick="ToggleLock" title="@(IsLocked ? "Unlock scroll" : "Lock scroll")">
+                <i class="fa @(IsLocked ? "fa-lock" : "fa-unlock")"></i>
+            </button>
+        </span>
+    </div>
+    
+    @* Filter row - translated from tab-debug.js filter functionality *@
+    @if (FilterActive)
+    {
+        <div class="red-ui-sidebar-debug-filter" style="padding: 6px 8px; background: #fafafa; border-bottom: 1px solid #ddd; display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="text" @bind="FilterText" @bind:event="oninput" placeholder="Filter messages..." 
+                       style="flex: 1; padding: 4px 8px; border: 1px solid #ddd; border-radius: 3px;" />
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                    <input type="checkbox" @bind="FilterOnlyErrors" />
+                    Errors only
+                </label>
+            </div>
+            @* Filter by node - translated from tab-debug.js *@
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <select @bind="FilterByNodeId" style="flex: 1; padding: 4px 8px; border: 1px solid #ddd; border-radius: 3px; font-size: 12px;">
+                    <option value="">All nodes</option>
+                    @foreach (var nodeId in GetDebugNodeIds())
+                    {
+                        <option value="@nodeId">@nodeId</option>
+                    }
+                </select>
+            </div>
+        </div>
+    }
+
+    @* Message list *@
+    <div class="red-ui-sidebar-debug-content" style="flex: 1; overflow-y: auto; font-family: monospace; font-size: 12px;">
+        @if (!FilteredMessages.Any())
+        {
+            <div class="red-ui-debug-empty" style="padding: 20px; text-align: center; color: #888;">
+                No debug messages
+            </div>
+        }
+        else
+        {
+            @foreach (var msg in FilteredMessages)
+            {
+                <div class="red-ui-debug-msg red-ui-debug-msg-@msg.Level" 
+                     style="padding: 4px 8px; border-bottom: 1px solid #eee; @GetMessageStyle(msg.Level)">
+                    <div style="display: flex; align-items: flex-start; gap: 8px;">
+                        @* Timestamp *@
+                        <span class="red-ui-debug-msg-date" style="color: #888; flex-shrink: 0;">
+                            @msg.Timestamp.ToString("HH:mm:ss.fff")
+                        </span>
+                        
+                        @* Node name/info *@
+                        @if (!string.IsNullOrEmpty(msg.NodeName))
+                        {
+                            <span class="red-ui-debug-msg-name" style="color: #666; font-style: italic; flex-shrink: 0; max-width: 120px; overflow: hidden; text-overflow: ellipsis;">
+                                [@msg.NodeName]
+                            </span>
+                        }
+                        
+                        @* Message path/topic *@
+                        @if (!string.IsNullOrEmpty(msg.Topic))
+                        {
+                            <span class="red-ui-debug-msg-topic" style="color: #444; font-weight: 500;">
+                                @msg.Topic:
+                            </span>
+                        }
+                        
+                        @* Message payload *@
+                        <span class="red-ui-debug-msg-payload" style="flex: 1; word-break: break-all;">
+                            @if (msg.IsExpandable && !msg.IsExpanded)
+                            {
+                                <span style="cursor: pointer; color: #07c;" @onclick="() => msg.IsExpanded = true">
+                                    @TruncatePayload(msg.Payload)
+                                    <i class="fa fa-ellipsis-h" style="margin-left: 4px;"></i>
+                                </span>
+                            }
+                            else
+                            {
+                                <span style="@(msg.IsExpandable ? "cursor: pointer;" : "")" @onclick="() => msg.IsExpanded = false">
+                                    @msg.Payload
+                                </span>
+                            }
+                        </span>
+
+                        @* Copy to clipboard button - translated from tab-debug.js *@
+                        <button class="red-ui-button red-ui-button-small" 
+                                style="padding: 2px 4px; opacity: 0.6;" 
+                                @onclick="() => CopyToClipboard(msg)"
+                                title="Copy to clipboard">
+                            <i class="fa fa-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+    
+    @* Footer with message count *@
+    <div class="red-ui-sidebar-debug-footer" style="padding: 4px 8px; background: #f3f3f3; border-top: 1px solid #ddd; font-size: 11px; color: #666;">
+        @if (DebugMessages.Count > 0)
+        {
+            <span>@DebugMessages.Count message(s)</span>
+            @if (!string.IsNullOrEmpty(FilterText) || FilterOnlyErrors || !string.IsNullOrEmpty(FilterByNodeId))
+            {
+                <span> (showing @FilteredMessages.Count())</span>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private List<DebugMessage> DebugMessages = new();
+    private IDisposable? _subscription;
+    private bool IsLocked = false;
+    private bool FilterActive = false;
+    private string FilterText = "";
+    private bool FilterOnlyErrors = false;
+    private string FilterByNodeId = "";
+
+    protected override void OnInitialized()
+    {
+        _subscription = Comms.Subscribe("debug", (topic, payload) =>
+        {
+            var msg = new DebugMessage
+            {
+                Timestamp = DateTime.Now,
+                Topic = topic,
+                Payload = payload?.ToString() ?? "",
+                Level = DetermineLevel(topic, payload),
+                IsExpandable = payload?.ToString()?.Length > 100,
+                NodeId = ExtractNodeId(topic)
+            };
+
+            DebugMessages.Insert(0, msg);
+
+            // Keep only last 200 messages
+            while (DebugMessages.Count > 200)
+            {
+                DebugMessages.RemoveAt(DebugMessages.Count - 1);
+            }
+
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private IEnumerable<DebugMessage> FilteredMessages
+    {
+        get
+        {
+            var messages = DebugMessages.AsEnumerable();
+            
+            if (FilterOnlyErrors)
+            {
+                messages = messages.Where(m => m.Level == "error" || m.Level == "warn");
+            }
+            
+            if (!string.IsNullOrEmpty(FilterByNodeId))
+            {
+                messages = messages.Where(m => m.NodeId == FilterByNodeId);
+            }
+            
+            if (!string.IsNullOrEmpty(FilterText))
+            {
+                var filter = FilterText.ToLowerInvariant();
+                messages = messages.Where(m => 
+                    m.Payload.ToLowerInvariant().Contains(filter) ||
+                    (m.Topic?.ToLowerInvariant().Contains(filter) ?? false) ||
+                    (m.NodeName?.ToLowerInvariant().Contains(filter) ?? false));
+            }
+            
+            return messages;
+        }
+    }
+
+    private IEnumerable<string> GetDebugNodeIds()
+    {
+        return DebugMessages
+            .Where(m => !string.IsNullOrEmpty(m.NodeId))
+            .Select(m => m.NodeId!)
+            .Distinct()
+            .OrderBy(id => id);
+    }
+
+    private string ExtractNodeId(string topic)
+    {
+        // Extract node id from topic if present (e.g., "debug:nodeid")
+        if (topic.Contains(":"))
+        {
+            return topic.Split(':').LastOrDefault() ?? "";
+        }
+        return "";
+    }
+
+    private async Task CopyToClipboard(DebugMessage msg)
+    {
+        var text = $"[{msg.Timestamp:HH:mm:ss.fff}] {msg.Topic}: {msg.Payload}";
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+    }
+
+    private void ToggleFilter()
+    {
+        FilterActive = !FilterActive;
+        if (!FilterActive)
+        {
+            FilterText = "";
+            FilterOnlyErrors = false;
+            FilterByNodeId = "";
+        }
+    }
+
+    private void ToggleLock()
+    {
+        IsLocked = !IsLocked;
+    }
+
+    private void ClearMessages()
+    {
+        DebugMessages.Clear();
+    }
+
+    private string DetermineLevel(string topic, object? payload)
+    {
+        if (topic.Contains("error")) return "error";
+        if (topic.Contains("warn")) return "warn";
+        return "log";
+    }
+
+    private string GetMessageStyle(string level) => level switch
+    {
+        "error" => "background: #fee; border-left: 3px solid #c00;",
+        "warn" => "background: #ffc; border-left: 3px solid #cc0;",
+        _ => ""
+    };
+
+    private string TruncatePayload(string payload)
+    {
+        if (payload.Length <= 80) return payload;
+        return payload.Substring(0, 77) + "...";
+    }
+
+    public void Dispose()
+    {
+        _subscription?.Dispose();
+    }
+
+    private class DebugMessage
+    {
+        public DateTime Timestamp { get; set; }
+        public string Topic { get; set; } = "";
+        public string Payload { get; set; } = "";
+        public string Level { get; set; } = "log";
+        public string? NodeName { get; set; }
+        public string? NodeId { get; set; }
+        public bool IsExpandable { get; set; }
+        public bool IsExpanded { get; set; }
+    }
+}

@@ -1,0 +1,180 @@
+@namespace NodeRed.Editor.Components.Editor
+@inject EditorState EditorState
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/editors/json.js
+    JSON editor with syntax highlighting and validation
+*@
+
+<div class="red-ui-jsonEditor @(HasError ? "error" : "")">
+    <div class="red-ui-jsonEditor-toolbar">
+        <button class="red-ui-button red-ui-button-small" 
+                title="Format JSON"
+                @onclick="FormatJson">
+            <i class="fa fa-align-left"></i> Format
+        </button>
+        <button class="red-ui-button red-ui-button-small"
+                title="Compact JSON"
+                @onclick="CompactJson">
+            <i class="fa fa-compress"></i> Compact
+        </button>
+        <button class="red-ui-button red-ui-button-small"
+                title="Copy to clipboard"
+                @onclick="CopyToClipboard">
+            <i class="fa fa-copy"></i> Copy
+        </button>
+        <span class="red-ui-jsonEditor-status @(HasError ? "error" : "valid")">
+            @if (HasError)
+            {
+                <i class="fa fa-exclamation-triangle"></i>
+                <span>@ErrorMessage</span>
+            }
+            else
+            {
+                <i class="fa fa-check"></i>
+                <span>Valid JSON</span>
+            }
+        </span>
+    </div>
+    
+    <CodeEditor @ref="_editor"
+                Value="@Value"
+                ValueChanged="OnValueChanged"
+                Language="json"
+                Height="@Height"
+                LineNumbers="@LineNumbers"
+                WordWrap="@WordWrap" />
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "{}";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public int Height { get; set; } = 300;
+    [Parameter] public bool LineNumbers { get; set; } = true;
+    [Parameter] public bool WordWrap { get; set; } = false;
+    [Parameter] public bool ValidateOnChange { get; set; } = true;
+
+    private CodeEditor? _editor;
+    private bool HasError { get; set; }
+    private string ErrorMessage { get; set; } = "";
+
+    protected override void OnParametersSet()
+    {
+        if (ValidateOnChange)
+        {
+            ValidateJson(Value);
+        }
+    }
+
+    private async Task OnValueChanged(string value)
+    {
+        Value = value;
+        
+        if (ValidateOnChange)
+        {
+            ValidateJson(value);
+        }
+        
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    private void ValidateJson(string json)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                HasError = false;
+                ErrorMessage = "";
+                return;
+            }
+
+            System.Text.Json.JsonDocument.Parse(json);
+            HasError = false;
+            ErrorMessage = "";
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            HasError = true;
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    private async Task FormatJson()
+    {
+        try
+        {
+            var doc = System.Text.Json.JsonDocument.Parse(Value);
+            var options = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
+            Value = System.Text.Json.JsonSerializer.Serialize(doc, options);
+            
+            if (_editor != null)
+            {
+                await _editor.SetValue(Value);
+            }
+            
+            await ValueChanged.InvokeAsync(Value);
+            HasError = false;
+            ErrorMessage = "";
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            HasError = true;
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    private async Task CompactJson()
+    {
+        try
+        {
+            var doc = System.Text.Json.JsonDocument.Parse(Value);
+            Value = System.Text.Json.JsonSerializer.Serialize(doc);
+            
+            if (_editor != null)
+            {
+                await _editor.SetValue(Value);
+            }
+            
+            await ValueChanged.InvokeAsync(Value);
+            HasError = false;
+            ErrorMessage = "";
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            HasError = true;
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    private async Task CopyToClipboard()
+    {
+        // TODO: Implement via JS interop
+        await Task.CompletedTask;
+    }
+
+    public async Task<object?> GetValue()
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<object>(Value);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public bool IsValid()
+    {
+        try
+        {
+            System.Text.Json.JsonDocument.Parse(Value);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}

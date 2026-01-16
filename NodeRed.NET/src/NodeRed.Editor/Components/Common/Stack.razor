@@ -1,0 +1,194 @@
+@* Source: @node-red/editor-client/src/js/ui/common/stack.js + checkboxSet.js + toggleButton.js *@
+@* Translated to Blazor for NodeRed.NET *@
+
+@* Stack component - Accordion-like collapsible sections *@
+
+@if (Type == "stack")
+{
+    <div class="red-ui-stack">
+        @foreach (var stackItem in Sections)
+        {
+            <div class="red-ui-stack-section @(stackItem.Collapsed ? "collapsed" : "")">
+                <div class="red-ui-stack-header" @onclick="() => ToggleSection(stackItem)">
+                    <i class="fa @(stackItem.Collapsed ? "fa-caret-right" : "fa-caret-down")"></i>
+                    <span>@stackItem.Title</span>
+                    @if (!string.IsNullOrEmpty(stackItem.Badge))
+                    {
+                        <span class="red-ui-stack-badge">@stackItem.Badge</span>
+                    }
+                </div>
+                @if (!stackItem.Collapsed)
+                {
+                    <div class="red-ui-stack-content">
+                        @stackItem.Content
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@* CheckboxSet component *@
+@if (Type == "checkboxset")
+{
+    <div class="red-ui-checkboxset">
+        @foreach (var option in CheckboxOptions)
+        {
+            <label class="red-ui-checkboxset-option @(option.Checked ? "checked" : "")">
+                <input type="checkbox" 
+                       checked="@option.Checked"
+                       @onchange="(e) => OnCheckboxChange(option, (bool)(e.Value ?? false))" />
+                @if (!string.IsNullOrEmpty(option.Icon))
+                {
+                    <i class="fa @option.Icon"></i>
+                }
+                <span>@option.Label</span>
+            </label>
+        }
+    </div>
+}
+
+@* ToggleButton component *@
+@if (Type == "togglebutton")
+{
+    <button class="red-ui-toggleButton @(IsToggled ? "selected" : "")"
+            @onclick="Toggle">
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <i class="fa @Icon"></i>
+        }
+        @if (!string.IsNullOrEmpty(Label))
+        {
+            <span>@Label</span>
+        }
+    </button>
+}
+
+@code {
+    [Parameter] public string Type { get; set; } = "stack";
+    
+    // Stack parameters
+    [Parameter] public List<StackSection> Sections { get; set; } = new();
+    [Parameter] public EventCallback<StackSection> OnSectionToggle { get; set; }
+    
+    // CheckboxSet parameters
+    [Parameter] public List<CheckboxOption> CheckboxOptions { get; set; } = new();
+    [Parameter] public EventCallback<List<CheckboxOption>> OnCheckboxSetChange { get; set; }
+    
+    // ToggleButton parameters
+    [Parameter] public bool IsToggled { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public EventCallback<bool> OnToggle { get; set; }
+    
+    private async Task ToggleSection(StackSection section)
+    {
+        section.Collapsed = !section.Collapsed;
+        await OnSectionToggle.InvokeAsync(section);
+    }
+    
+    private async Task OnCheckboxChange(CheckboxOption option, bool isChecked)
+    {
+        option.Checked = isChecked;
+        await OnCheckboxSetChange.InvokeAsync(CheckboxOptions);
+    }
+    
+    private async Task Toggle()
+    {
+        IsToggled = !IsToggled;
+        await OnToggle.InvokeAsync(IsToggled);
+    }
+    
+    public class StackSection
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Title { get; set; } = "";
+        public string? Badge { get; set; }
+        public bool Collapsed { get; set; }
+        public RenderFragment? Content { get; set; }
+    }
+    
+    public class CheckboxOption
+    {
+        public string Value { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string? Icon { get; set; }
+        public bool Checked { get; set; }
+    }
+}
+
+<style>
+    .red-ui-stack {
+        border: 1px solid #ddd;
+    }
+    .red-ui-stack-section {
+        border-bottom: 1px solid #ddd;
+    }
+    .red-ui-stack-section:last-child {
+        border-bottom: none;
+    }
+    .red-ui-stack-header {
+        padding: 8px 12px;
+        background: #f5f5f5;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .red-ui-stack-header:hover {
+        background: #eee;
+    }
+    .red-ui-stack-badge {
+        background: #666;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 0.8em;
+        margin-left: auto;
+    }
+    .red-ui-stack-content {
+        padding: 12px;
+    }
+    
+    .red-ui-checkboxset {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .red-ui-checkboxset-option {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        padding: 4px 8px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+    }
+    .red-ui-checkboxset-option:hover {
+        background: #f5f5f5;
+    }
+    .red-ui-checkboxset-option.checked {
+        background: #e6f0fa;
+        border-color: #3498db;
+    }
+    .red-ui-checkboxset-option input {
+        display: none;
+    }
+    
+    .red-ui-toggleButton {
+        padding: 4px 10px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .red-ui-toggleButton:hover {
+        background: #f5f5f5;
+    }
+    .red-ui-toggleButton.selected {
+        background: #e6f0fa;
+        border-color: #3498db;
+    }
+</style>

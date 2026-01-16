@@ -1,0 +1,178 @@
+@namespace NodeRed.Editor.Components.Editor
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/editors/markdown.js
+    Markdown editor with preview mode
+*@
+
+<div class="red-ui-markdownEditor @(PreviewMode ? "preview" : "edit")">
+    <div class="red-ui-markdownEditor-toolbar">
+        <div class="red-ui-markdownEditor-toolbar-left">
+            @if (!PreviewMode)
+            {
+                <button class="red-ui-button red-ui-button-small" title="Bold" @onclick="InsertBold">
+                    <i class="fa fa-bold"></i>
+                </button>
+                <button class="red-ui-button red-ui-button-small" title="Italic" @onclick="InsertItalic">
+                    <i class="fa fa-italic"></i>
+                </button>
+                <button class="red-ui-button red-ui-button-small" title="Code" @onclick="InsertInlineCode">
+                    <i class="fa fa-code"></i>
+                </button>
+                <button class="red-ui-button red-ui-button-small" title="Link" @onclick="InsertLink">
+                    <i class="fa fa-link"></i>
+                </button>
+                <span class="separator"></span>
+                <button class="red-ui-button red-ui-button-small" title="Heading 1" @onclick="() => InsertHeading(1)">
+                    H1
+                </button>
+                <button class="red-ui-button red-ui-button-small" title="Heading 2" @onclick="() => InsertHeading(2)">
+                    H2
+                </button>
+                <button class="red-ui-button red-ui-button-small" title="Heading 3" @onclick="() => InsertHeading(3)">
+                    H3
+                </button>
+                <span class="separator"></span>
+                <button class="red-ui-button red-ui-button-small" title="Bullet List" @onclick="InsertBulletList">
+                    <i class="fa fa-list-ul"></i>
+                </button>
+                <button class="red-ui-button red-ui-button-small" title="Numbered List" @onclick="InsertNumberedList">
+                    <i class="fa fa-list-ol"></i>
+                </button>
+                <button class="red-ui-button red-ui-button-small" title="Code Block" @onclick="InsertCodeBlock">
+                    <i class="fa fa-file-code-o"></i>
+                </button>
+            }
+        </div>
+        <div class="red-ui-markdownEditor-toolbar-right">
+            <button class="red-ui-button red-ui-button-small @(PreviewMode ? "selected" : "")" 
+                    title="Toggle Preview"
+                    @onclick="() => PreviewMode = !PreviewMode">
+                <i class="fa @(PreviewMode ? "fa-edit" : "fa-eye")"></i>
+                @(PreviewMode ? "Edit" : "Preview")
+            </button>
+        </div>
+    </div>
+    
+    @if (PreviewMode)
+    {
+        <div class="red-ui-markdownEditor-preview">
+            @((MarkupString)RenderMarkdown(Value))
+        </div>
+    }
+    else
+    {
+        <textarea class="red-ui-markdownEditor-input"
+                  @ref="_textArea"
+                  value="@Value"
+                  @oninput="OnInput"
+                  placeholder="@Placeholder"
+                  spellcheck="false"></textarea>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Enter markdown...";
+    [Parameter] public bool PreviewMode { get; set; } = false;
+    [Parameter] public int Height { get; set; } = 200;
+
+    private ElementReference _textArea;
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString() ?? "";
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task InsertMarkup(string before, string after)
+    {
+        // In a real implementation, this would insert at cursor position
+        Value = before + Value + after;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task InsertBold() => await InsertMarkup("**", "**");
+    private async Task InsertItalic() => await InsertMarkup("_", "_");
+    private async Task InsertInlineCode() => await InsertMarkup("`", "`");
+
+    private async Task InsertHeading(int level)
+    {
+        var prefix = new string('#', level) + " ";
+        Value = prefix + Value;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task InsertLink()
+    {
+        Value += "[link text](url)";
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task InsertBulletList()
+    {
+        Value += "\n- Item 1\n- Item 2\n- Item 3\n";
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task InsertNumberedList()
+    {
+        Value += "\n1. Item 1\n2. Item 2\n3. Item 3\n";
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task InsertCodeBlock()
+    {
+        Value += "\n```\ncode here\n```\n";
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    /// <summary>
+    /// Simple markdown to HTML renderer
+    /// In production, use a proper markdown library like Markdig
+    /// </summary>
+    private string RenderMarkdown(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown))
+            return "<p><em>No content</em></p>";
+
+        var html = markdown;
+
+        // Escape HTML
+        html = System.Web.HttpUtility.HtmlEncode(html);
+
+        // Code blocks
+        html = System.Text.RegularExpressions.Regex.Replace(
+            html, 
+            @"```([\s\S]*?)```", 
+            "<pre><code>$1</code></pre>");
+
+        // Headers
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^### (.+)$", "<h3>$1</h3>", System.Text.RegularExpressions.RegexOptions.Multiline);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^## (.+)$", "<h2>$1</h2>", System.Text.RegularExpressions.RegexOptions.Multiline);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^# (.+)$", "<h1>$1</h1>", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        // Bold
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
+
+        // Italic
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"_(.+?)_", "<em>$1</em>");
+
+        // Inline code
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"`(.+?)`", "<code>$1</code>");
+
+        // Links
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\[(.+?)\]\((.+?)\)", "<a href=\"$2\">$1</a>");
+
+        // Lists
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^- (.+)$", "<li>$1</li>", System.Text.RegularExpressions.RegexOptions.Multiline);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"^\d+\. (.+)$", "<li>$1</li>", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        // Paragraphs
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\n\n", "</p><p>");
+        html = $"<p>{html}</p>";
+
+        return html;
+    }
+}

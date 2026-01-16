@@ -1,0 +1,255 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/tray.js
+          packages/node_modules/@node-red/editor-client/src/js/ui/editor.js
+          packages/node_modules/@node-red/editor-client/src/js/ui/editors/panes/*.js
+   ============================================================
+   Editor tray for node configuration dialogs with tabs support
+   Includes Properties, Description, and Appearance tabs
+   ============================================================ *@
+
+<div id="red-ui-editor-tray" class="red-ui-tray @(IsOpen ? "open" : "")" style="@GetTrayStyle()">
+    @if (IsOpen && CurrentPanel != null)
+    {
+        @* Breadcrumbs - translated from tray.js line 38-43 *@
+        @if (TrayStack.Count > 0)
+        {
+            <ul class="red-ui-tray-breadcrumbs" style="display: flex; list-style: none; margin: 0; padding: 4px 8px; background: #333; color: #888;">
+                @foreach (var title in TrayStack.Select(t => t.Title).Append(CurrentPanel.Title))
+                {
+                    <li style="display: flex; align-items: center;">
+                        <span style="margin: 0 4px;">/</span>
+                        <span>@title</span>
+                    </li>
+                }
+            </ul>
+        }
+
+        <div class="red-ui-tray-header" style="background: #444; border-bottom: 2px solid #c00; padding: 8px;">
+            <div class="red-ui-tray-titlebar" style="display: flex; align-items: center;">
+                @if (!string.IsNullOrEmpty(CurrentPanel.NodeType))
+                {
+                    <span class="red-ui-palette-icon" style="background-color: @GetNodeColor(CurrentPanel.NodeType); width: 20px; height: 20px; display: inline-block; border-radius: 2px; margin-right: 8px;"></span>
+                }
+                <span class="red-ui-tray-titlebar-title" style="color: #fff; font-size: 14px; font-weight: 500;">
+                    @CurrentPanel.Title
+                </span>
+            </div>
+            <div class="red-ui-tray-toolbar" style="display: flex; gap: 8px; margin-top: 8px;">
+                @if (CurrentPanel.ShowDelete)
+                {
+                    <button class="red-ui-tray-button red-ui-button-small" style="background: #800; color: #fff; border: none; padding: 4px 12px; cursor: pointer;" @onclick="HandleDelete">
+                        <i class="fa fa-trash"></i> Delete
+                    </button>
+                }
+                <span style="flex-grow: 1;"></span>
+                @if (CurrentPanel.ShowCancel)
+                {
+                    <button class="red-ui-tray-button red-ui-button-small" style="background: #666; color: #fff; border: none; padding: 4px 12px; cursor: pointer;" @onclick="HandleCancel">
+                        Cancel
+                    </button>
+                }
+                @if (CurrentPanel.ShowDone)
+                {
+                    <button class="red-ui-tray-button primary red-ui-button-small" style="background: #c00; color: #fff; border: none; padding: 4px 16px; cursor: pointer;" @onclick="HandleDone">
+                        Done
+                    </button>
+                }
+            </div>
+        </div>
+
+        @* Tray tabs - translated from editor.js node edit dialog structure with Properties, Description, Appearance *@
+        <div class="red-ui-tray-tabs" style="display: flex; background: #444; border-bottom: 1px solid #333;">
+            @if (CurrentPanel.Tabs.Any())
+            {
+                @foreach (var tab in CurrentPanel.Tabs)
+                {
+                    <button class="red-ui-tray-tab @(tab.Id == ActiveTabId ? "active" : "")"
+                            style="padding: 8px 16px; border: none; background: @(tab.Id == ActiveTabId ? "#555" : "#444"); color: #fff; cursor: pointer; border-bottom: 2px solid @(tab.Id == ActiveTabId ? "#c00" : "transparent");"
+                            @onclick="() => SelectTab(tab.Id)">
+                        @if (!string.IsNullOrEmpty(tab.Icon))
+                        {
+                            <i class="@tab.Icon" style="margin-right: 6px;"></i>
+                        }
+                        @tab.Label
+                    </button>
+                }
+            }
+            else
+            {
+                @* Default tabs: Properties, Description, Appearance (translated from editor.js lines 1241-1256) *@
+                <button class="red-ui-tray-tab @(ActiveTabId == "properties" ? "active" : "")"
+                        style="padding: 8px 16px; border: none; background: @(ActiveTabId == "properties" ? "#555" : "#444"); color: #fff; cursor: pointer; border-bottom: 2px solid @(ActiveTabId == "properties" ? "#c00" : "transparent");"
+                        @onclick="SelectPropertiesTab">
+                    <i class="fa fa-cog" style="margin-right: 6px;"></i>
+                    Properties
+                </button>
+                <button class="red-ui-tray-tab @(ActiveTabId == "description" ? "active" : "")"
+                        style="padding: 8px 16px; border: none; background: @(ActiveTabId == "description" ? "#555" : "#444"); color: #fff; cursor: pointer; border-bottom: 2px solid @(ActiveTabId == "description" ? "#c00" : "transparent");"
+                        @onclick="SelectDescriptionTab">
+                    <i class="fa fa-file-text-o" style="margin-right: 6px;"></i>
+                    Description
+                </button>
+                <button class="red-ui-tray-tab @(ActiveTabId == "appearance" ? "active" : "")"
+                        style="padding: 8px 16px; border: none; background: @(ActiveTabId == "appearance" ? "#555" : "#444"); color: #fff; cursor: pointer; border-bottom: 2px solid @(ActiveTabId == "appearance" ? "#c00" : "transparent");"
+                        @onclick="SelectAppearanceTab">
+                    <i class="fa fa-object-group" style="margin-right: 6px;"></i>
+                    Appearance
+                </button>
+            }
+        </div>
+
+        <div class="red-ui-tray-body-wrapper" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+            <div class="red-ui-tray-body" style="flex: 1; overflow-y: auto; background: #f5f5f5;">
+                @if (CurrentPanel.Tabs.Any())
+                {
+                    @foreach (var tab in CurrentPanel.Tabs)
+                    {
+                        <div style="display: @(tab.Id == ActiveTabId ? "block" : "none"); height: 100%;">
+                            @tab.Content
+                        </div>
+                    }
+                }
+                else if (CurrentPanel.Node != null)
+                {
+                    @* Default pane content based on active tab *@
+                    <div style="display: @(ActiveTabId == "properties" ? "block" : "none"); height: 100%;">
+                        <PropertiesPane Node="@CurrentPanel.Node" />
+                    </div>
+                    <div style="display: @(ActiveTabId == "description" ? "block" : "none"); height: 100%;">
+                        <DescriptionPane InitialDescription="@GetNodeDescription()" />
+                    </div>
+                    <div style="display: @(ActiveTabId == "appearance" ? "block" : "none"); height: 100%;">
+                        <AppearancePane Node="@CurrentPanel.Node" />
+                    </div>
+                }
+                else
+                {
+                    <div style="padding: 12px;">
+                        @CurrentPanel.Content
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* Resize handle - translated from tray.js line 35 *@
+        <div class="red-ui-tray-resize-handle" style="position: absolute; left: 0; top: 0; width: 6px; height: 100%; cursor: ew-resize; background: transparent;"></div>
+    }
+</div>
+
+@code {
+    private bool IsOpen = false;
+    private TrayPanel? CurrentPanel;
+    private string ActiveTabId = "";
+    private List<TrayPanel> TrayStack = new();
+
+    private string GetTrayStyle()
+    {
+        if (!IsOpen) return "display: none;";
+        return $"position: absolute; top: 0; right: 0; bottom: 0; width: 550px; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,0.3); z-index: 1000; display: flex; flex-direction: column;";
+    }
+
+    public void Show(TrayPanel panel)
+    {
+        if (CurrentPanel != null)
+        {
+            TrayStack.Add(CurrentPanel);
+        }
+        CurrentPanel = panel;
+        // Default to "properties" tab if using built-in tabs, otherwise use first custom tab
+        ActiveTabId = panel.Tabs.Any() ? panel.Tabs.First().Id : "properties";
+        IsOpen = true;
+        StateHasChanged();
+    }
+
+    public void Close()
+    {
+        if (TrayStack.Count > 0)
+        {
+            CurrentPanel = TrayStack[^1];
+            TrayStack.RemoveAt(TrayStack.Count - 1);
+            ActiveTabId = CurrentPanel.Tabs.FirstOrDefault()?.Id ?? "";
+        }
+        else
+        {
+            IsOpen = false;
+            CurrentPanel = null;
+        }
+        StateHasChanged();
+    }
+
+    private void SelectTab(string tabId)
+    {
+        ActiveTabId = tabId;
+    }
+
+    private void SelectPropertiesTab() => SelectTab("properties");
+    private void SelectDescriptionTab() => SelectTab("description");
+    private void SelectAppearanceTab() => SelectTab("appearance");
+
+    private void HandleDone()
+    {
+        CurrentPanel?.OnDone?.Invoke();
+        Close();
+    }
+
+    private void HandleCancel()
+    {
+        CurrentPanel?.OnCancel?.Invoke();
+        Close();
+    }
+
+    private void HandleDelete()
+    {
+        CurrentPanel?.OnDelete?.Invoke();
+        Close();
+    }
+
+    private string GetNodeColor(string nodeType)
+    {
+        return nodeType switch
+        {
+            "inject" => "#a6bbcf",
+            "debug" => "#87a980",
+            "function" => "#fdd0a2",
+            "switch" => "#e2d96e",
+            "change" => "#e2d96e",
+            "template" => "#e2d96e",
+            "http request" => "#87a980",
+            "http in" => "#87a980",
+            "http response" => "#87a980",
+            _ => "#ddd"
+        };
+    }
+
+    private string GetNodeDescription()
+    {
+        if (CurrentPanel?.Node != null && CurrentPanel.Node.TryGetValue("info", out var info))
+        {
+            return info?.ToString() ?? "";
+        }
+        return "";
+    }
+
+    public class TrayPanel
+    {
+        public string Title { get; set; } = "";
+        public string? NodeType { get; set; }
+        public Dictionary<string, object>? Node { get; set; }
+        public RenderFragment? Content { get; set; }
+        public List<TrayTab> Tabs { get; set; } = new();
+        public bool ShowDone { get; set; } = true;
+        public bool ShowCancel { get; set; } = true;
+        public bool ShowDelete { get; set; } = false;
+        public Action? OnDone { get; set; }
+        public Action? OnCancel { get; set; }
+        public Action? OnDelete { get; set; }
+    }
+
+    public class TrayTab
+    {
+        public string Id { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string? Icon { get; set; }
+        public RenderFragment? Content { get; set; }
+    }
+}

@@ -1,0 +1,73 @@
+@namespace NodeRed.Editor.Components.Editor
+
+@* 
+    Translated from: @node-red/editor-client/src/js/multiplayer.js
+    Multiplayer collaboration indicators (showing other users' cursors and selections)
+*@
+
+<div class="red-ui-multiplayer @(Enabled ? "active" : "")">
+    @if (Enabled)
+    {
+        <div class="red-ui-multiplayer-users">
+            @foreach (var user in ConnectedUsers.Take(MaxVisibleUsers))
+            {
+                <div class="red-ui-multiplayer-user" 
+                     title="@user.Username"
+                     style="border-color: @user.Color">
+                    @if (!string.IsNullOrEmpty(user.Avatar))
+                    {
+                        <img src="@user.Avatar" alt="@user.Username" />
+                    }
+                    else
+                    {
+                        <span style="background-color: @user.Color">@GetInitials(user.Username)</span>
+                    }
+                </div>
+            }
+            @if (ConnectedUsers.Count > MaxVisibleUsers)
+            {
+                <div class="red-ui-multiplayer-more" 
+                     title="@GetMoreUsersTooltip()">
+                    +@(ConnectedUsers.Count - MaxVisibleUsers)
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool Enabled { get; set; } = false;
+    [Parameter] public List<MultiplayerUser> ConnectedUsers { get; set; } = new();
+    [Parameter] public int MaxVisibleUsers { get; set; } = 5;
+
+    public class MultiplayerUser
+    {
+        public string Id { get; set; } = "";
+        public string Username { get; set; } = "";
+        public string? Avatar { get; set; }
+        public string Color { get; set; } = "#007bff";
+        public string? CurrentFlow { get; set; }
+        public List<string> SelectedNodes { get; set; } = new();
+        public (double X, double Y)? CursorPosition { get; set; }
+        public DateTime LastActive { get; set; } = DateTime.UtcNow;
+    }
+
+    private string GetInitials(string username)
+    {
+        if (string.IsNullOrEmpty(username)) return "?";
+        var parts = username.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+        {
+            return $"{char.ToUpper(parts[0][0])}{char.ToUpper(parts[1][0])}";
+        }
+        return username.Length >= 2 
+            ? username.Substring(0, 2).ToUpper() 
+            : username.ToUpper();
+    }
+
+    private string GetMoreUsersTooltip()
+    {
+        var hiddenUsers = ConnectedUsers.Skip(MaxVisibleUsers).Select(u => u.Username);
+        return string.Join(", ", hiddenUsers);
+    }
+}

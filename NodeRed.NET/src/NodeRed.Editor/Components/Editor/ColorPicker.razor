@@ -1,0 +1,123 @@
+@namespace NodeRed.Editor.Components.Editor
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/editors/colorPicker.js
+    Color picker component with presets and custom color input
+*@
+
+<div class="red-ui-colorPicker @(IsOpen ? "open" : "")">
+    <button class="red-ui-colorPicker-button" 
+            style="background-color: @Value"
+            title="@Value"
+            @onclick="TogglePicker">
+        @if (ShowLabel)
+        {
+            <span>@Value</span>
+        }
+    </button>
+    
+    @if (IsOpen)
+    {
+        <div class="red-ui-colorPicker-popup">
+            <div class="red-ui-colorPicker-presets">
+                @foreach (var color in PresetColors)
+                {
+                    <button class="red-ui-colorPicker-preset @(Value == color ? "selected" : "")"
+                            style="background-color: @color"
+                            title="@color"
+                            @onclick="() => SelectColor(color)">
+                    </button>
+                }
+            </div>
+            
+            <div class="red-ui-colorPicker-custom">
+                <label>Custom:</label>
+                <input type="color" 
+                       value="@Value" 
+                       @onchange="OnCustomColorChange" />
+                <input type="text" 
+                       value="@Value" 
+                       placeholder="#RRGGBB"
+                       @onchange="OnTextColorChange" />
+            </div>
+            
+            <div class="red-ui-colorPicker-actions">
+                <button class="red-ui-button red-ui-button-small" @onclick="Cancel">Cancel</button>
+                <button class="red-ui-button red-ui-button-small primary" @onclick="Confirm">OK</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "#A6BBCF";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public bool ShowLabel { get; set; } = false;
+    [Parameter] public List<string>? CustomPresets { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool IsOpen { get; set; }
+    private string _tempValue = "";
+
+    // Default Node-RED color palette
+    private static readonly List<string> DefaultPresets = new()
+    {
+        "#FFAAAA", "#FFCC80", "#FFFF80", "#C8E6C9", "#80D8FF",
+        "#E1BEE7", "#F8BBD9", "#BCAAA4", "#CFD8DC", "#E0E0E0",
+        "#FF6666", "#FF9933", "#FFFF00", "#66BB6A", "#29B6F6",
+        "#AB47BC", "#EC407A", "#8D6E63", "#90A4AE", "#9E9E9E",
+        "#CC0000", "#E65100", "#F9A825", "#2E7D32", "#0277BD",
+        "#7B1FA2", "#AD1457", "#5D4037", "#546E7A", "#616161",
+        "#880000", "#BF360C", "#F57F17", "#1B5E20", "#01579B",
+        "#4A148C", "#880E4F", "#3E2723", "#37474F", "#212121"
+    };
+
+    private List<string> PresetColors => CustomPresets ?? DefaultPresets;
+
+    protected override void OnParametersSet()
+    {
+        _tempValue = Value;
+    }
+
+    private void TogglePicker()
+    {
+        IsOpen = !IsOpen;
+        if (IsOpen)
+        {
+            _tempValue = Value;
+        }
+    }
+
+    private void SelectColor(string color)
+    {
+        _tempValue = color;
+    }
+
+    private void OnCustomColorChange(ChangeEventArgs e)
+    {
+        _tempValue = e.Value?.ToString() ?? "#A6BBCF";
+    }
+
+    private void OnTextColorChange(ChangeEventArgs e)
+    {
+        var text = e.Value?.ToString() ?? "";
+        if (System.Text.RegularExpressions.Regex.IsMatch(text, @"^#[0-9A-Fa-f]{6}$"))
+        {
+            _tempValue = text;
+        }
+    }
+
+    private async Task Confirm()
+    {
+        Value = _tempValue;
+        await ValueChanged.InvokeAsync(Value);
+        IsOpen = false;
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task Cancel()
+    {
+        IsOpen = false;
+        await OnClose.InvokeAsync();
+    }
+}

@@ -1,0 +1,116 @@
+@* Source: @node-red/editor-client/src/js/ui/common/autoComplete.js *@
+@* Translated to Blazor for NodeRed.NET *@
+
+<div class="red-ui-autocomplete @(IsOpen ? "open" : "")" style="@GetPositionStyle()">
+    @if (IsOpen && FilteredOptions.Any())
+    {
+        <div class="red-ui-autocomplete-options" @onmousedown:stopPropagation>
+            @foreach (var (option, index) in FilteredOptions.Select((o, i) => (o, i)))
+            {
+                <div class="red-ui-autocomplete-option @(index == SelectedIndex ? "selected" : "")"
+                     @onclick="() => SelectOption(option)"
+                     @onmouseover="() => SelectedIndex = index">
+                    @if (!string.IsNullOrEmpty(option.Icon))
+                    {
+                        <i class="fa @option.Icon"></i>
+                    }
+                    <span class="option-label">@option.Label</span>
+                    @if (!string.IsNullOrEmpty(option.Description))
+                    {
+                        <span class="option-description">@option.Description</span>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<AutoCompleteOption> Options { get; set; } = new();
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<AutoCompleteOption> OnSelect { get; set; }
+    [Parameter] public double Left { get; set; }
+    [Parameter] public double Top { get; set; }
+    [Parameter] public bool IsOpen { get; set; }
+    
+    private int SelectedIndex { get; set; } = 0;
+    
+    private List<AutoCompleteOption> FilteredOptions => string.IsNullOrEmpty(Value)
+        ? Options
+        : Options.Where(o => 
+            o.Label.Contains(Value, StringComparison.OrdinalIgnoreCase) ||
+            (o.Value?.Contains(Value, StringComparison.OrdinalIgnoreCase) ?? false))
+            .ToList();
+    
+    private string GetPositionStyle()
+    {
+        return $"left: {Left}px; top: {Top}px;";
+    }
+    
+    private async Task SelectOption(AutoCompleteOption option)
+    {
+        await OnSelect.InvokeAsync(option);
+    }
+    
+    public void MoveSelection(int delta)
+    {
+        SelectedIndex = Math.Max(0, Math.Min(FilteredOptions.Count - 1, SelectedIndex + delta));
+        StateHasChanged();
+    }
+    
+    public AutoCompleteOption? GetSelectedOption()
+    {
+        if (SelectedIndex >= 0 && SelectedIndex < FilteredOptions.Count)
+        {
+            return FilteredOptions[SelectedIndex];
+        }
+        return null;
+    }
+    
+    public class AutoCompleteOption
+    {
+        public string Label { get; set; } = "";
+        public string? Value { get; set; }
+        public string? Icon { get; set; }
+        public string? Description { get; set; }
+        public object? Data { get; set; }
+    }
+}
+
+<style>
+    .red-ui-autocomplete {
+        position: absolute;
+        z-index: 10000;
+        display: none;
+        min-width: 200px;
+        max-width: 400px;
+        background: white;
+        border: 1px solid #ccc;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .red-ui-autocomplete.open {
+        display: block;
+    }
+    .red-ui-autocomplete-options {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .red-ui-autocomplete-option {
+        padding: 4px 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .red-ui-autocomplete-option:hover,
+    .red-ui-autocomplete-option.selected {
+        background-color: #e6f0fa;
+    }
+    .red-ui-autocomplete-option .option-label {
+        flex: 1;
+    }
+    .red-ui-autocomplete-option .option-description {
+        color: #888;
+        font-size: 0.9em;
+    }
+</style>

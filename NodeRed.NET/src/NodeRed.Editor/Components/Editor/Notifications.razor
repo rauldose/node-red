@@ -1,0 +1,132 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/notifications.js
+   ============================================================
+   ORIGINAL CODE (partial):
+   ------------------------------------------------------------
+   RED.notify = function(msg, options) {
+       ...
+       return notification;
+   }
+   ------------------------------------------------------------
+   TRANSLATION:
+   - jQuery notifications → Blazor component with list
+   ============================================================ *@
+
+<div id="red-ui-notifications" class="red-ui-notifications">
+    @foreach (var notification in _notifications)
+    {
+        <div class="red-ui-notification red-ui-notification-@notification.Type @(notification.IsHiding ? "hiding" : "")"
+             id="@notification.Id">
+            <div class="red-ui-notification-content">
+                @((MarkupString)notification.Message)
+            </div>
+            @if (notification.Buttons.Count > 0)
+            {
+                <div class="red-ui-notification-buttons">
+                    @foreach (var button in notification.Buttons)
+                    {
+                        <button class="@button.CssClass" @onclick="button.OnClick">
+                            @button.Text
+                        </button>
+                    }
+                </div>
+            }
+            @if (!notification.Fixed)
+            {
+                <button class="red-ui-notification-close" @onclick="() => HideNotification(notification.Id)">
+                    <i class="fa fa-times"></i>
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<NotificationItem> _notifications = new();
+    private int _notificationCounter = 0;
+
+    public async Task ShowAsync(string message, string type = "info", int? timeout = null)
+    {
+        var notification = new NotificationItem
+        {
+            Id = $"notification-{++_notificationCounter}",
+            Message = message,
+            Type = type,
+            Fixed = timeout == null,
+            Timeout = timeout ?? (type == "error" ? 10000 : 5000)
+        };
+
+        _notifications.Add(notification);
+        StateHasChanged();
+
+        if (!notification.Fixed)
+        {
+            await Task.Delay(notification.Timeout);
+            await HideNotificationAsync(notification.Id);
+        }
+    }
+
+    public async Task ShowWithButtonsAsync(string message, string type, List<NotificationButton> buttons, bool isFixed = true)
+    {
+        var notification = new NotificationItem
+        {
+            Id = $"notification-{++_notificationCounter}",
+            Message = message,
+            Type = type,
+            Fixed = isFixed,
+            Buttons = buttons
+        };
+
+        // Update button click handlers to auto-close
+        foreach (var button in notification.Buttons)
+        {
+            var originalClick = button.OnClick;
+            button.OnClick = async () =>
+            {
+                originalClick?.Invoke();
+                await HideNotificationAsync(notification.Id);
+            };
+        }
+
+        _notifications.Add(notification);
+        StateHasChanged();
+    }
+
+    public void HideNotification(string id)
+    {
+        _ = HideNotificationAsync(id);
+    }
+
+    public async Task HideNotificationAsync(string id)
+    {
+        var notification = _notifications.FirstOrDefault(n => n.Id == id);
+        if (notification != null)
+        {
+            notification.IsHiding = true;
+            StateHasChanged();
+
+            await Task.Delay(300); // Animation time
+
+            _notifications.Remove(notification);
+            StateHasChanged();
+        }
+    }
+
+    public class NotificationItem
+    {
+        public string Id { get; set; } = "";
+        public string Message { get; set; } = "";
+        public string Type { get; set; } = "info";
+        public bool Fixed { get; set; }
+        public int Timeout { get; set; } = 5000;
+        public bool IsHiding { get; set; }
+        public List<NotificationButton> Buttons { get; set; } = new();
+    }
+
+    public class NotificationButton
+    {
+        public string Text { get; set; } = "";
+        public string CssClass { get; set; } = "";
+        public Action? OnClick { get; set; }
+    }
+}

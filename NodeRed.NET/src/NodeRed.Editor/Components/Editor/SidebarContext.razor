@@ -1,0 +1,194 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/tab-context.js
+   ============================================================
+   Context data sidebar tab with Node, Flow, and Global sections
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+<div class="red-ui-sidebar-context" style="height: 100%; display: flex; flex-direction: column;">
+    @* Node Context Section *@
+    <div class="red-ui-sidebar-context-section" style="flex: 1; border-bottom: 1px solid #ddd;">
+        <div class="red-ui-sidebar-context-header" 
+             @onclick="() => NodeSectionExpanded = !NodeSectionExpanded"
+             style="padding: 6px 8px; background: #f3f3f3; border-bottom: 1px solid #ddd; cursor: pointer; display: flex; align-items: center;">
+            <i class="fa @(NodeSectionExpanded ? "fa-caret-down" : "fa-caret-right")" style="width: 16px;"></i>
+            <span style="font-weight: 500;">Node</span>
+            <span style="margin-left: auto;">
+                <input type="checkbox" @bind="NodeAutoRefresh" style="margin-right: 4px;" title="Auto-refresh" />
+                <button class="red-ui-button red-ui-button-small" @onclick:stopPropagation="true" @onclick="RefreshNodeContext" title="Refresh">
+                    <i class="fa fa-refresh"></i>
+                </button>
+            </span>
+        </div>
+        @if (NodeSectionExpanded)
+        {
+            <div class="red-ui-sidebar-context-content" style="padding: 8px; max-height: 150px; overflow-y: auto;">
+                @if (SelectedNode == null)
+                {
+                    <div class="red-ui-info-row" style="color: #888; font-style: italic;">
+                        No node selected
+                    </div>
+                }
+                else if (NodeContextData.Any())
+                {
+                    <table class="red-ui-info-table" style="width: 100%; font-size: 12px;">
+                        <tbody>
+                            @foreach (var item in NodeContextData)
+                            {
+                                <tr class="red-ui-help-info-row">
+                                    <td class="red-ui-sidebar-context-property" style="font-weight: 500; padding: 4px 8px 4px 0;">@item.Key</td>
+                                    <td style="padding: 4px 0; word-break: break-all;">@item.Value</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="red-ui-info-row" style="color: #888; font-style: italic;">
+                        Click refresh to load context data
+                    </div>
+                }
+            </div>
+            <div class="red-ui-sidebar-context-updated" style="padding: 4px 8px; font-size: 11px; color: #888;">
+                @if (!string.IsNullOrEmpty(NodeLastUpdated))
+                {
+                    <span>Last updated: @NodeLastUpdated</span>
+                }
+            </div>
+        }
+    </div>
+
+    @* Flow Context Section *@
+    <div class="red-ui-sidebar-context-section" style="flex: 1; border-bottom: 1px solid #ddd;">
+        <div class="red-ui-sidebar-context-header" 
+             @onclick="() => FlowSectionExpanded = !FlowSectionExpanded"
+             style="padding: 6px 8px; background: #f3f3f3; border-bottom: 1px solid #ddd; cursor: pointer; display: flex; align-items: center;">
+            <i class="fa @(FlowSectionExpanded ? "fa-caret-down" : "fa-caret-right")" style="width: 16px;"></i>
+            <span style="font-weight: 500;">Flow</span>
+            <span style="margin-left: auto;">
+                <input type="checkbox" @bind="FlowAutoRefresh" style="margin-right: 4px;" title="Auto-refresh" />
+                <button class="red-ui-button red-ui-button-small" @onclick:stopPropagation="true" @onclick="RefreshFlowContext" title="Refresh">
+                    <i class="fa fa-refresh"></i>
+                </button>
+            </span>
+        </div>
+        @if (FlowSectionExpanded)
+        {
+            <div class="red-ui-sidebar-context-content" style="padding: 8px; max-height: 150px; overflow-y: auto;">
+                @if (FlowContextData.Any())
+                {
+                    <table class="red-ui-info-table" style="width: 100%; font-size: 12px;">
+                        <tbody>
+                            @foreach (var item in FlowContextData)
+                            {
+                                <tr class="red-ui-help-info-row">
+                                    <td class="red-ui-sidebar-context-property" style="font-weight: 500; padding: 4px 8px 4px 0;">@item.Key</td>
+                                    <td style="padding: 4px 0; word-break: break-all;">@item.Value</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="red-ui-info-row" style="color: #888; font-style: italic;">
+                        Click refresh to load context data
+                    </div>
+                }
+            </div>
+            <div class="red-ui-sidebar-context-updated" style="padding: 4px 8px; font-size: 11px; color: #888;">
+                @if (!string.IsNullOrEmpty(FlowLastUpdated))
+                {
+                    <span>Last updated: @FlowLastUpdated</span>
+                }
+            </div>
+        }
+    </div>
+
+    @* Global Context Section *@
+    <div class="red-ui-sidebar-context-section" style="flex: 1;">
+        <div class="red-ui-sidebar-context-header" 
+             @onclick="() => GlobalSectionExpanded = !GlobalSectionExpanded"
+             style="padding: 6px 8px; background: #f3f3f3; border-bottom: 1px solid #ddd; cursor: pointer; display: flex; align-items: center;">
+            <i class="fa @(GlobalSectionExpanded ? "fa-caret-down" : "fa-caret-right")" style="width: 16px;"></i>
+            <span style="font-weight: 500;">Global</span>
+            <span style="margin-left: auto;">
+                <button class="red-ui-button red-ui-button-small" @onclick:stopPropagation="true" @onclick="RefreshGlobalContext" title="Refresh">
+                    <i class="fa fa-refresh"></i>
+                </button>
+            </span>
+        </div>
+        @if (GlobalSectionExpanded)
+        {
+            <div class="red-ui-sidebar-context-content" style="padding: 8px; max-height: 150px; overflow-y: auto;">
+                @if (GlobalContextData.Any())
+                {
+                    <table class="red-ui-info-table" style="width: 100%; font-size: 12px;">
+                        <tbody>
+                            @foreach (var item in GlobalContextData)
+                            {
+                                <tr class="red-ui-help-info-row">
+                                    <td class="red-ui-sidebar-context-property" style="font-weight: 500; padding: 4px 8px 4px 0;">@item.Key</td>
+                                    <td style="padding: 4px 0; word-break: break-all;">@item.Value</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="red-ui-info-row" style="color: #888; font-style: italic;">
+                        Click refresh to load context data
+                    </div>
+                }
+            </div>
+            <div class="red-ui-sidebar-context-updated" style="padding: 4px 8px; font-size: 11px; color: #888;">
+                @if (!string.IsNullOrEmpty(GlobalLastUpdated))
+                {
+                    <span>Last updated: @GlobalLastUpdated</span>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool NodeSectionExpanded = true;
+    private bool FlowSectionExpanded = true;
+    private bool GlobalSectionExpanded = true;
+    
+    private bool NodeAutoRefresh = false;
+    private bool FlowAutoRefresh = false;
+    
+    private string? NodeLastUpdated;
+    private string? FlowLastUpdated;
+    private string? GlobalLastUpdated;
+    
+    private Dictionary<string, string> NodeContextData = new();
+    private Dictionary<string, string> FlowContextData = new();
+    private Dictionary<string, string> GlobalContextData = new();
+
+    // This would be bound to editor selection in full implementation
+    private FlowNode? SelectedNode;
+
+    private void RefreshNodeContext()
+    {
+        // In production, this would call the API: GET /context/node/{nodeId}
+        NodeLastUpdated = DateTime.Now.ToString("HH:mm:ss");
+    }
+
+    private void RefreshFlowContext()
+    {
+        // In production, this would call the API: GET /context/flow/{flowId}
+        FlowLastUpdated = DateTime.Now.ToString("HH:mm:ss");
+    }
+
+    private void RefreshGlobalContext()
+    {
+        // In production, this would call the API: GET /context/global
+        GlobalLastUpdated = DateTime.Now.ToString("HH:mm:ss");
+    }
+}

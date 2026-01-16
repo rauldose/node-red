@@ -1,0 +1,69 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/view.js
+   ============================================================
+   Wire/link rendering component
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+
+<path class="red-ui-flow-link @(IsSelected ? "selected" : "") @(IsDragging ? "dragging" : "")"
+      d="@GetPathData()"
+      fill="none"
+      stroke="@GetStrokeColor()"
+      stroke-width="@GetStrokeWidth()"
+      @onclick="OnClick" />
+
+@code {
+    [Parameter]
+    public NodeLink Link { get; set; } = null!;
+
+    [Parameter]
+    public double LineCurveScale { get; set; } = 0.75;
+
+    [Parameter]
+    public bool IsSelected { get; set; }
+
+    [Parameter]
+    public bool IsDragging { get; set; }
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+
+    private string GetPathData()
+    {
+        if (Link.Source == null || Link.Target == null)
+        {
+            return "";
+        }
+
+        // Calculate port positions
+        var sourceX = Link.Source.X + 100; // Node width
+        var sourceY = Link.Source.Y + 15;  // Half node height
+        var targetX = Link.Target.X;
+        var targetY = Link.Target.Y + 15;
+
+        // Create bezier curve - translated from generateLinkPath in view.js
+        var dx = targetX - sourceX;
+        var dy = targetY - sourceY;
+
+        var cx1 = sourceX + (dx * LineCurveScale);
+        var cy1 = sourceY;
+        var cx2 = targetX - (dx * LineCurveScale);
+        var cy2 = targetY;
+
+        return $"M {sourceX} {sourceY} C {cx1} {cy1} {cx2} {cy2} {targetX} {targetY}";
+    }
+
+    private string GetStrokeColor()
+    {
+        if (IsDragging) return "#ff7f0e";
+        if (IsSelected) return "#ff7f0e";
+        return "#999";
+    }
+
+    private string GetStrokeWidth()
+    {
+        if (IsSelected) return "3";
+        return "2";
+    }
+}

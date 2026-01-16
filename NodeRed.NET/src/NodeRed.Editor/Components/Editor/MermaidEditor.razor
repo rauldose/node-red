@@ -1,0 +1,200 @@
+@* Translated from: packages/node_modules/@node-red/editor-client/src/js/ui/editors/mermaid.js *@
+@* Mermaid diagram editor component *@
+
+<div class="red-ui-editor-type-mermaid @(_fullscreen ? "fullscreen" : "")">
+    <div class="mermaid-toolbar">
+        <button class="red-ui-button red-ui-button-small" @onclick="Preview" title="Preview">
+            <i class="fa fa-eye"></i>
+        </button>
+        <button class="red-ui-button red-ui-button-small" @onclick="Refresh" title="Refresh">
+            <i class="fa fa-refresh"></i>
+        </button>
+        <button class="red-ui-button red-ui-button-small" @onclick="ToggleFullscreen" title="Fullscreen">
+            <i class="fa @(_fullscreen ? "fa-compress" : "fa-expand")"></i>
+        </button>
+        <span class="mermaid-status">@_statusMessage</span>
+    </div>
+    
+    <div class="mermaid-content">
+        <div class="mermaid-editor">
+            <textarea @bind="Content" @bind:event="oninput" @onblur="OnContentChanged"
+                      placeholder="Enter Mermaid diagram syntax..." 
+                      spellcheck="false"></textarea>
+        </div>
+        
+        @if (_showPreview)
+        {
+            <div class="mermaid-preview">
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <div class="mermaid-error">
+                        <i class="fa fa-exclamation-triangle"></i>
+                        @_error
+                    </div>
+                }
+                else
+                {
+                    <div class="mermaid-diagram">
+                        @((MarkupString)_renderedSvg)
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+.red-ui-editor-type-mermaid {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.red-ui-editor-type-mermaid.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: white;
+}
+.mermaid-toolbar {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-bottom: 1px solid #ccc;
+    background: #f5f5f5;
+}
+.mermaid-status {
+    margin-left: auto;
+    font-size: 12px;
+    color: #666;
+    align-self: center;
+}
+.mermaid-content {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+.mermaid-editor {
+    flex: 1;
+    display: flex;
+}
+.mermaid-editor textarea {
+    flex: 1;
+    resize: none;
+    border: none;
+    padding: 8px;
+    font-family: monospace;
+    font-size: 13px;
+}
+.mermaid-preview {
+    flex: 1;
+    border-left: 1px solid #ccc;
+    overflow: auto;
+    padding: 8px;
+}
+.mermaid-error {
+    color: #a00;
+    padding: 8px;
+    background: #fee;
+    border: 1px solid #fcc;
+    border-radius: 4px;
+}
+.mermaid-diagram svg {
+    max-width: 100%;
+}
+</style>
+
+@code {
+    [Parameter] public string Content { get; set; } = "";
+    [Parameter] public EventCallback<string> ContentChanged { get; set; }
+
+    private bool _showPreview = true;
+    private bool _fullscreen = false;
+    private string _renderedSvg = "";
+    private string _error = "";
+    private string _statusMessage = "";
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrEmpty(Content))
+        {
+            RenderDiagram();
+        }
+    }
+
+    private void Preview()
+    {
+        _showPreview = !_showPreview;
+        if (_showPreview)
+        {
+            RenderDiagram();
+        }
+    }
+
+    private void Refresh()
+    {
+        RenderDiagram();
+    }
+
+    private void ToggleFullscreen()
+    {
+        _fullscreen = !_fullscreen;
+    }
+
+    private async Task OnContentChanged()
+    {
+        await ContentChanged.InvokeAsync(Content);
+        RenderDiagram();
+    }
+
+    private void RenderDiagram()
+    {
+        _error = "";
+        _statusMessage = "Rendering...";
+
+        try
+        {
+            // For now, show placeholder - actual rendering would use mermaid.js via JS interop
+            if (string.IsNullOrWhiteSpace(Content))
+            {
+                _renderedSvg = "<p style='color:#999;'>Enter Mermaid syntax to see diagram</p>";
+            }
+            else
+            {
+                // Parse basic diagram type for validation
+                var lines = Content.Trim().Split('\n');
+                if (lines.Length > 0)
+                {
+                    var firstLine = lines[0].Trim().ToLowerInvariant();
+                    var validTypes = new[] { "graph", "flowchart", "sequencediagram", "classDiagram", 
+                                              "statediagram", "erdiagram", "gantt", "pie", "journey" };
+                    
+                    var hasValidType = validTypes.Any(t => firstLine.StartsWith(t));
+                    
+                    if (!hasValidType && !firstLine.Contains("-->") && !firstLine.Contains("---"))
+                    {
+                        _error = "Invalid diagram type. Start with: graph, flowchart, sequenceDiagram, classDiagram, etc.";
+                    }
+                    else
+                    {
+                        // Placeholder - actual rendering requires mermaid.js
+                        _renderedSvg = $@"
+                            <div style='text-align:center;padding:20px;background:#f9f9f9;border:1px dashed #ccc;border-radius:8px;'>
+                                <i class='fa fa-sitemap' style='font-size:48px;color:#666;'></i>
+                                <p style='color:#666;margin-top:10px;'>Mermaid diagram preview</p>
+                                <p style='color:#999;font-size:12px;'>{lines.Length} lines, {Content.Length} characters</p>
+                            </div>";
+                        _statusMessage = "Preview ready";
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            _statusMessage = "Error";
+        }
+    }
+}

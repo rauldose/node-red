@@ -1,0 +1,246 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/common/typedInput.js
+   ============================================================
+   TRANSLATION: JavaScript typedInput to Blazor component
+   ============================================================ *@
+
+<div class="red-ui-typedInput @Class">
+    <button type="button" class="red-ui-typedInput-type-select" @onclick="ToggleTypeMenu">
+        <span class="red-ui-typedInput-type-icon" style="background-color: @GetTypeColor();">
+            @GetTypeIcon()
+        </span>
+        <i class="fa fa-caret-down"></i>
+    </button>
+    
+    @if (_showTypeMenu)
+    {
+        <div class="red-ui-typedInput-options" @onclick:stopPropagation="true">
+            @foreach (var type in Types)
+            {
+                <div class="red-ui-typedInput-option @(type.Value == SelectedType ? "selected" : "")"
+                     @onclick="() => SelectType(type.Value)">
+                    <span class="red-ui-typedInput-option-icon" style="background-color: @type.Color;">
+                        @type.Label
+                    </span>
+                    <span class="red-ui-typedInput-option-label">@type.Label</span>
+                </div>
+            }
+        </div>
+    }
+    
+    <div class="red-ui-typedInput-input-wrap">
+        @switch (SelectedType)
+        {
+            case "bool":
+                <select class="red-ui-typedInput-input" @bind="Value">
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+                break;
+            case "json":
+            case "jsonata":
+                <textarea class="red-ui-typedInput-input" @bind="Value" rows="3"></textarea>
+                break;
+            case "date":
+                <input type="text" class="red-ui-typedInput-input" placeholder="timestamp" @bind="Value" />
+                break;
+            case "bin":
+                <input type="text" class="red-ui-typedInput-input" placeholder="[0,1,2,...]" @bind="Value" />
+                break;
+            case "env":
+                <div class="red-ui-typedInput-input-group">
+                    <span class="red-ui-typedInput-prefix">$</span>
+                    <input type="text" class="red-ui-typedInput-input" placeholder="ENV_VAR" @bind="Value" />
+                </div>
+                break;
+            case "flow":
+            case "global":
+                <div class="red-ui-typedInput-input-group">
+                    <span class="red-ui-typedInput-prefix">@(SelectedType).</span>
+                    <input type="text" class="red-ui-typedInput-input" placeholder="variable" @bind="Value" />
+                </div>
+                break;
+            default:
+                <input type="@GetInputType()" class="red-ui-typedInput-input" @bind="Value" placeholder="@Placeholder" />
+                break;
+        }
+        
+        @if (ShowExpandButton && (SelectedType == "json" || SelectedType == "jsonata"))
+        {
+            <button type="button" class="red-ui-typedInput-expand" @onclick="OnExpand">
+                <i class="fa fa-expand"></i>
+            </button>
+        }
+    </div>
+</div>
+
+<style>
+    .red-ui-typedInput {
+        display: flex;
+        align-items: stretch;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        background: white;
+    }
+    .red-ui-typedInput-type-select {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        border: none;
+        background: #f5f5f5;
+        border-right: 1px solid #ccc;
+        cursor: pointer;
+        gap: 4px;
+    }
+    .red-ui-typedInput-type-select:hover {
+        background: #eee;
+    }
+    .red-ui-typedInput-type-icon {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 2px;
+        color: white;
+    }
+    .red-ui-typedInput-options {
+        position: absolute;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        z-index: 100;
+        min-width: 150px;
+        margin-top: 30px;
+    }
+    .red-ui-typedInput-option {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        cursor: pointer;
+        gap: 8px;
+    }
+    .red-ui-typedInput-option:hover {
+        background: #f0f0f0;
+    }
+    .red-ui-typedInput-option.selected {
+        background: #e0e0e0;
+    }
+    .red-ui-typedInput-option-icon {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 2px;
+        color: white;
+    }
+    .red-ui-typedInput-input-wrap {
+        flex: 1;
+        display: flex;
+        position: relative;
+    }
+    .red-ui-typedInput-input {
+        flex: 1;
+        border: none;
+        padding: 6px 10px;
+        font-size: 14px;
+        outline: none;
+        min-width: 0;
+    }
+    .red-ui-typedInput-input-group {
+        display: flex;
+        flex: 1;
+        align-items: center;
+    }
+    .red-ui-typedInput-prefix {
+        padding: 0 4px 0 10px;
+        color: #888;
+        font-family: monospace;
+    }
+    .red-ui-typedInput-expand {
+        position: absolute;
+        right: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        padding: 4px;
+    }
+    .red-ui-typedInput-expand:hover {
+        color: #000;
+    }
+    textarea.red-ui-typedInput-input {
+        resize: vertical;
+        font-family: monospace;
+    }
+</style>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string SelectedType { get; set; } = "str";
+    [Parameter] public EventCallback<string> SelectedTypeChanged { get; set; }
+    [Parameter] public List<TypeOption> Types { get; set; } = DefaultTypes;
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public bool ShowExpandButton { get; set; } = true;
+    [Parameter] public EventCallback OnExpand { get; set; }
+
+    private bool _showTypeMenu = false;
+
+    public static List<TypeOption> DefaultTypes = new()
+    {
+        new() { Value = "str", Label = "az", Color = "#a6bbcf" },
+        new() { Value = "num", Label = "123", Color = "#87a980" },
+        new() { Value = "bool", Label = "t/f", Color = "#c07fba" },
+        new() { Value = "json", Label = "{}", Color = "#fdd0a2" },
+        new() { Value = "msg", Label = "msg", Color = "#e1d5a7" },
+        new() { Value = "flow", Label = "flow", Color = "#d8bfd8" },
+        new() { Value = "global", Label = "global", Color = "#88c0d0" },
+        new() { Value = "env", Label = "$", Color = "#c4a000" },
+        new() { Value = "jsonata", Label = "J:", Color = "#ff7f50" }
+    };
+
+    private void ToggleTypeMenu()
+    {
+        _showTypeMenu = !_showTypeMenu;
+    }
+
+    private async Task SelectType(string type)
+    {
+        SelectedType = type;
+        _showTypeMenu = false;
+        await SelectedTypeChanged.InvokeAsync(type);
+        
+        // Clear value when changing to certain types
+        if (type == "bool" && Value != "true" && Value != "false")
+        {
+            Value = "true";
+            await ValueChanged.InvokeAsync(Value);
+        }
+    }
+
+    private string GetTypeColor()
+    {
+        return Types.FirstOrDefault(t => t.Value == SelectedType)?.Color ?? "#888";
+    }
+
+    private string GetTypeIcon()
+    {
+        return Types.FirstOrDefault(t => t.Value == SelectedType)?.Label ?? SelectedType;
+    }
+
+    private string GetInputType()
+    {
+        return SelectedType switch
+        {
+            "num" => "number",
+            _ => "text"
+        };
+    }
+
+    public class TypeOption
+    {
+        public string Value { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Color { get; set; } = "#888";
+    }
+}

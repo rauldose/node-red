@@ -1,0 +1,286 @@
+@* Translated from: packages/node_modules/@node-red/editor-client/src/js/ui/editors/panes/envVarProperties.js *@
+@* Environment variable properties pane for subflows *@
+
+<div class="red-ui-editor-pane-env-properties">
+    <div class="env-header">
+        <span class="env-title">Environment Variables</span>
+        <button class="red-ui-button red-ui-button-small" @onclick="AddEnvVar" title="Add">
+            <i class="fa fa-plus"></i> Add
+        </button>
+    </div>
+
+    <div class="env-info">
+        <i class="fa fa-info-circle"></i>
+        <span>Define environment variables that can be customized when this subflow is used.</span>
+    </div>
+
+    <div class="env-list">
+        @for (int i = 0; i < EnvVars.Count; i++)
+        {
+            var index = i;
+            var env = EnvVars[i];
+            <div class="env-item @(env.Expanded ? "expanded" : "")">
+                <div class="env-item-header" @onclick="@(() => ToggleExpand(index))">
+                    <span class="env-expand-icon">
+                        <i class="fa @(env.Expanded ? "fa-caret-down" : "fa-caret-right")"></i>
+                    </span>
+                    <span class="env-item-name">@(string.IsNullOrEmpty(env.Name) ? "(unnamed)" : env.Name)</span>
+                    <span class="env-item-type">@env.Type</span>
+                    <button class="env-remove-btn" @onclick:stopPropagation="true" @onclick="@(() => RemoveEnvVar(index))" title="Remove">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+
+                @if (env.Expanded)
+                {
+                    <div class="env-item-details">
+                        <div class="form-row">
+                            <label>Name</label>
+                            <input type="text" value="@env.Name" class="red-ui-text-input"
+                                   @onchange="@(e => UpdateEnvProperty(index, "name", e.Value?.ToString() ?? ""))" />
+                        </div>
+
+                        <div class="form-row">
+                            <label>Type</label>
+                            <select class="red-ui-select" value="@env.Type"
+                                    @onchange="@(e => UpdateEnvProperty(index, "type", e.Value?.ToString() ?? "str"))">
+                                <option value="str">string</option>
+                                <option value="num">number</option>
+                                <option value="bool">boolean</option>
+                                <option value="json">JSON</option>
+                                <option value="bin">buffer</option>
+                                <option value="env">env var</option>
+                                <option value="cred">credential</option>
+                            </select>
+                        </div>
+
+                        <div class="form-row">
+                            <label>Default Value</label>
+                            @if (env.Type == "bool")
+                            {
+                                <select class="red-ui-select" value="@env.DefaultValue"
+                                        @onchange="@(e => UpdateEnvProperty(index, "default", e.Value?.ToString() ?? "false"))">
+                                    <option value="true">true</option>
+                                    <option value="false">false</option>
+                                </select>
+                            }
+                            else if (env.Type == "json")
+                            {
+                                <textarea rows="3" class="red-ui-text-input code"
+                                          @onchange="@(e => UpdateEnvProperty(index, "default", e.Value?.ToString() ?? ""))">@env.DefaultValue</textarea>
+                            }
+                            else
+                            {
+                                <input type="text" value="@env.DefaultValue" class="red-ui-text-input"
+                                       @onchange="@(e => UpdateEnvProperty(index, "default", e.Value?.ToString() ?? ""))" />
+                            }
+                        </div>
+
+                        <div class="form-row">
+                            <label>UI Label</label>
+                            <input type="text" value="@env.UILabel" class="red-ui-text-input"
+                                   placeholder="Label shown in the edit dialog"
+                                   @onchange="@(e => UpdateEnvProperty(index, "uilabel", e.Value?.ToString() ?? ""))" />
+                        </div>
+
+                        <div class="form-row">
+                            <label>
+                                <input type="checkbox" checked="@env.Required"
+                                       @onchange="@(e => UpdateEnvProperty(index, "required", ((bool)(e.Value ?? false)).ToString()))" />
+                                <span>Required</span>
+                            </label>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (EnvVars.Count == 0)
+        {
+            <div class="env-empty">
+                <i class="fa fa-info-circle"></i>
+                <p>No environment variables defined.</p>
+                <p>Click "Add" to create variables that users can customize when using this subflow.</p>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+.red-ui-editor-pane-env-properties {
+    padding: 10px;
+}
+.env-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ddd;
+}
+.env-title {
+    font-weight: 500;
+    font-size: 14px;
+}
+.env-info {
+    background: #f0f8ff;
+    border: 1px solid #cce5ff;
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: #0066cc;
+}
+.env-info i {
+    margin-right: 4px;
+}
+.env-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.env-item {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+}
+.env-item.expanded {
+    border-color: #999;
+}
+.env-item-header {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    cursor: pointer;
+    gap: 8px;
+}
+.env-item-header:hover {
+    background: #f5f5f5;
+}
+.env-expand-icon {
+    width: 12px;
+    color: #666;
+}
+.env-item-name {
+    flex: 1;
+    font-weight: 500;
+}
+.env-item-type {
+    color: #666;
+    font-size: 12px;
+    background: #eee;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+.env-remove-btn {
+    border: none;
+    background: none;
+    color: #999;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+.env-remove-btn:hover {
+    color: #c00;
+}
+.env-item-details {
+    padding: 10px;
+    border-top: 1px solid #ddd;
+    background: #fafafa;
+}
+.form-row {
+    margin-bottom: 8px;
+}
+.form-row label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: #666;
+}
+.red-ui-text-input, .red-ui-select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+.red-ui-text-input.code {
+    font-family: monospace;
+}
+.env-empty {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
+.env-empty i {
+    font-size: 24px;
+    margin-bottom: 10px;
+    display: block;
+}
+.env-empty p {
+    margin: 4px 0;
+}
+</style>
+
+@code {
+    [Parameter] public List<EnvVarDef> EnvVars { get; set; } = new();
+    [Parameter] public EventCallback<List<EnvVarDef>> EnvVarsChanged { get; set; }
+
+    private void ToggleExpand(int index)
+    {
+        if (index >= 0 && index < EnvVars.Count)
+        {
+            EnvVars[index].Expanded = !EnvVars[index].Expanded;
+        }
+    }
+
+    private async Task AddEnvVar()
+    {
+        EnvVars.Add(new EnvVarDef
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = "",
+            Type = "str",
+            DefaultValue = "",
+            UILabel = "",
+            Required = false,
+            Expanded = true
+        });
+        await EnvVarsChanged.InvokeAsync(EnvVars);
+    }
+
+    private async Task RemoveEnvVar(int index)
+    {
+        if (index >= 0 && index < EnvVars.Count)
+        {
+            EnvVars.RemoveAt(index);
+            await EnvVarsChanged.InvokeAsync(EnvVars);
+        }
+    }
+
+    private async Task UpdateEnvProperty(int index, string property, string value)
+    {
+        if (index < 0 || index >= EnvVars.Count) return;
+
+        var env = EnvVars[index];
+        switch (property)
+        {
+            case "name": env.Name = value; break;
+            case "type": env.Type = value; break;
+            case "default": env.DefaultValue = value; break;
+            case "uilabel": env.UILabel = value; break;
+            case "required": env.Required = value.Equals("True", StringComparison.OrdinalIgnoreCase); break;
+        }
+        await EnvVarsChanged.InvokeAsync(EnvVars);
+    }
+
+    public class EnvVarDef
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Type { get; set; } = "str";
+        public string DefaultValue { get; set; } = "";
+        public string UILabel { get; set; } = "";
+        public bool Required { get; set; }
+        public bool Expanded { get; set; }
+    }
+}

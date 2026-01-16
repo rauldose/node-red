@@ -1,0 +1,69 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/deploy.js
+   ============================================================
+   ORIGINAL CODE (partial):
+   ------------------------------------------------------------
+   RED.deploy = (function() {
+       var deploymentTypes = {
+           "full":{img:"red/images/deploy-full-o.svg"},
+           "nodes":{img:"red/images/deploy-nodes-o.svg"},
+           "flows":{img:"red/images/deploy-flows-o.svg"}
+       };
+       var deploymentType = "full";
+       ...
+   })();
+   ------------------------------------------------------------
+   TRANSLATION:
+   - Deploy button with dropdown → Blazor component
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+<span class="red-ui-deploy-button-group">
+    <a id="red-ui-header-button-deploy" 
+       class="button red-ui-deploy-button @(HasChanges ? "" : "disabled")"
+       @onclick="HandleDeploy"
+       title="@(HasChanges ? "Deploy changes" : "No changes to deploy")">
+        <span class="red-ui-deploy-button-content">
+            @if (IsDeploying)
+            {
+                <span class="red-ui-deploy-button-spinner" style="margin-right: 8px;">⟳</span>
+            }
+            @if (HasChanges)
+            {
+                <span class="red-ui-deploy-button-dirty-indicator" 
+                      style="display: inline-block; width: 8px; height: 8px; background-color: #d93637; border-radius: 50%; margin-right: 6px;"></span>
+            }
+            @State.I18n.Translate("deploy.deploy")
+        </span>
+    </a>
+</span>
+
+@code {
+    [Parameter]
+    public EventCallback OnDeploy { get; set; }
+
+    private string DeploymentType = "full";
+    private bool IsDeploying = false;
+    private bool HasChanges => State.Nodes.IsDirty();
+
+    private async Task HandleDeploy()
+    {
+        if (IsDeploying || !HasChanges) return;
+
+        IsDeploying = true;
+        StateHasChanged();
+
+        try
+        {
+            await OnDeploy.InvokeAsync();
+            State.Nodes.SetDirty(false);
+        }
+        finally
+        {
+            IsDeploying = false;
+            StateHasChanged();
+        }
+    }
+}

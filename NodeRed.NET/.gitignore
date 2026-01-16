@@ -1,0 +1,31 @@
+# .NET build artifacts
+bin/
+obj/
+
+# NuGet packages
+*.nupkg
+*.snupkg
+
+# User-specific files
+*.user
+*.suo
+*.userprefs
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# Visual Studio
+.vs/
+*.csproj.user
+
+# Rider
+.idea/
+
+# Test Results
+TestResults/
+
+# Package lock file - commented out as it may be useful to track
+# packages.lock.json

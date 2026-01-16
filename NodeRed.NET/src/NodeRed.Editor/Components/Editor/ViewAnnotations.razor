@@ -1,0 +1,152 @@
+@namespace NodeRed.Editor.Components.Editor
+@inject IJSRuntime JS
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/view-annotations.js
+    Canvas annotations overlay for visual indicators
+*@
+
+<g class="red-ui-annotations">
+    @foreach (var annotation in Annotations)
+    {
+        @switch (annotation.Type)
+        {
+            case "badge":
+                <g class="red-ui-annotation red-ui-annotation-badge" 
+                   transform="translate(@annotation.X, @annotation.Y)">
+                    <circle cx="8" cy="8" r="8" fill="@annotation.Color" />
+                    @if (!string.IsNullOrEmpty(annotation.Icon))
+                    {
+                        @((MarkupString)$"<text x=\"8\" y=\"12\" text-anchor=\"middle\" fill=\"white\" font-size=\"10\">{annotation.Icon}</text>")
+                    }
+                    else if (annotation.Count.HasValue)
+                    {
+                        @((MarkupString)$"<text x=\"8\" y=\"12\" text-anchor=\"middle\" fill=\"white\" font-size=\"10\">{(annotation.Count > 99 ? "99+" : annotation.Count.ToString())}</text>")
+                    }
+                </g>
+                break;
+                
+            case "status":
+                <g class="red-ui-annotation red-ui-annotation-status"
+                   transform="translate(@annotation.X, @annotation.Y)">
+                    <rect x="0" y="0" width="8" height="8" rx="2" 
+                          fill="@GetStatusColor(annotation.Status)" />
+                    @if (!string.IsNullOrEmpty(annotation.Text))
+                    {
+                        @((MarkupString)$"<text x=\"12\" y=\"8\" fill=\"#666\" font-size=\"10\">{annotation.Text}</text>")
+                    }
+                </g>
+                break;
+                
+            case "error":
+                <g class="red-ui-annotation red-ui-annotation-error"
+                   transform="translate(@annotation.X, @annotation.Y)">
+                    <circle cx="6" cy="6" r="6" fill="#c00" />
+                    @((MarkupString)"<text x=\"6\" y=\"10\" text-anchor=\"middle\" fill=\"white\" font-size=\"10\" font-weight=\"bold\">!</text>")
+                </g>
+                break;
+                
+            case "warning":
+                <g class="red-ui-annotation red-ui-annotation-warning"
+                   transform="translate(@annotation.X, @annotation.Y)">
+                    <polygon points="6,0 12,10 0,10" fill="#f90" />
+                    @((MarkupString)"<text x=\"6\" y=\"9\" text-anchor=\"middle\" fill=\"white\" font-size=\"8\" font-weight=\"bold\">!</text>")
+                </g>
+                break;
+                
+            case "highlight":
+                <rect class="red-ui-annotation red-ui-annotation-highlight"
+                      x="@annotation.X" y="@annotation.Y" 
+                      width="@annotation.Width" height="@annotation.Height"
+                      fill="none" 
+                      stroke="@(annotation.Color ?? "#007bff")" 
+                      stroke-width="2"
+                      stroke-dasharray="5,5">
+                    <animate attributeName="stroke-dashoffset" 
+                             from="0" to="10" 
+                             dur="0.5s" 
+                             repeatCount="indefinite" />
+                </rect>
+                break;
+                
+            case "marker":
+                <g class="red-ui-annotation red-ui-annotation-marker"
+                   transform="translate(@annotation.X, @annotation.Y)">
+                    <path d="M0,0 L8,-8 L16,0 L8,8 Z" 
+                          fill="@(annotation.Color ?? "#17a2b8")" />
+                </g>
+                break;
+        }
+    }
+</g>
+
+@code {
+    [Parameter] public List<Annotation> Annotations { get; set; } = new();
+
+    public class Annotation
+    {
+        public string Id { get; set; } = "";
+        public string Type { get; set; } = "badge"; // badge, status, error, warning, highlight, marker
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+        public string? Color { get; set; }
+        public string? Icon { get; set; }
+        public string? Text { get; set; }
+        public int? Count { get; set; }
+        public string? Status { get; set; } // For status type: ok, warning, error, unknown
+        public string? NodeId { get; set; }
+    }
+
+    private string GetStatusColor(string? status)
+    {
+        return status switch
+        {
+            "ok" or "green" => "#5eb95e",
+            "warning" or "yellow" => "#faa732",
+            "error" or "red" => "#bd362f",
+            "blue" => "#2fa4e7",
+            "grey" or "gray" => "#999999",
+            _ => "#999999"
+        };
+    }
+
+    public void AddAnnotation(Annotation annotation)
+    {
+        if (string.IsNullOrEmpty(annotation.Id))
+        {
+            annotation.Id = Guid.NewGuid().ToString();
+        }
+        Annotations.Add(annotation);
+        StateHasChanged();
+    }
+
+    public void RemoveAnnotation(string id)
+    {
+        Annotations.RemoveAll(a => a.Id == id);
+        StateHasChanged();
+    }
+
+    public void RemoveNodeAnnotations(string nodeId)
+    {
+        Annotations.RemoveAll(a => a.NodeId == nodeId);
+        StateHasChanged();
+    }
+
+    public void ClearAnnotations()
+    {
+        Annotations.Clear();
+        StateHasChanged();
+    }
+
+    public void UpdateAnnotation(string id, Action<Annotation> update)
+    {
+        var annotation = Annotations.FirstOrDefault(a => a.Id == id);
+        if (annotation != null)
+        {
+            update(annotation);
+            StateHasChanged();
+        }
+    }
+}

@@ -1,0 +1,346 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/typeSearch.js
+   ============================================================
+   TRANSLATION: JavaScript typeSearch module to Blazor component
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+<div class="red-ui-typesearch @(IsVisible ? "visible" : "")" style="left: @(X)px; top: @(Y)px;">
+    @if (IsVisible)
+    {
+        <div class="red-ui-typesearch-input-container">
+            <input type="text"
+                   @ref="_searchInput"
+                   class="red-ui-typesearch-input"
+                   placeholder="add node"
+                   @bind-value="SearchText"
+                   @bind-value:event="oninput"
+                   @onkeydown="OnKeyDown"
+                   @onblur="OnBlur" />
+        </div>
+        <div class="red-ui-typesearch-results">
+            @foreach (var (result, index) in _results.Select((r, i) => (r, i)))
+            {
+                <div class="red-ui-typesearch-result @(index == SelectedIndex ? "selected" : "")"
+                     @onclick="() => SelectType(result)"
+                     @onmouseenter="() => SelectedIndex = index">
+                    <div class="red-ui-typesearch-result-node"
+                         style="background-color: @result.Color;">
+                        <i class="fa @result.Icon"></i>
+                    </div>
+                    <div class="red-ui-typesearch-result-info">
+                        <div class="red-ui-typesearch-result-label">@result.Label</div>
+                        <div class="red-ui-typesearch-result-module">@result.Module</div>
+                    </div>
+                </div>
+            }
+            @if (_results.Count == 0 && !string.IsNullOrEmpty(SearchText))
+            {
+                <div class="red-ui-typesearch-empty">No matching node types</div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .red-ui-typesearch {
+        display: none;
+        position: fixed;
+        z-index: 3000;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        min-width: 300px;
+    }
+    .red-ui-typesearch.visible {
+        display: block;
+    }
+    .red-ui-typesearch-input-container {
+        padding: 8px;
+        border-bottom: 1px solid #ddd;
+    }
+    .red-ui-typesearch-input {
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 14px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        outline: none;
+    }
+    .red-ui-typesearch-input:focus {
+        border-color: #8e0000;
+    }
+    .red-ui-typesearch-results {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .red-ui-typesearch-result {
+        display: flex;
+        padding: 8px;
+        cursor: pointer;
+        align-items: center;
+    }
+    .red-ui-typesearch-result:hover,
+    .red-ui-typesearch-result.selected {
+        background: #f0f0f0;
+    }
+    .red-ui-typesearch-result-node {
+        width: 28px;
+        height: 20px;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+        color: white;
+        font-size: 10px;
+    }
+    .red-ui-typesearch-result-info {
+        flex: 1;
+    }
+    .red-ui-typesearch-result-label {
+        font-weight: 500;
+    }
+    .red-ui-typesearch-result-module {
+        font-size: 11px;
+        color: #888;
+    }
+    .red-ui-typesearch-empty {
+        padding: 20px;
+        text-align: center;
+        color: #888;
+    }
+</style>
+
+@code {
+    private ElementReference _searchInput;
+    private string _searchText = "";
+    private List<TypeSearchResult> _results = new();
+    private List<TypeSearchResult> _allTypes = new();
+
+    [Parameter]
+    public EventCallback<string> OnNodeSelected { get; set; }
+
+    public bool IsVisible { get; private set; }
+    public int SelectedIndex { get; private set; }
+    public double X { get; private set; }
+    public double Y { get; private set; }
+
+    public event EventHandler<TypeSelectedEventArgs>? TypeSelected;
+
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            _searchText = value;
+            FilterResults();
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        // Initialize the list of available node types
+        _allTypes = GetAvailableNodeTypes();
+    }
+
+    /// <summary>
+    /// Show the type search at default center position.
+    /// </summary>
+    public void Show()
+    {
+        Show(400, 200); // Center of screen approximately
+    }
+
+    /// <summary>
+    /// Show the type search at specified position.
+    /// Translated from show() in typeSearch.js
+    /// </summary>
+    public void Show(double x, double y)
+    {
+        X = x;
+        Y = y;
+        IsVisible = true;
+        _searchText = "";
+        SelectedIndex = 0;
+        _results = _allTypes.Take(10).ToList();
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Hide the type search.
+    /// Translated from hide() in typeSearch.js
+    /// </summary>
+    public void Hide()
+    {
+        IsVisible = false;
+        StateHasChanged();
+    }
+
+    private void FilterResults()
+    {
+        SelectedIndex = 0;
+
+        if (string.IsNullOrWhiteSpace(_searchText))
+        {
+            _results = _allTypes.Take(10).ToList();
+        }
+        else
+        {
+            var search = _searchText.ToLowerInvariant();
+            _results = _allTypes
+                .Where(t => t.Type.ToLowerInvariant().Contains(search) ||
+                            t.Label.ToLowerInvariant().Contains(search))
+                .Take(20)
+                .ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                if (SelectedIndex < _results.Count - 1)
+                {
+                    SelectedIndex++;
+                    StateHasChanged();
+                }
+                break;
+            case "ArrowUp":
+                if (SelectedIndex > 0)
+                {
+                    SelectedIndex--;
+                    StateHasChanged();
+                }
+                break;
+            case "Enter":
+                if (SelectedIndex >= 0 && SelectedIndex < _results.Count)
+                {
+                    SelectType(_results[SelectedIndex]);
+                }
+                break;
+            case "Escape":
+                Hide();
+                break;
+            case "Tab":
+                if (_results.Count > 0 && SelectedIndex >= 0)
+                {
+                    SelectType(_results[SelectedIndex]);
+                }
+                break;
+        }
+    }
+
+    private void OnBlur()
+    {
+        // Delay hide to allow click on result
+        Task.Delay(200).ContinueWith(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                if (IsVisible)
+                {
+                    Hide();
+                }
+            });
+        });
+    }
+
+    private void SelectType(TypeSearchResult result)
+    {
+        TypeSelected?.Invoke(this, new TypeSelectedEventArgs
+        {
+            Type = result.Type,
+            X = X,
+            Y = Y
+        });
+        _ = OnNodeSelected.InvokeAsync(result.Type);
+        Hide();
+    }
+
+    /// <summary>
+    /// Get all available node types.
+    /// Translated from getNodeTypes() in typeSearch.js
+    /// </summary>
+    private List<TypeSearchResult> GetAvailableNodeTypes()
+    {
+        return new List<TypeSearchResult>
+        {
+            // Common nodes
+            new() { Type = "inject", Label = "inject", Module = "node-red", Color = "#a6bbcf", Icon = "fa-play", Category = "common" },
+            new() { Type = "debug", Label = "debug", Module = "node-red", Color = "#87a980", Icon = "fa-bug", Category = "common" },
+            new() { Type = "complete", Label = "complete", Module = "node-red", Color = "#a6bbcf", Icon = "fa-check", Category = "common" },
+            new() { Type = "catch", Label = "catch", Module = "node-red", Color = "#a6bbcf", Icon = "fa-exclamation", Category = "common" },
+            new() { Type = "status", Label = "status", Module = "node-red", Color = "#a6bbcf", Icon = "fa-info", Category = "common" },
+            new() { Type = "link in", Label = "link in", Module = "node-red", Color = "#ddd", Icon = "fa-link", Category = "common" },
+            new() { Type = "link out", Label = "link out", Module = "node-red", Color = "#ddd", Icon = "fa-link", Category = "common" },
+            new() { Type = "link call", Label = "link call", Module = "node-red", Color = "#ddd", Icon = "fa-link", Category = "common" },
+            new() { Type = "comment", Label = "comment", Module = "node-red", Color = "#fff", Icon = "fa-comment", Category = "common" },
+            new() { Type = "junction", Label = "junction", Module = "node-red", Color = "#ddd", Icon = "fa-circle", Category = "common" },
+
+            // Function nodes
+            new() { Type = "function", Label = "function", Module = "node-red", Color = "#fdd0a2", Icon = "fa-code", Category = "function" },
+            new() { Type = "switch", Label = "switch", Module = "node-red", Color = "#fdd0a2", Icon = "fa-random", Category = "function" },
+            new() { Type = "change", Label = "change", Module = "node-red", Color = "#fdd0a2", Icon = "fa-edit", Category = "function" },
+            new() { Type = "range", Label = "range", Module = "node-red", Color = "#fdd0a2", Icon = "fa-arrows-h", Category = "function" },
+            new() { Type = "template", Label = "template", Module = "node-red", Color = "#fdd0a2", Icon = "fa-file-text", Category = "function" },
+            new() { Type = "delay", Label = "delay", Module = "node-red", Color = "#e6bcbe", Icon = "fa-clock-o", Category = "function" },
+            new() { Type = "trigger", Label = "trigger", Module = "node-red", Color = "#e6bcbe", Icon = "fa-bolt", Category = "function" },
+            new() { Type = "exec", Label = "exec", Module = "node-red", Color = "#d8bfd8", Icon = "fa-terminal", Category = "function" },
+            new() { Type = "rbe", Label = "rbe", Module = "node-red", Color = "#fdd0a2", Icon = "fa-exchange", Category = "function" },
+
+            // Network nodes
+            new() { Type = "http request", Label = "http request", Module = "node-red", Color = "#e1d5a7", Icon = "fa-globe", Category = "network" },
+            new() { Type = "http in", Label = "http in", Module = "node-red", Color = "#c7e9c0", Icon = "fa-globe", Category = "network" },
+            new() { Type = "http response", Label = "http response", Module = "node-red", Color = "#c7e9c0", Icon = "fa-globe", Category = "network" },
+            new() { Type = "websocket in", Label = "websocket in", Module = "node-red", Color = "#c0c7e9", Icon = "fa-plug", Category = "network" },
+            new() { Type = "websocket out", Label = "websocket out", Module = "node-red", Color = "#c0c7e9", Icon = "fa-plug", Category = "network" },
+            new() { Type = "tcp in", Label = "tcp in", Module = "node-red", Color = "#c0c7e9", Icon = "fa-plug", Category = "network" },
+            new() { Type = "tcp out", Label = "tcp out", Module = "node-red", Color = "#c0c7e9", Icon = "fa-plug", Category = "network" },
+            new() { Type = "tcp request", Label = "tcp request", Module = "node-red", Color = "#c0c7e9", Icon = "fa-plug", Category = "network" },
+            new() { Type = "udp in", Label = "udp in", Module = "node-red", Color = "#c0c7e9", Icon = "fa-plug", Category = "network" },
+            new() { Type = "udp out", Label = "udp out", Module = "node-red", Color = "#c0c7e9", Icon = "fa-plug", Category = "network" },
+
+            // Sequence nodes
+            new() { Type = "split", Label = "split", Module = "node-red", Color = "#e2d96e", Icon = "fa-code-fork", Category = "sequence" },
+            new() { Type = "join", Label = "join", Module = "node-red", Color = "#e2d96e", Icon = "fa-compress", Category = "sequence" },
+            new() { Type = "sort", Label = "sort", Module = "node-red", Color = "#e2d96e", Icon = "fa-sort", Category = "sequence" },
+            new() { Type = "batch", Label = "batch", Module = "node-red", Color = "#e2d96e", Icon = "fa-th", Category = "sequence" },
+
+            // Parser nodes
+            new() { Type = "json", Label = "json", Module = "node-red", Color = "#ccc", Icon = "fa-file-code-o", Category = "parser" },
+            new() { Type = "csv", Label = "csv", Module = "node-red", Color = "#ccc", Icon = "fa-table", Category = "parser" },
+            new() { Type = "xml", Label = "xml", Module = "node-red", Color = "#ccc", Icon = "fa-code", Category = "parser" },
+            new() { Type = "html", Label = "html", Module = "node-red", Color = "#ccc", Icon = "fa-html5", Category = "parser" },
+            new() { Type = "yaml", Label = "yaml", Module = "node-red", Color = "#ccc", Icon = "fa-file-text-o", Category = "parser" },
+
+            // Storage nodes
+            new() { Type = "file", Label = "file", Module = "node-red", Color = "#c4a000", Icon = "fa-file", Category = "storage" },
+            new() { Type = "file in", Label = "file in", Module = "node-red", Color = "#c4a000", Icon = "fa-file-o", Category = "storage" },
+            new() { Type = "watch", Label = "watch", Module = "node-red", Color = "#c4a000", Icon = "fa-eye", Category = "storage" }
+        };
+    }
+
+    private class TypeSearchResult
+    {
+        public string Type { get; set; } = "";
+        public string Label { get; set; } = "";
+        public string Module { get; set; } = "";
+        public string Color { get; set; } = "#ddd";
+        public string Icon { get; set; } = "fa-cube";
+        public string Category { get; set; } = "";
+    }
+
+    public class TypeSelectedEventArgs : EventArgs
+    {
+        public string Type { get; set; } = "";
+        public double X { get; set; }
+        public double Y { get; set; }
+    }
+}

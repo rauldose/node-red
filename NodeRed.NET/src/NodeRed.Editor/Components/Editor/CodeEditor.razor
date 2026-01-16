@@ -1,0 +1,128 @@
+@namespace NodeRed.Editor.Components.Editor
+@inject IJSRuntime JS
+
+@* 
+    Translated from: @node-red/editor-client/src/js/ui/editors/code-editor.js
+    Code editor component wrapping Monaco or CodeMirror functionality
+    Supports JavaScript, JSON, JSONata, Markdown, HTML, CSS, and Text
+*@
+
+<div class="red-ui-codeEditor @CssClass" @ref="_editorContainer">
+    @if (!IsMonacoLoaded)
+    {
+        <textarea class="red-ui-codeEditor-fallback"
+                  @bind="Value"
+                  @bind:event="oninput"
+                  spellcheck="false"
+                  style="width: 100%; height: @(Height)px; font-family: monospace; resize: none;">
+        </textarea>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Language { get; set; } = "javascript";
+    [Parameter] public int Height { get; set; } = 300;
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool LineNumbers { get; set; } = true;
+    [Parameter] public bool WordWrap { get; set; } = false;
+    [Parameter] public string Theme { get; set; } = "vs-dark";
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public EventCallback<string> OnChange { get; set; }
+
+    private ElementReference _editorContainer;
+    private bool IsMonacoLoaded { get; set; }
+    private string? _editorId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _editorId = $"editor-{Guid.NewGuid():N}";
+            
+            try
+            {
+                // Try to initialize Monaco editor via JS interop
+                await JS.InvokeVoidAsync("NodeRedEditor.initCodeEditor", _editorContainer, new
+                {
+                    id = _editorId,
+                    value = Value,
+                    language = MapLanguage(Language),
+                    theme = Theme,
+                    readOnly = ReadOnly,
+                    lineNumbers = LineNumbers,
+                    wordWrap = WordWrap,
+                    height = Height
+                });
+                IsMonacoLoaded = true;
+                StateHasChanged();
+            }
+            catch
+            {
+                // Monaco not available, use fallback textarea
+                IsMonacoLoaded = false;
+            }
+        }
+    }
+
+    private string MapLanguage(string lang)
+    {
+        return lang.ToLowerInvariant() switch
+        {
+            "js" or "javascript" => "javascript",
+            "json" => "json",
+            "jsonata" => "javascript", // Monaco doesn't have JSONata, use JS
+            "html" => "html",
+            "css" => "css",
+            "md" or "markdown" => "markdown",
+            "text" or "plaintext" => "plaintext",
+            "xml" => "xml",
+            "yaml" or "yml" => "yaml",
+            _ => "plaintext"
+        };
+    }
+
+    public async Task SetValue(string value)
+    {
+        Value = value;
+        if (IsMonacoLoaded && _editorId != null)
+        {
+            await JS.InvokeVoidAsync("NodeRedEditor.setEditorValue", _editorId, value);
+        }
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    public async Task<string> GetValue()
+    {
+        if (IsMonacoLoaded && _editorId != null)
+        {
+            return await JS.InvokeAsync<string>("NodeRedEditor.getEditorValue", _editorId);
+        }
+        return Value;
+    }
+
+    public async Task Focus()
+    {
+        if (IsMonacoLoaded && _editorId != null)
+        {
+            await JS.InvokeVoidAsync("NodeRedEditor.focusEditor", _editorId);
+        }
+    }
+
+    public async Task Resize()
+    {
+        if (IsMonacoLoaded && _editorId != null)
+        {
+            await JS.InvokeVoidAsync("NodeRedEditor.resizeEditor", _editorId);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (IsMonacoLoaded && _editorId != null)
+        {
+            await JS.InvokeVoidAsync("NodeRedEditor.disposeEditor", _editorId);
+        }
+    }
+}

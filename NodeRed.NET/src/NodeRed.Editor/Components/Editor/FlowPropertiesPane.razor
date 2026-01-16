@@ -1,0 +1,241 @@
+@* Translated from: packages/node_modules/@node-red/editor-client/src/js/ui/editors/panes/flowProperties.js *@
+@* Flow properties pane for flow/tab editing *@
+
+<div class="red-ui-editor-pane-flow-properties">
+    <div class="form-row">
+        <label for="flow-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="flow-name" @bind="Name" @bind:event="oninput" 
+               placeholder="Flow name" class="red-ui-text-input" />
+    </div>
+
+    <div class="form-row">
+        <label><i class="fa fa-cog"></i> Status</label>
+        <div class="status-options">
+            <label class="status-option">
+                <input type="radio" name="flow-status" value="enabled" 
+                       checked="@(Disabled == false)" @onchange="@(() => SetDisabled(false))" />
+                <span>Enabled</span>
+            </label>
+            <label class="status-option">
+                <input type="radio" name="flow-status" value="disabled" 
+                       checked="@Disabled" @onchange="@(() => SetDisabled(true))" />
+                <span>Disabled</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <label><i class="fa fa-info-circle"></i> Info</label>
+        <textarea @bind="Info" @bind:event="oninput" rows="5" 
+                  placeholder="Optional description for this flow"
+                  class="red-ui-text-input"></textarea>
+    </div>
+
+    @if (ShowEnvVars)
+    {
+        <div class="form-row env-section">
+            <div class="env-header">
+                <label><i class="fa fa-cube"></i> Environment Variables</label>
+                <button class="red-ui-button red-ui-button-small" @onclick="AddEnvVar" title="Add">
+                    <i class="fa fa-plus"></i>
+                </button>
+            </div>
+            
+            <div class="env-list">
+                @foreach (var env in EnvVars)
+                {
+                    <div class="env-row">
+                        <input type="text" value="@env.Name" class="env-name" placeholder="Name"
+                               @onchange="@(e => UpdateEnvName(env.Id, e.Value?.ToString() ?? ""))" />
+                        <select class="env-type" value="@env.Type"
+                                @onchange="@(e => UpdateEnvType(env.Id, e.Value?.ToString() ?? "str"))">
+                            <option value="str">string</option>
+                            <option value="num">number</option>
+                            <option value="bool">boolean</option>
+                            <option value="json">JSON</option>
+                            <option value="env">env var</option>
+                        </select>
+                        <input type="text" value="@env.Value" class="env-value" placeholder="Value"
+                               @onchange="@(e => UpdateEnvValue(env.Id, e.Value?.ToString() ?? ""))" />
+                        <button class="red-ui-button red-ui-button-small" @onclick="@(() => RemoveEnvVar(env.Id))" title="Remove">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                }
+
+                @if (EnvVars.Count == 0)
+                {
+                    <div class="env-empty">No environment variables defined</div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+.red-ui-editor-pane-flow-properties {
+    padding: 10px;
+}
+.form-row {
+    margin-bottom: 10px;
+}
+.form-row label {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 500;
+}
+.form-row label i {
+    width: 16px;
+    margin-right: 4px;
+}
+.red-ui-text-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+textarea.red-ui-text-input {
+    resize: vertical;
+    font-family: inherit;
+}
+.status-options {
+    display: flex;
+    gap: 16px;
+}
+.status-option {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+.status-option input {
+    cursor: pointer;
+}
+.env-section {
+    border-top: 1px solid #ddd;
+    padding-top: 10px;
+    margin-top: 10px;
+}
+.env-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.env-header label {
+    margin-bottom: 0;
+}
+.env-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.env-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.env-name {
+    flex: 1;
+    min-width: 100px;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+.env-type {
+    width: 80px;
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+.env-value {
+    flex: 2;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+.env-empty {
+    color: #999;
+    font-style: italic;
+    padding: 8px;
+    text-align: center;
+}
+</style>
+
+@code {
+    [Parameter] public string Name { get; set; } = "";
+    [Parameter] public EventCallback<string> NameChanged { get; set; }
+    
+    [Parameter] public bool Disabled { get; set; } = false;
+    [Parameter] public EventCallback<bool> DisabledChanged { get; set; }
+    
+    [Parameter] public string Info { get; set; } = "";
+    [Parameter] public EventCallback<string> InfoChanged { get; set; }
+    
+    [Parameter] public bool ShowEnvVars { get; set; } = true;
+    [Parameter] public List<FlowEnvVar> EnvVars { get; set; } = new();
+    [Parameter] public EventCallback<List<FlowEnvVar>> EnvVarsChanged { get; set; }
+
+    private async Task SetDisabled(bool value)
+    {
+        Disabled = value;
+        await DisabledChanged.InvokeAsync(value);
+    }
+
+    private async Task AddEnvVar()
+    {
+        EnvVars.Add(new FlowEnvVar
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = "",
+            Value = "",
+            Type = "str"
+        });
+        await EnvVarsChanged.InvokeAsync(EnvVars);
+    }
+
+    private async Task RemoveEnvVar(string id)
+    {
+        EnvVars.RemoveAll(e => e.Id == id);
+        await EnvVarsChanged.InvokeAsync(EnvVars);
+    }
+
+    private async Task UpdateEnvName(string id, string name)
+    {
+        var env = EnvVars.FirstOrDefault(e => e.Id == id);
+        if (env != null)
+        {
+            env.Name = name;
+            await EnvVarsChanged.InvokeAsync(EnvVars);
+        }
+    }
+
+    private async Task UpdateEnvValue(string id, string value)
+    {
+        var env = EnvVars.FirstOrDefault(e => e.Id == id);
+        if (env != null)
+        {
+            env.Value = value;
+            await EnvVarsChanged.InvokeAsync(EnvVars);
+        }
+    }
+
+    private async Task UpdateEnvType(string id, string type)
+    {
+        var env = EnvVars.FirstOrDefault(e => e.Id == id);
+        if (env != null)
+        {
+            env.Type = type;
+            await EnvVarsChanged.InvokeAsync(EnvVars);
+        }
+    }
+
+    public class FlowEnvVar
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Value { get; set; } = "";
+        public string Type { get; set; } = "str";
+    }
+}

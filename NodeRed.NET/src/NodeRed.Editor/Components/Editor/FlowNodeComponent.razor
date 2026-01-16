@@ -1,0 +1,232 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/view.js
+   ============================================================
+   Flow node rendering component - translated from node rendering in view.js
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+
+<g class="red-ui-flow-node @(IsSelected ? "selected" : "") @(Node.Dirty ? "dirty" : "")"
+   transform="translate(@Node.X, @Node.Y)"
+   @onmousedown="OnMouseDown"
+   @onmousedown:stopPropagation="true"
+   @ondblclick="OnDoubleClick"
+   @ondblclick:stopPropagation="true">
+    
+    @* Node body *@
+    <rect class="red-ui-flow-node-body"
+          width="@NodeWidth"
+          height="@NodeHeight"
+          rx="5" ry="5"
+          fill="@GetNodeColor()" 
+          style="cursor: move;" />
+    
+    @* Input port *@
+    @if (Node.Inputs > 0)
+    {
+        <rect class="red-ui-flow-port red-ui-flow-port-input"
+              x="-5" y="@((NodeHeight / 2) - 5)"
+              width="10" height="10"
+              rx="3" ry="3"
+              style="cursor: crosshair; fill: #999;"
+              @onmousedown="HandleInputPortMouseDown"
+              @onmousedown:stopPropagation="true"
+              @onmouseup="HandleInputPortMouseUp"
+              @onmouseup:stopPropagation="true" />
+    }
+    
+    @* Output ports *@
+    @for (int i = 0; i < Node.Outputs; i++)
+    {
+        var portY = GetOutputPortY(i, Node.Outputs);
+        var portIndex = i;
+        <rect class="red-ui-flow-port red-ui-flow-port-output"
+              x="@(NodeWidth - 5)" y="@portY"
+              width="10" height="10"
+              rx="3" ry="3"
+              style="cursor: crosshair; fill: #999;"
+              @onmousedown="(e) => HandleOutputPortMouseDown(e, portIndex)"
+              @onmousedown:stopPropagation="true" />
+    }
+    
+    @* Node icon using foreignObject for HTML icon *@
+    <foreignObject x="5" y="@((NodeHeight / 2) - 8)" width="18" height="18">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px;">
+            <i class="@GetNodeIconClass()" style="font-size: 12px; color: #666;"></i>
+        </div>
+    </foreignObject>
+    
+    @* Node label *@
+    @((MarkupString)$"<text class=\"red-ui-flow-node-label\" x=\"28\" y=\"{(NodeHeight / 2) + 4}\" fill=\"{GetLabelColor()}\" style=\"font-size: 13px;\">{System.Net.WebUtility.HtmlEncode(GetNodeLabel())}</text>")
+    
+    @* Status indicator *@
+    @if (Node.Status != null)
+    {
+        <g class="red-ui-flow-node-status" transform="translate(5, @(NodeHeight - 8))">
+            <circle r="4" fill="@GetStatusColor()" />
+            @if (!string.IsNullOrEmpty(Node.Status.Text))
+            {
+                @((MarkupString)$"<text x=\"10\" y=\"4\" class=\"red-ui-flow-node-status-label\">{System.Net.WebUtility.HtmlEncode(Node.Status.Text)}</text>")
+            }
+        </g>
+    }
+    
+    @* Selection highlight *@
+    @if (IsSelected)
+    {
+        <rect class="red-ui-flow-node-selected"
+              x="-2" y="-2"
+              width="@(NodeWidth + 4)" height="@(NodeHeight + 4)"
+              rx="7" ry="7"
+              fill="none"
+              stroke="#ff7f0e"
+              stroke-width="2" />
+    }
+</g>
+
+@code {
+    [Parameter]
+    public FlowNode Node { get; set; } = null!;
+
+    [Parameter]
+    public int NodeWidth { get; set; } = 100;
+
+    [Parameter]
+    public int NodeHeight { get; set; } = 30;
+
+    [Parameter]
+    public bool IsSelected { get; set; }
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnMouseDown { get; set; }
+
+    [Parameter]
+    public EventCallback OnDoubleClick { get; set; }
+
+    [Parameter]
+    public EventCallback<(FlowNode Node, int PortIndex)> OnOutputPortDragStart { get; set; }
+
+    [Parameter]
+    public EventCallback<FlowNode> OnInputPortDrop { get; set; }
+
+    private void HandleOutputPortMouseDown(MouseEventArgs e, int portIndex)
+    {
+        // Start wire dragging from output port
+        OnOutputPortDragStart.InvokeAsync((Node, portIndex));
+    }
+
+    private void HandleInputPortMouseDown(MouseEventArgs e)
+    {
+        // Could be used for reverse wire creation
+    }
+
+    private void HandleInputPortMouseUp(MouseEventArgs e)
+    {
+        // Complete wire connection to input port
+        OnInputPortDrop.InvokeAsync(Node);
+    }
+
+    private string GetNodeColor()
+    {
+        // Default colors based on node type - translated from node type definitions
+        return Node.Type switch
+        {
+            "inject" => "#a6bbcf",
+            "debug" => "#87a980",
+            "complete" or "catch" or "status" => "#a6bbcf",
+            "link in" or "link out" or "link call" => "#ddd",
+            "comment" => "#fff",
+            "junction" => "#999",
+            "function" => "#fdd0a2",
+            "switch" or "change" or "range" or "rbe" or "filter" => "#e2d96e",
+            "template" => "#e2c96e",
+            "delay" or "trigger" => "#e6e0f8",
+            "exec" => "#fdd0a2",
+            "split" or "join" or "sort" or "batch" => "#e2d96e",
+            "csv" or "html" or "json" or "xml" or "yaml" => "#DEBD5C",
+            "mqtt in" or "mqtt out" => "#d8bfd8",
+            "http in" or "http response" or "http request" => "#d8bfd8",
+            "websocket in" or "websocket out" => "#d8bfd8",
+            "tcp in" or "tcp out" or "udp in" or "udp out" => "#c7c7c7",
+            "file" or "file in" or "watch" => "#ff9966",
+            _ => "#d3d3d3"
+        };
+    }
+
+    private string GetLabelColor()
+    {
+        return "#000";
+    }
+
+    private string GetNodeIconClass()
+    {
+        // Return Font Awesome icon class based on node type
+        return Node.Type switch
+        {
+            "inject" => "fa fa-clock-o",
+            "debug" => "fa fa-bug",
+            "complete" => "fa fa-check",
+            "catch" => "fa fa-warning",
+            "status" => "fa fa-info-circle",
+            "link in" => "fa fa-arrow-left",
+            "link out" => "fa fa-arrow-right",
+            "link call" => "fa fa-share",
+            "comment" => "fa fa-comment",
+            "junction" => "fa fa-circle",
+            "function" => "fa fa-code",
+            "switch" => "fa fa-random",
+            "change" => "fa fa-pencil",
+            "range" => "fa fa-arrows-h",
+            "template" => "fa fa-file-text-o",
+            "delay" => "fa fa-clock-o",
+            "trigger" => "fa fa-crosshairs",
+            "exec" => "fa fa-terminal",
+            "rbe" or "filter" => "fa fa-filter",
+            "csv" => "fa fa-table",
+            "html" => "fa fa-code",
+            "json" => "fa fa-list-alt",
+            "xml" => "fa fa-file-code-o",
+            "yaml" => "fa fa-file-text-o",
+            "split" => "fa fa-expand",
+            "join" => "fa fa-compress",
+            "sort" => "fa fa-sort",
+            "batch" => "fa fa-th-large",
+            "mqtt in" or "websocket in" or "tcp in" or "udp in" or "http in" => "fa fa-sign-in",
+            "mqtt out" or "websocket out" or "tcp out" or "udp out" or "http response" => "fa fa-sign-out",
+            "http request" => "fa fa-cloud",
+            "file" => "fa fa-file",
+            "file in" => "fa fa-file-o",
+            "watch" => "fa fa-eye",
+            _ => "fa fa-cube"
+        };
+    }
+
+    private string GetNodeLabel()
+    {
+        return !string.IsNullOrEmpty(Node.Name) ? Node.Name : Node.Type;
+    }
+
+    private double GetOutputPortY(int portIndex, int totalPorts)
+    {
+        if (totalPorts == 1)
+        {
+            return (NodeHeight / 2.0) - 5;
+        }
+
+        var spacing = NodeHeight / (totalPorts + 1.0);
+        return spacing * (portIndex + 1) - 5;
+    }
+
+    private string GetStatusColor()
+    {
+        return Node.Status?.Fill switch
+        {
+            "red" => "#c00",
+            "green" => "#5a8",
+            "yellow" => "#F9DF31",
+            "blue" => "#53A3F3",
+            "grey" or "gray" => "#d3d3d3",
+            _ => Node.Status?.Fill ?? "#d3d3d3"
+        };
+    }
+}

@@ -1,0 +1,442 @@
+@* Translated from: packages/node_modules/@node-red/editor-client/src/js/ui/projects/tab-versionControl.js *@
+@* Version control tab for projects sidebar *@
+
+@inject NodeRed.Editor.Services.Projects ProjectsService
+
+<div class="red-ui-sidebar-tab-version-control">
+    <div class="vc-header">
+        <span class="vc-title">Version Control</span>
+        <div class="vc-actions">
+            <button class="red-ui-button red-ui-button-small" @onclick="Refresh" title="Refresh">
+                <i class="fa fa-refresh @(_loading ? "fa-spin" : "")"></i>
+            </button>
+        </div>
+    </div>
+
+    @if (!_initialized)
+    {
+        <div class="vc-loading">
+            <i class="fa fa-spinner fa-spin"></i> Loading...
+        </div>
+    }
+    else if (!_hasProject)
+    {
+        <div class="vc-no-project">
+            <i class="fa fa-folder-open-o"></i>
+            <p>No project opened</p>
+            <button class="red-ui-button" @onclick="OpenProject">Open Project</button>
+        </div>
+    }
+    else
+    {
+        <div class="vc-content">
+            <!-- Branch info -->
+            <div class="vc-section vc-branch-section">
+                <div class="vc-section-header">
+                    <i class="fa fa-code-fork"></i> Branch
+                </div>
+                <div class="vc-branch-info">
+                    <span class="branch-name">@_currentBranch</span>
+                    <button class="red-ui-button red-ui-button-small" @onclick="ShowBranches" title="Switch Branch">
+                        <i class="fa fa-chevron-down"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Uncommitted changes -->
+            <div class="vc-section vc-changes-section">
+                <div class="vc-section-header">
+                    <i class="fa fa-pencil"></i> 
+                    Local Changes
+                    @if (_stagedCount + _unstagedCount > 0)
+                    {
+                        <span class="change-count">(@(_stagedCount + _unstagedCount))</span>
+                    }
+                </div>
+
+                @if (_stagedCount == 0 && _unstagedCount == 0)
+                {
+                    <div class="vc-no-changes">
+                        <i class="fa fa-check-circle"></i>
+                        No uncommitted changes
+                    </div>
+                }
+                else
+                {
+                    @if (_stagedCount > 0)
+                    {
+                        <div class="vc-staged">
+                            <div class="vc-file-group-header" @onclick="@(() => _stagedExpanded = !_stagedExpanded)">
+                                <i class="fa @(_stagedExpanded ? "fa-caret-down" : "fa-caret-right")"></i>
+                                <span>Staged (@_stagedCount)</span>
+                                <button class="vc-action-btn" @onclick:stopPropagation="true" @onclick="UnstageAll" title="Unstage all">
+                                    <i class="fa fa-minus"></i>
+                                </button>
+                            </div>
+                            @if (_stagedExpanded)
+                            {
+                                <div class="vc-file-list">
+                                    @foreach (var file in _stagedFiles)
+                                    {
+                                        <div class="vc-file-item">
+                                            <span class="vc-file-status vc-status-@file.Status">@file.StatusChar</span>
+                                            <span class="vc-file-name" title="@file.Path">@file.Name</span>
+                                            <button class="vc-file-action" @onclick="@(() => UnstageFile(file.Path))" title="Unstage">
+                                                <i class="fa fa-minus"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (_unstagedCount > 0)
+                    {
+                        <div class="vc-unstaged">
+                            <div class="vc-file-group-header" @onclick="@(() => _unstagedExpanded = !_unstagedExpanded)">
+                                <i class="fa @(_unstagedExpanded ? "fa-caret-down" : "fa-caret-right")"></i>
+                                <span>Changes (@_unstagedCount)</span>
+                                <button class="vc-action-btn" @onclick:stopPropagation="true" @onclick="StageAll" title="Stage all">
+                                    <i class="fa fa-plus"></i>
+                                </button>
+                            </div>
+                            @if (_unstagedExpanded)
+                            {
+                                <div class="vc-file-list">
+                                    @foreach (var file in _unstagedFiles)
+                                    {
+                                        <div class="vc-file-item">
+                                            <span class="vc-file-status vc-status-@file.Status">@file.StatusChar</span>
+                                            <span class="vc-file-name" title="@file.Path">@file.Name</span>
+                                            <button class="vc-file-action" @onclick="@(() => StageFile(file.Path))" title="Stage">
+                                                <i class="fa fa-plus"></i>
+                                            </button>
+                                            <button class="vc-file-action" @onclick="@(() => DiscardFile(file.Path))" title="Discard">
+                                                <i class="fa fa-undo"></i>
+                                            </button>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="vc-commit-section">
+                        <textarea @bind="_commitMessage" placeholder="Commit message..." rows="2"></textarea>
+                        <button class="red-ui-button red-ui-button-small" @onclick="Commit" 
+                                disabled="@(string.IsNullOrWhiteSpace(_commitMessage) || _stagedCount == 0)">
+                            <i class="fa fa-check"></i> Commit
+                        </button>
+                    </div>
+                }
+            </div>
+
+            <!-- Commit history -->
+            <div class="vc-section vc-history-section">
+                <div class="vc-section-header" @onclick="@(() => _historyExpanded = !_historyExpanded)">
+                    <i class="fa @(_historyExpanded ? "fa-caret-down" : "fa-caret-right")"></i>
+                    <i class="fa fa-history"></i> Commit History
+                </div>
+
+                @if (_historyExpanded)
+                {
+                    <div class="vc-commit-list">
+                        @foreach (var commit in _commits.Take(10))
+                        {
+                            <div class="vc-commit-item" @onclick="@(() => ShowCommit(commit.Sha))">
+                                <div class="vc-commit-header">
+                                    <span class="vc-commit-sha">@commit.ShortSha</span>
+                                    <span class="vc-commit-date">@commit.Date.ToString("MMM dd")</span>
+                                </div>
+                                <div class="vc-commit-message">@commit.Message</div>
+                                <div class="vc-commit-author">@commit.Author</div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Remote operations -->
+            <div class="vc-section vc-remote-section">
+                <div class="vc-remote-actions">
+                    <button class="red-ui-button red-ui-button-small" @onclick="Pull" title="Pull">
+                        <i class="fa fa-arrow-down"></i> Pull
+                    </button>
+                    <button class="red-ui-button red-ui-button-small" @onclick="Push" title="Push">
+                        <i class="fa fa-arrow-up"></i> Push
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+.red-ui-sidebar-tab-version-control {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.vc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+    background: #f5f5f5;
+}
+.vc-title {
+    font-weight: 500;
+}
+.vc-loading, .vc-no-project {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+}
+.vc-no-project i {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 10px;
+}
+.vc-content {
+    flex: 1;
+    overflow: auto;
+}
+.vc-section {
+    border-bottom: 1px solid #ddd;
+}
+.vc-section-header {
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #f9f9f9;
+    cursor: pointer;
+}
+.vc-section-header i {
+    margin-right: 4px;
+}
+.change-count {
+    color: #666;
+}
+.vc-branch-info {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    gap: 8px;
+}
+.branch-name {
+    flex: 1;
+    font-family: monospace;
+}
+.vc-no-changes {
+    padding: 12px;
+    color: #080;
+    font-size: 12px;
+}
+.vc-no-changes i {
+    margin-right: 4px;
+}
+.vc-file-group-header {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    gap: 4px;
+}
+.vc-file-group-header:hover {
+    background: #f0f0f0;
+}
+.vc-action-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+.vc-action-btn:hover {
+    color: #333;
+}
+.vc-file-list {
+    padding-left: 16px;
+}
+.vc-file-item {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    font-size: 12px;
+    gap: 6px;
+}
+.vc-file-item:hover {
+    background: #f5f5f5;
+}
+.vc-file-status {
+    width: 14px;
+    font-weight: 600;
+    text-align: center;
+}
+.vc-status-modified { color: #da0; }
+.vc-status-added { color: #0a0; }
+.vc-status-deleted { color: #a00; }
+.vc-status-renamed { color: #0aa; }
+.vc-file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.vc-file-action {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    padding: 2px;
+}
+.vc-file-action:hover {
+    color: #333;
+}
+.vc-commit-section {
+    padding: 8px;
+    display: flex;
+    gap: 8px;
+}
+.vc-commit-section textarea {
+    flex: 1;
+    resize: none;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+}
+.vc-commit-list {
+    max-height: 200px;
+    overflow: auto;
+}
+.vc-commit-item {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    font-size: 12px;
+}
+.vc-commit-item:hover {
+    background: #f5f5f5;
+}
+.vc-commit-header {
+    display: flex;
+    justify-content: space-between;
+}
+.vc-commit-sha {
+    font-family: monospace;
+    color: #06c;
+}
+.vc-commit-date {
+    color: #999;
+}
+.vc-commit-message {
+    margin: 4px 0;
+}
+.vc-commit-author {
+    color: #666;
+}
+.vc-remote-actions {
+    padding: 8px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+</style>
+
+@code {
+    private bool _initialized = false;
+    private bool _loading = false;
+    private bool _hasProject = false;
+    private string _currentBranch = "main";
+    private string _commitMessage = "";
+
+    private bool _stagedExpanded = true;
+    private bool _unstagedExpanded = true;
+    private bool _historyExpanded = false;
+
+    private int _stagedCount = 0;
+    private int _unstagedCount = 0;
+    private List<FileChange> _stagedFiles = new();
+    private List<FileChange> _unstagedFiles = new();
+    private List<CommitInfo> _commits = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Refresh();
+    }
+
+    private async Task Refresh()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            _hasProject = ProjectsService.HasActiveProject;
+            
+            if (_hasProject)
+            {
+                _currentBranch = ProjectsService.CurrentBranch ?? "main";
+                
+                // Simulated data - actual implementation would call git
+                _stagedFiles = new List<FileChange>
+                {
+                    new FileChange { Path = "flows.json", Name = "flows.json", Status = "modified", StatusChar = "M" }
+                };
+                _unstagedFiles = new List<FileChange>
+                {
+                    new FileChange { Path = ".flows.json.backup", Name = ".flows.json.backup", Status = "added", StatusChar = "A" }
+                };
+                
+                _stagedCount = _stagedFiles.Count;
+                _unstagedCount = _unstagedFiles.Count;
+
+                _commits = new List<CommitInfo>
+                {
+                    new CommitInfo { Sha = "abc1234", ShortSha = "abc1234", Message = "Update flows", Author = "user", Date = DateTime.Now.AddHours(-2) },
+                    new CommitInfo { Sha = "def5678", ShortSha = "def5678", Message = "Initial commit", Author = "user", Date = DateTime.Now.AddDays(-1) }
+                };
+            }
+
+            _initialized = true;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private Task OpenProject() => Task.CompletedTask;
+    private Task ShowBranches() => Task.CompletedTask;
+    private Task StageFile(string path) => Task.CompletedTask;
+    private Task UnstageFile(string path) => Task.CompletedTask;
+    private Task DiscardFile(string path) => Task.CompletedTask;
+    private Task StageAll() => Task.CompletedTask;
+    private Task UnstageAll() => Task.CompletedTask;
+    private Task Commit() => Task.CompletedTask;
+    private Task ShowCommit(string sha) => Task.CompletedTask;
+    private Task Pull() => Task.CompletedTask;
+    private Task Push() => Task.CompletedTask;
+
+    private class FileChange
+    {
+        public string Path { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Status { get; set; } = "";
+        public string StatusChar { get; set; } = "";
+    }
+
+    private class CommitInfo
+    {
+        public string Sha { get; set; } = "";
+        public string ShortSha { get; set; } = "";
+        public string Message { get; set; } = "";
+        public string Author { get; set; } = "";
+        public DateTime Date { get; set; }
+    }
+}

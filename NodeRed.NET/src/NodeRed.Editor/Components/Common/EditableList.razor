@@ -1,0 +1,215 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/common/editableList.js
+   ============================================================
+   TRANSLATION: JavaScript editableList to Blazor component
+   ============================================================ *@
+
+@using Microsoft.AspNetCore.Components
+@typeparam TItem
+
+<div class="red-ui-editableList @Class">
+    <div class="red-ui-editableList-header">
+        @if (!string.IsNullOrEmpty(Header))
+        {
+            <span class="red-ui-editableList-header-text">@Header</span>
+        }
+        @if (Addable)
+        {
+            <button class="red-ui-editableList-addBtn" @onclick="AddItem">
+                <i class="fa fa-plus"></i> @AddLabel
+            </button>
+        }
+    </div>
+    <div class="red-ui-editableList-container">
+        <ul class="red-ui-editableList-list">
+            @if (Items != null)
+            {
+                @foreach (var (item, index) in Items.Select((x, i) => (x, i)))
+                {
+                    <li class="red-ui-editableList-item" draggable="@Sortable.ToString().ToLower()"
+                        @ondragstart="() => DragStart(index)"
+                        @ondragover:preventDefault="true"
+                        @ondrop="() => Drop(index)">
+                        @if (Sortable)
+                        {
+                            <span class="red-ui-editableList-item-handle">
+                                <i class="fa fa-bars"></i>
+                            </span>
+                        }
+                        <div class="red-ui-editableList-item-content">
+                            @ItemTemplate?.Invoke(item)
+                        </div>
+                        @if (Removable)
+                        {
+                            <button class="red-ui-editableList-item-remove" @onclick="() => RemoveItem(index)">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        }
+                    </li>
+                }
+            }
+        </ul>
+        @if (Items == null || !Items.Any())
+        {
+            <div class="red-ui-editableList-empty">@EmptyText</div>
+        }
+    </div>
+</div>
+
+<style>
+    .red-ui-editableList {
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        background: white;
+    }
+    .red-ui-editableList-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 10px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+    }
+    .red-ui-editableList-header-text {
+        font-weight: 500;
+    }
+    .red-ui-editableList-addBtn {
+        padding: 4px 10px;
+        font-size: 12px;
+        border: 1px solid #ccc;
+        background: white;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+    .red-ui-editableList-addBtn:hover {
+        background: #f0f0f0;
+    }
+    .red-ui-editableList-container {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .red-ui-editableList-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    .red-ui-editableList-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 10px;
+        border-bottom: 1px solid #eee;
+    }
+    .red-ui-editableList-item:last-child {
+        border-bottom: none;
+    }
+    .red-ui-editableList-item-handle {
+        cursor: move;
+        color: #888;
+        margin-right: 10px;
+    }
+    .red-ui-editableList-item-content {
+        flex: 1;
+    }
+    .red-ui-editableList-item-remove {
+        background: none;
+        border: none;
+        color: #c00;
+        cursor: pointer;
+        padding: 4px 8px;
+        opacity: 0.5;
+    }
+    .red-ui-editableList-item-remove:hover {
+        opacity: 1;
+    }
+    .red-ui-editableList-empty {
+        padding: 20px;
+        text-align: center;
+        color: #888;
+    }
+</style>
+
+@code {
+    [Parameter] public IList<TItem>? Items { get; set; }
+    [Parameter] public EventCallback<IList<TItem>> ItemsChanged { get; set; }
+    [Parameter] public RenderFragment<TItem>? ItemTemplate { get; set; }
+    [Parameter] public string? Header { get; set; }
+    [Parameter] public string AddLabel { get; set; } = "add";
+    [Parameter] public string EmptyText { get; set; } = "No items";
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public bool Addable { get; set; } = true;
+    [Parameter] public bool Removable { get; set; } = true;
+    [Parameter] public bool Sortable { get; set; } = false;
+    [Parameter] public Func<TItem>? CreateItem { get; set; }
+    [Parameter] public EventCallback<TItem> OnItemAdded { get; set; }
+    [Parameter] public EventCallback<TItem> OnItemRemoved { get; set; }
+    [Parameter] public EventCallback<IList<TItem>> OnItemsReordered { get; set; }
+
+    private int _dragIndex = -1;
+
+    private async Task AddItem()
+    {
+        if (Items == null) return;
+
+        TItem newItem = CreateItem != null ? CreateItem() : default!;
+        Items.Add(newItem);
+        
+        await ItemsChanged.InvokeAsync(Items);
+        await OnItemAdded.InvokeAsync(newItem);
+    }
+
+    private async Task RemoveItem(int index)
+    {
+        if (Items == null || index < 0 || index >= Items.Count) return;
+
+        var item = Items[index];
+        Items.RemoveAt(index);
+        
+        await ItemsChanged.InvokeAsync(Items);
+        await OnItemRemoved.InvokeAsync(item);
+    }
+
+    private void DragStart(int index)
+    {
+        _dragIndex = index;
+    }
+
+    private async Task Drop(int targetIndex)
+    {
+        if (Items == null || _dragIndex < 0 || _dragIndex == targetIndex) return;
+
+        var item = Items[_dragIndex];
+        Items.RemoveAt(_dragIndex);
+        
+        if (targetIndex > _dragIndex) targetIndex--;
+        Items.Insert(targetIndex, item);
+        
+        _dragIndex = -1;
+        
+        await ItemsChanged.InvokeAsync(Items);
+        await OnItemsReordered.InvokeAsync(Items);
+    }
+
+    public IList<TItem>? GetItems() => Items;
+    public int Count => Items?.Count ?? 0;
+
+    public async Task Clear()
+    {
+        if (Items != null)
+        {
+            Items.Clear();
+            await ItemsChanged.InvokeAsync(Items);
+        }
+    }
+
+    public async Task AddItems(IEnumerable<TItem> items)
+    {
+        if (Items != null)
+        {
+            foreach (var item in items)
+            {
+                Items.Add(item);
+            }
+            await ItemsChanged.InvokeAsync(Items);
+        }
+    }
+}
