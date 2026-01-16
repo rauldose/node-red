@@ -660,16 +660,22 @@
         else if (_mouseMode == MouseMode.Joining && !_wireCompleted)
         {
             // Wire creation cancelled (didn't land on a port)
-            _wireSourceNode = null;
-            _wireSourcePortIndex = 0;
-            DragLines.Clear();
+            ClearWireState();
         }
         
-        // Reset completed flag for next operation
-        _wireCompleted = false;
         _mouseMode = MouseMode.None;
         _mousedownNode = null;
         InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Clear wire creation state
+    /// </summary>
+    private void ClearWireState()
+    {
+        _wireSourceNode = null;
+        _wireSourcePortIndex = 0;
+        DragLines.Clear();
     }
 
     private void SelectNode(FlowNode node)
@@ -842,10 +848,8 @@
         }
         
         // Clear wire state
-        _wireSourceNode = null;
-        _wireSourcePortIndex = 0;
+        ClearWireState();
         _mouseMode = MouseMode.None;
-        DragLines.Clear();
         StateHasChanged();
     }
 
