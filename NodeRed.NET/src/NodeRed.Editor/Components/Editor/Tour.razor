@@ -1,0 +1,282 @@
+@* Source: @node-red/editor-client/src/js/ui/tour/* + actionList.js *@
+@* Translated to Blazor for NodeRed.NET *@
+
+@* Tour/Onboarding component *@
+
+<div class="red-ui-tour @(IsActive ? "active" : "")">
+    @if (IsActive && CurrentStep != null)
+    {
+        <div class="tour-overlay" @onclick="Skip"></div>
+        <div class="tour-popup" style="@GetPopupPosition()">
+            <div class="tour-header">
+                <span class="tour-title">@CurrentStep.Title</span>
+                <span class="tour-progress">Step @(CurrentStepIndex + 1) of @Steps.Count</span>
+            </div>
+            <div class="tour-content">
+                @((MarkupString)CurrentStep.Content)
+            </div>
+            <div class="tour-footer">
+                <button class="tour-skip" @onclick="Skip">Skip Tour</button>
+                <div class="tour-nav">
+                    @if (CurrentStepIndex > 0)
+                    {
+                        <button class="tour-prev" @onclick="Previous">
+                            <i class="fa fa-chevron-left"></i> Previous
+                        </button>
+                    }
+                    @if (CurrentStepIndex < Steps.Count - 1)
+                    {
+                        <button class="tour-next" @onclick="Next">
+                            Next <i class="fa fa-chevron-right"></i>
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="tour-finish" @onclick="Finish">
+                            Finish <i class="fa fa-check"></i>
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+        @if (!string.IsNullOrEmpty(CurrentStep.HighlightSelector))
+        {
+            <div class="tour-highlight" style="@GetHighlightStyle()"></div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public bool IsActive { get; set; }
+    [Parameter] public EventCallback<bool> IsActiveChanged { get; set; }
+    [Parameter] public List<TourStep> Steps { get; set; } = new();
+    [Parameter] public EventCallback OnComplete { get; set; }
+    [Parameter] public EventCallback OnSkip { get; set; }
+    
+    private int CurrentStepIndex { get; set; } = 0;
+    private TourStep? CurrentStep => Steps.Count > CurrentStepIndex ? Steps[CurrentStepIndex] : null;
+    
+    public void Start()
+    {
+        CurrentStepIndex = 0;
+        IsActive = true;
+        IsActiveChanged.InvokeAsync(true);
+    }
+    
+    private void Next()
+    {
+        if (CurrentStepIndex < Steps.Count - 1)
+        {
+            CurrentStepIndex++;
+        }
+    }
+    
+    private void Previous()
+    {
+        if (CurrentStepIndex > 0)
+        {
+            CurrentStepIndex--;
+        }
+    }
+    
+    private async Task Skip()
+    {
+        IsActive = false;
+        await IsActiveChanged.InvokeAsync(false);
+        await OnSkip.InvokeAsync();
+    }
+    
+    private async Task Finish()
+    {
+        IsActive = false;
+        await IsActiveChanged.InvokeAsync(false);
+        await OnComplete.InvokeAsync();
+    }
+    
+    private string GetPopupPosition()
+    {
+        if (CurrentStep == null) return "";
+        
+        return CurrentStep.Position switch
+        {
+            TourPosition.TopLeft => "top: 100px; left: 100px;",
+            TourPosition.TopRight => "top: 100px; right: 100px;",
+            TourPosition.BottomLeft => "bottom: 100px; left: 100px;",
+            TourPosition.BottomRight => "bottom: 100px; right: 100px;",
+            TourPosition.Center => "top: 50%; left: 50%; transform: translate(-50%, -50%);",
+            _ => "top: 50%; left: 50%; transform: translate(-50%, -50%);"
+        };
+    }
+    
+    private string GetHighlightStyle()
+    {
+        // Highlight style would be calculated based on the target element
+        return "display: none;"; // Placeholder
+    }
+    
+    /// <summary>
+    /// Initialize the welcome tour.
+    /// Translated from: tour.run = function(steps)
+    /// </summary>
+    public static List<TourStep> GetWelcomeTour()
+    {
+        return new List<TourStep>
+        {
+            new TourStep
+            {
+                Title = "Welcome to Node-RED.NET",
+                Content = "<p>This quick tour will show you around the editor.</p><p>Click 'Next' to continue or 'Skip Tour' to start using the editor.</p>",
+                Position = TourPosition.Center
+            },
+            new TourStep
+            {
+                Title = "The Palette",
+                Content = "<p>The palette on the left contains all of the nodes available to use.</p><p>You can drag nodes from here onto the workspace to add them to your flow.</p>",
+                Position = TourPosition.TopLeft,
+                HighlightSelector = ".red-ui-palette"
+            },
+            new TourStep
+            {
+                Title = "The Workspace",
+                Content = "<p>The workspace is where you design your flows.</p><p>Double-click nodes to edit their properties, or draw wires between them to create flows.</p>",
+                Position = TourPosition.Center,
+                HighlightSelector = ".red-ui-workspace"
+            },
+            new TourStep
+            {
+                Title = "The Sidebar",
+                Content = "<p>The sidebar contains panels with additional information.</p><p>The Info panel shows help about the selected node. The Debug panel shows messages from debug nodes.</p>",
+                Position = TourPosition.TopRight,
+                HighlightSelector = ".red-ui-sidebar"
+            },
+            new TourStep
+            {
+                Title = "Deploy",
+                Content = "<p>When you've made changes to your flow, click the Deploy button to apply them.</p>",
+                Position = TourPosition.TopRight,
+                HighlightSelector = ".deploy-button"
+            },
+            new TourStep
+            {
+                Title = "Ready to Go!",
+                Content = "<p>You're ready to start building flows.</p><p>Check out the documentation for more help getting started.</p>",
+                Position = TourPosition.Center
+            }
+        };
+    }
+    
+    public class TourStep
+    {
+        public string Title { get; set; } = "";
+        public string Content { get; set; } = "";
+        public TourPosition Position { get; set; } = TourPosition.Center;
+        public string? HighlightSelector { get; set; }
+    }
+    
+    public enum TourPosition
+    {
+        TopLeft,
+        TopRight,
+        BottomLeft,
+        BottomRight,
+        Center
+    }
+}
+
+<style>
+    .red-ui-tour {
+        display: none;
+    }
+    .red-ui-tour.active {
+        display: block;
+    }
+    .tour-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 9999;
+    }
+    .tour-popup {
+        position: fixed;
+        width: 400px;
+        background: white;
+        border-radius: 4px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        z-index: 10001;
+    }
+    .tour-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: #c0392b;
+        color: white;
+        border-radius: 4px 4px 0 0;
+    }
+    .tour-title {
+        font-weight: bold;
+        font-size: 1.1em;
+    }
+    .tour-progress {
+        font-size: 0.9em;
+        opacity: 0.9;
+    }
+    .tour-content {
+        padding: 16px;
+        line-height: 1.6;
+    }
+    .tour-content p {
+        margin: 0 0 12px 0;
+    }
+    .tour-content p:last-child {
+        margin-bottom: 0;
+    }
+    .tour-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: #f5f5f5;
+        border-top: 1px solid #ddd;
+        border-radius: 0 0 4px 4px;
+    }
+    .tour-skip {
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+    }
+    .tour-skip:hover {
+        color: #333;
+    }
+    .tour-nav {
+        display: flex;
+        gap: 8px;
+    }
+    .tour-prev, .tour-next, .tour-finish {
+        padding: 6px 14px;
+        border: 1px solid #ccc;
+        background: white;
+        cursor: pointer;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .tour-next, .tour-finish {
+        background: #c0392b;
+        color: white;
+        border-color: #c0392b;
+    }
+    .tour-highlight {
+        position: fixed;
+        border: 3px solid #c0392b;
+        border-radius: 4px;
+        z-index: 10000;
+        pointer-events: none;
+        box-shadow: 0 0 0 9999px rgba(0,0,0,0.4);
+    }
+</style>

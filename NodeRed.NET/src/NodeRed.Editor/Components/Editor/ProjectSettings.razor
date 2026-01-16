@@ -1,0 +1,291 @@
+@* Source: @node-red/editor-client/src/js/ui/projects/*.js *@
+@* Translated to Blazor for NodeRed.NET *@
+
+@inject NodeRed.Editor.Services.Projects ProjectsService
+
+<div class="red-ui-project-settings">
+    <div class="project-settings-header">
+        <h3>Project Settings</h3>
+        @if (Project != null)
+        {
+            <span class="project-name">@Project.Name</span>
+        }
+    </div>
+    
+    <div class="project-settings-tabs">
+        <button class="@(ActiveTab == "project" ? "active" : "")" 
+                @onclick="SetTabProject">Project</button>
+        <button class="@(ActiveTab == "dependencies" ? "active" : "")" 
+                @onclick="SetTabDependencies">Dependencies</button>
+        <button class="@(ActiveTab == "settings" ? "active" : "")" 
+                @onclick="SetTabSettings">Settings</button>
+    </div>
+    
+    <div class="project-settings-content">
+        @if (ActiveTab == "project")
+        {
+            <div class="project-tab-content">
+                <div class="form-row">
+                    <label>Name</label>
+                    <input type="text" @bind="ProjectName" placeholder="Project name" />
+                </div>
+                <div class="form-row">
+                    <label>Version</label>
+                    <input type="text" @bind="ProjectVersion" placeholder="0.0.1" />
+                </div>
+                <div class="form-row">
+                    <label>Description</label>
+                    <textarea @bind="ProjectDescription" rows="3" placeholder="Project description"></textarea>
+                </div>
+                <div class="form-row">
+                    <label>Summary</label>
+                    <input type="text" @bind="ProjectSummary" placeholder="Short summary" />
+                </div>
+            </div>
+        }
+        else if (ActiveTab == "dependencies")
+        {
+            <div class="dependencies-tab-content">
+                <div class="dependencies-header">
+                    <span>Node Dependencies</span>
+                    <button class="add-dependency-btn" @onclick="AddDependency">
+                        <i class="fa fa-plus"></i> Add
+                    </button>
+                </div>
+                <div class="dependencies-list">
+                    @foreach (var dep in Dependencies)
+                    {
+                        <div class="dependency-row">
+                            <span class="dep-name">@dep.Name</span>
+                            <span class="dep-version">@dep.Version</span>
+                            <button class="remove-btn" @onclick="() => RemoveDependency(dep)">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        </div>
+                    }
+                    @if (!Dependencies.Any())
+                    {
+                        <div class="no-dependencies">No dependencies configured</div>
+                    }
+                </div>
+            </div>
+        }
+        else if (ActiveTab == "settings")
+        {
+            <div class="settings-tab-content">
+                <div class="form-row">
+                    <label>
+                        <input type="checkbox" @bind="EncryptCredentials" />
+                        Encrypt credentials
+                    </label>
+                </div>
+                <div class="form-row">
+                    <label>Credential Secret</label>
+                    <input type="password" @bind="CredentialSecret" placeholder="Secret key" />
+                </div>
+                <div class="form-row">
+                    <label>Flow File</label>
+                    <input type="text" @bind="FlowFile" placeholder="flows.json" />
+                </div>
+                <div class="form-row">
+                    <label>Credentials File</label>
+                    <input type="text" @bind="CredentialsFile" placeholder="flows_cred.json" />
+                </div>
+            </div>
+        }
+    </div>
+    
+    <div class="project-settings-footer">
+        <button class="btn-cancel" @onclick="Cancel">Cancel</button>
+        <button class="btn-save" @onclick="Save">Save</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public NodeRed.Editor.Services.Project? Project { get; set; }
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    
+    private string ActiveTab { get; set; } = "project";
+    
+    private void SetActiveTab(string tab) => ActiveTab = tab;
+    private void SetTabProject() => ActiveTab = "project";
+    private void SetTabDependencies() => ActiveTab = "dependencies";
+    private void SetTabSettings() => ActiveTab = "settings";
+    
+    // Project tab
+    private string ProjectName { get; set; } = "";
+    private string ProjectVersion { get; set; } = "0.0.1";
+    private string ProjectDescription { get; set; } = "";
+    private string ProjectSummary { get; set; } = "";
+    
+    // Dependencies tab
+    private List<Dependency> Dependencies { get; set; } = new();
+    
+    // Settings tab
+    private bool EncryptCredentials { get; set; } = true;
+    private string CredentialSecret { get; set; } = "";
+    private string FlowFile { get; set; } = "flows.json";
+    private string CredentialsFile { get; set; } = "flows_cred.json";
+    
+    protected override void OnParametersSet()
+    {
+        if (Project != null)
+        {
+            ProjectName = Project.Name;
+            ProjectVersion = Project.Version;
+            ProjectDescription = Project.Description;
+            ProjectSummary = Project.Summary;
+            FlowFile = Project.Files.Flow;
+            CredentialsFile = Project.Files.Credentials;
+            EncryptCredentials = Project.Settings.EncryptCredentials;
+        }
+    }
+    
+    private void AddDependency()
+    {
+        Dependencies.Add(new Dependency { Name = "", Version = "*" });
+    }
+    
+    private void RemoveDependency(Dependency dep)
+    {
+        Dependencies.Remove(dep);
+    }
+    
+    private async Task Save()
+    {
+        if (Project != null)
+        {
+            Project.Name = ProjectName;
+            Project.Version = ProjectVersion;
+            Project.Description = ProjectDescription;
+            Project.Summary = ProjectSummary;
+            Project.Files.Flow = FlowFile;
+            Project.Files.Credentials = CredentialsFile;
+            Project.Settings.EncryptCredentials = EncryptCredentials;
+            Project.ModifiedAt = DateTime.UtcNow;
+        }
+        await OnSave.InvokeAsync();
+    }
+    
+    private async Task Cancel()
+    {
+        await OnCancel.InvokeAsync();
+    }
+    
+    private class Dependency
+    {
+        public string Name { get; set; } = "";
+        public string Version { get; set; } = "*";
+    }
+}
+
+<style>
+    .red-ui-project-settings {
+        padding: 16px;
+        max-width: 600px;
+    }
+    .project-settings-header {
+        margin-bottom: 16px;
+    }
+    .project-settings-header h3 {
+        margin: 0 0 4px 0;
+    }
+    .project-name {
+        color: #666;
+        font-size: 0.9em;
+    }
+    .project-settings-tabs {
+        display: flex;
+        border-bottom: 1px solid #ddd;
+        margin-bottom: 16px;
+    }
+    .project-settings-tabs button {
+        padding: 8px 16px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+    }
+    .project-settings-tabs button.active {
+        border-bottom-color: #c0392b;
+        font-weight: bold;
+    }
+    .project-settings-tabs button:hover:not(.active) {
+        background: #f5f5f5;
+    }
+    .form-row {
+        margin-bottom: 12px;
+    }
+    .form-row label {
+        display: block;
+        margin-bottom: 4px;
+        font-weight: 500;
+    }
+    .form-row input[type="text"],
+    .form-row input[type="password"],
+    .form-row textarea {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+    .dependencies-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    .add-dependency-btn {
+        padding: 4px 12px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+    .dependency-row {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        border: 1px solid #ddd;
+        margin-bottom: 4px;
+    }
+    .dep-name {
+        flex: 1;
+    }
+    .dep-version {
+        color: #666;
+        margin-right: 12px;
+    }
+    .remove-btn {
+        background: none;
+        border: none;
+        color: #c0392b;
+        cursor: pointer;
+    }
+    .no-dependencies {
+        color: #888;
+        padding: 16px;
+        text-align: center;
+    }
+    .project-settings-footer {
+        margin-top: 24px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+    .btn-cancel {
+        padding: 8px 16px;
+        border: 1px solid #ccc;
+        background: white;
+        cursor: pointer;
+    }
+    .btn-save {
+        padding: 8px 16px;
+        background: #c0392b;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+</style>

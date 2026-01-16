@@ -1,0 +1,155 @@
+@* Source: @node-red/editor-client/src/js/ui/view-navigator.js *@
+@* Translated to Blazor for NodeRed.NET - Mini-map navigator component *@
+
+@inject NodeRed.Editor.Services.EditorState State
+
+<div class="red-ui-view-navigator @(IsVisible ? "visible" : "")" 
+     style="@GetPositionStyle()"
+     @onmousedown="OnMouseDown"
+     @onmousedown:stopPropagation>
+    <div class="navigator-header">
+        <span>Navigator</span>
+        <button class="close-btn" @onclick="() => IsVisible = false">
+            <i class="fa fa-times"></i>
+        </button>
+    </div>
+    <div class="navigator-canvas" @ref="_canvasRef">
+        <svg width="200" height="150" viewBox="@ViewBox">
+            @* Grid background *@
+            <rect x="@BoundsX" y="@BoundsY" width="@BoundsWidth" height="@BoundsHeight" 
+                  fill="#f5f5f5" stroke="#ddd" />
+            
+            @* Nodes *@
+            @foreach (var node in GetVisibleNodes())
+            {
+                var x = GetNodeX(node);
+                var y = GetNodeY(node);
+                var color = GetNodeColor(node);
+                <rect x="@x" y="@y" width="12" height="3" 
+                      fill="@color" stroke="#333" stroke-width="0.2" rx="1" />
+            }
+            
+            @* Viewport rectangle *@
+            <rect x="@ViewportX" y="@ViewportY" 
+                  width="@ViewportWidth" height="@ViewportHeight"
+                  fill="rgba(0,100,200,0.1)" stroke="#0064c8" stroke-width="1"
+                  style="cursor: move" />
+        </svg>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool IsVisible { get; set; } = false;
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+    [Parameter] public double CanvasWidth { get; set; } = 2000;
+    [Parameter] public double CanvasHeight { get; set; } = 1500;
+    [Parameter] public double ScrollX { get; set; } = 0;
+    [Parameter] public double ScrollY { get; set; } = 0;
+    [Parameter] public double ViewWidth { get; set; } = 800;
+    [Parameter] public double ViewHeight { get; set; } = 600;
+    [Parameter] public EventCallback<(double x, double y)> OnNavigate { get; set; }
+    
+    private ElementReference _canvasRef;
+    private double _scale = 0.1;
+    
+    // Bounds
+    private double BoundsX => 0;
+    private double BoundsY => 0;
+    private double BoundsWidth => CanvasWidth * _scale;
+    private double BoundsHeight => CanvasHeight * _scale;
+    
+    // Viewport
+    private double ViewportX => ScrollX * _scale;
+    private double ViewportY => ScrollY * _scale;
+    private double ViewportWidth => ViewWidth * _scale;
+    private double ViewportHeight => ViewHeight * _scale;
+    
+    private string ViewBox => $"0 0 {CanvasWidth * _scale} {CanvasHeight * _scale}";
+    
+    private string GetPositionStyle()
+    {
+        return "position: absolute; bottom: 10px; right: 10px;";
+    }
+    
+    private IEnumerable<Dictionary<string, object>> GetVisibleNodes()
+    {
+        var activeFlow = State.Workspaces.Active();
+        // TODO: Get nodes when API is available
+        return new List<Dictionary<string, object>>();
+    }
+    
+    private double GetNodeX(Dictionary<string, object> node)
+    {
+        return node.TryGetValue("x", out var x) ? Convert.ToDouble(x) * _scale : 0;
+    }
+    
+    private double GetNodeY(Dictionary<string, object> node)
+    {
+        return node.TryGetValue("y", out var y) ? Convert.ToDouble(y) * _scale : 0;
+    }
+    
+    private string GetNodeColor(Dictionary<string, object> node)
+    {
+        // Return color based on node type
+        if (node.TryGetValue("type", out var typeObj))
+        {
+            var type = typeObj?.ToString() ?? "";
+            return type switch
+            {
+                "inject" => "#a6bbcf",
+                "debug" => "#87a980",
+                "function" => "#fdd0a2",
+                "switch" => "#fdd0a2",
+                "change" => "#fdd0a2",
+                "http request" => "#e97b00",
+                "http in" => "#c0392b",
+                "http response" => "#c0392b",
+                _ => "#ddd"
+            };
+        }
+        return "#ddd";
+    }
+    
+    private async Task OnMouseDown(MouseEventArgs e)
+    {
+        // Convert click position to canvas coordinates
+        var canvasX = (e.OffsetX / _scale) - (ViewWidth / 2);
+        var canvasY = (e.OffsetY / _scale) - (ViewHeight / 2);
+        
+        await OnNavigate.InvokeAsync((canvasX, canvasY));
+    }
+}
+
+<style>
+    .red-ui-view-navigator {
+        display: none;
+        background: white;
+        border: 1px solid #ccc;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        z-index: 100;
+    }
+    .red-ui-view-navigator.visible {
+        display: block;
+    }
+    .navigator-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 8px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        font-size: 0.9em;
+    }
+    .navigator-header .close-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 2px 6px;
+    }
+    .navigator-canvas {
+        padding: 4px;
+    }
+    .navigator-canvas svg {
+        display: block;
+    }
+</style>
