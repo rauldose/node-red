@@ -96,12 +96,42 @@
                     {
                         @foreach (var subflow in State.Nodes.GetSubflows())
                         {
+                            var subflowNodes = GetNodesInSubflow(subflow.Id);
+                            var subflowNodeCount = subflowNodes.Count();
+                            var isSubflowExpanded = ExpandedSubflows.Contains(subflow.Id);
                             <div class="red-ui-treeList-item @(SelectedOutlineItem == subflow.Id ? "selected" : "")"
                                  style="padding-left: 20px; cursor: pointer;"
-                                 @onclick="() => SelectSubflow(subflow)">
+                                 @onclick="() => ToggleSubflowExpand(subflow)">
+                                <i class="fa @(isSubflowExpanded ? "fa-caret-down" : "fa-caret-right")" style="width: 12px; margin-right: 2px;"></i>
                                 <i class="fa fa-cube" style="margin-right: 6px; color: #c77;"></i>
                                 <span>@(string.IsNullOrEmpty(subflow.Name) ? "Unnamed Subflow" : subflow.Name)</span>
+                                @if (subflowNodeCount > 0)
+                                {
+                                    <span style="color: #888; margin-left: 6px;">(@subflowNodeCount)</span>
+                                }
                             </div>
+                            @* Subflow content - nodes inside the subflow *@
+                            @if (isSubflowExpanded)
+                            {
+                                @if (subflowNodes.Any())
+                                {
+                                    @foreach (var node in subflowNodes)
+                                    {
+                                        <div class="red-ui-treeList-item @(SelectedOutlineItem == node.Id ? "selected" : "")"
+                                             style="padding-left: 48px; cursor: pointer;"
+                                             @onclick="() => SelectNode(node)" @onclick:stopPropagation="true">
+                                            <span class="red-ui-palette-icon-small" style="background-color: @GetNodeColor(node.Type); width: 14px; height: 14px; display: inline-block; border-radius: 2px;"></span>
+                                            <span style="margin-left: 6px; font-size: 11px;">@(string.IsNullOrEmpty(node.Name) ? node.Type : node.Name)</span>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="red-ui-treeList-item" style="padding-left: 48px; color: #888; font-style: italic; font-size: 11px;">
+                                        (empty subflow)
+                                    </div>
+                                }
+                            }
                         }
                     }
                     else
@@ -252,6 +282,7 @@
     private bool SubflowsExpanded = true;
     private bool ShowFlowNodes = false;
     private bool ShowProperties = false;
+    private HashSet<string> ExpandedSubflows = new HashSet<string>();
 
     protected override void OnInitialized()
     {
@@ -306,6 +337,32 @@
         SelectedOutlineItem = subflow.Id;
         State.Events.Emit("subflow:selected", subflow);
         StateHasChanged();
+    }
+
+    private void ToggleSubflowExpand(Subflow subflow)
+    {
+        // Toggle expansion
+        if (ExpandedSubflows.Contains(subflow.Id))
+        {
+            ExpandedSubflows.Remove(subflow.Id);
+        }
+        else
+        {
+            ExpandedSubflows.Add(subflow.Id);
+        }
+        // Also select the subflow
+        SelectedSubflow = subflow;
+        SelectedWorkspace = null;
+        SelectedNode = null;
+        SelectedOutlineItem = subflow.Id;
+        State.Events.Emit("subflow:selected", subflow);
+        StateHasChanged();
+    }
+
+    private IEnumerable<FlowNode> GetNodesInSubflow(string subflowId)
+    {
+        // Get nodes where z == subflowId (nodes inside the subflow)
+        return State.Nodes.GetNodes().Where(n => n.Z == subflowId);
     }
 
     private void RevealInOutline()
