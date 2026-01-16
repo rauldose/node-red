@@ -1,0 +1,568 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/palette-editor.js
+   ============================================================
+   TRANSLATION: JavaScript palette-editor module to Blazor component
+   ============================================================ *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+<div class="red-ui-palette-editor @(IsVisible ? "visible" : "")">
+    @if (IsVisible)
+    {
+        <div class="red-ui-palette-editor-overlay" @onclick="Hide"></div>
+        <div class="red-ui-palette-editor-panel">
+            <div class="red-ui-palette-editor-header">
+                <span class="red-ui-palette-editor-title">Manage palette</span>
+                <button class="red-ui-palette-editor-close" @onclick="Hide">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="red-ui-palette-editor-tabs">
+                <div class="red-ui-palette-editor-tab @(ActiveTab == "nodes" ? "active" : "")"
+                     @onclick='() => ActiveTab = "nodes"'>
+                    Nodes
+                </div>
+                <div class="red-ui-palette-editor-tab @(ActiveTab == "install" ? "active" : "")"
+                     @onclick='() => ActiveTab = "install"'>
+                    Install
+                </div>
+            </div>
+            
+            <div class="red-ui-palette-editor-content">
+                @if (ActiveTab == "nodes")
+                {
+                    <div class="red-ui-palette-editor-search">
+                        <input type="text" 
+                               placeholder="Filter nodes..." 
+                               @bind-value="FilterText"
+                               @bind-value:event="oninput" />
+                    </div>
+                    
+                    <div class="red-ui-palette-editor-modules">
+                        @foreach (var module in GetFilteredModules())
+                        {
+                            <div class="red-ui-palette-editor-module @(module.Expanded ? "expanded" : "")">
+                                <div class="red-ui-palette-editor-module-header" @onclick="() => ToggleModule(module)">
+                                    <i class="fa @(module.Expanded ? "fa-chevron-down" : "fa-chevron-right")"></i>
+                                    <span class="red-ui-palette-editor-module-name">@module.Name</span>
+                                    <span class="red-ui-palette-editor-module-version">@module.Version</span>
+                                    <span class="red-ui-palette-editor-module-count">@module.Nodes.Count nodes</span>
+                                    <div class="red-ui-palette-editor-module-actions">
+                                        @if (module.CanDisable)
+                                        {
+                                            <button class="red-ui-palette-editor-module-btn" 
+                                                    @onclick="() => ToggleModuleEnabled(module)"
+                                                    @onclick:stopPropagation="true">
+                                                @(module.Enabled ? "Disable" : "Enable")
+                                            </button>
+                                        }
+                                        @if (module.CanRemove)
+                                        {
+                                            <button class="red-ui-palette-editor-module-btn remove"
+                                                    @onclick="() => RemoveModule(module)"
+                                                    @onclick:stopPropagation="true">
+                                                Remove
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                                @if (module.Expanded)
+                                {
+                                    <div class="red-ui-palette-editor-module-content">
+                                        @foreach (var node in module.Nodes)
+                                        {
+                                            <div class="red-ui-palette-editor-node">
+                                                <div class="red-ui-palette-editor-node-icon" 
+                                                     style="background-color: @node.Color;">
+                                                    <i class="fa @node.Icon"></i>
+                                                </div>
+                                                <span class="red-ui-palette-editor-node-label">@node.Type</span>
+                                                <label class="red-ui-palette-editor-node-toggle">
+                                                    <input type="checkbox" 
+                                                           checked="@node.Enabled"
+                                                           @onchange="() => ToggleNode(node)" />
+                                                    <span>@(node.Enabled ? "Enabled" : "Disabled")</span>
+                                                </label>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="red-ui-palette-editor-search">
+                        <input type="text" 
+                               placeholder="Search for nodes to install..." 
+                               @bind-value="InstallSearchText"
+                               @bind-value:event="oninput"
+                               @onkeydown="OnInstallSearch" />
+                        <button class="red-ui-palette-editor-search-btn" @onclick="SearchNpmPackages">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+                    
+                    @if (_isSearching)
+                    {
+                        <div class="red-ui-palette-editor-loading">
+                            <i class="fa fa-spinner fa-spin"></i>
+                            Searching...
+                        </div>
+                    }
+                    else if (_searchResults.Count > 0)
+                    {
+                        <div class="red-ui-palette-editor-results">
+                            @foreach (var result in _searchResults)
+                            {
+                                <div class="red-ui-palette-editor-result">
+                                    <div class="red-ui-palette-editor-result-header">
+                                        <span class="red-ui-palette-editor-result-name">@result.Name</span>
+                                        <span class="red-ui-palette-editor-result-version">@result.Version</span>
+                                        @if (result.Installed)
+                                        {
+                                            <span class="red-ui-palette-editor-result-installed">Installed</span>
+                                        }
+                                        else
+                                        {
+                                            <button class="red-ui-palette-editor-install-btn" 
+                                                    @onclick="() => InstallPackage(result)">
+                                                Install
+                                            </button>
+                                        }
+                                    </div>
+                                    <div class="red-ui-palette-editor-result-description">
+                                        @result.Description
+                                    </div>
+                                    <div class="red-ui-palette-editor-result-meta">
+                                        <span><i class="fa fa-star"></i> @result.Stars</span>
+                                        <span><i class="fa fa-download"></i> @result.Downloads</span>
+                                        <span><i class="fa fa-clock-o"></i> @result.LastUpdated</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (!string.IsNullOrEmpty(InstallSearchText))
+                    {
+                        <div class="red-ui-palette-editor-empty">
+                            No packages found. Try a different search term.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="red-ui-palette-editor-empty">
+                            <p>Search for node packages to install.</p>
+                            <p class="red-ui-palette-editor-hint">
+                                Search by package name or keyword (e.g., "dashboard", "mqtt", "database")
+                            </p>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .red-ui-palette-editor {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 2000;
+    }
+    .red-ui-palette-editor.visible {
+        display: block;
+    }
+    .red-ui-palette-editor-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.4);
+    }
+    .red-ui-palette-editor-panel {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border-radius: 4px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        width: 700px;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .red-ui-palette-editor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        border-bottom: 1px solid #ddd;
+    }
+    .red-ui-palette-editor-title {
+        font-size: 16px;
+        font-weight: 500;
+    }
+    .red-ui-palette-editor-close {
+        background: none;
+        border: none;
+        padding: 5px 10px;
+        cursor: pointer;
+        color: #666;
+    }
+    .red-ui-palette-editor-tabs {
+        display: flex;
+        border-bottom: 1px solid #ddd;
+    }
+    .red-ui-palette-editor-tab {
+        padding: 12px 24px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+    }
+    .red-ui-palette-editor-tab:hover {
+        background: #f5f5f5;
+    }
+    .red-ui-palette-editor-tab.active {
+        border-bottom-color: #8e0000;
+    }
+    .red-ui-palette-editor-content {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 300px;
+    }
+    .red-ui-palette-editor-search {
+        display: flex;
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+    .red-ui-palette-editor-search input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        font-size: 14px;
+    }
+    .red-ui-palette-editor-search-btn {
+        padding: 8px 12px;
+        margin-left: 5px;
+        background: #8e0000;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+    .red-ui-palette-editor-modules {
+        padding: 10px;
+    }
+    .red-ui-palette-editor-module {
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        margin-bottom: 8px;
+    }
+    .red-ui-palette-editor-module-header {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        cursor: pointer;
+        background: #f5f5f5;
+    }
+    .red-ui-palette-editor-module-header:hover {
+        background: #eee;
+    }
+    .red-ui-palette-editor-module-header i {
+        width: 20px;
+        color: #666;
+    }
+    .red-ui-palette-editor-module-name {
+        font-weight: 500;
+        margin-right: 10px;
+    }
+    .red-ui-palette-editor-module-version {
+        color: #888;
+        font-size: 12px;
+        margin-right: 10px;
+    }
+    .red-ui-palette-editor-module-count {
+        color: #888;
+        font-size: 12px;
+        flex: 1;
+    }
+    .red-ui-palette-editor-module-actions {
+        display: flex;
+        gap: 5px;
+    }
+    .red-ui-palette-editor-module-btn {
+        padding: 4px 10px;
+        font-size: 12px;
+        border: 1px solid #ccc;
+        background: white;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+    .red-ui-palette-editor-module-btn:hover {
+        background: #f0f0f0;
+    }
+    .red-ui-palette-editor-module-btn.remove {
+        color: #c00;
+        border-color: #c00;
+    }
+    .red-ui-palette-editor-module-content {
+        padding: 10px;
+        border-top: 1px solid #ddd;
+    }
+    .red-ui-palette-editor-node {
+        display: flex;
+        align-items: center;
+        padding: 5px 0;
+    }
+    .red-ui-palette-editor-node-icon {
+        width: 24px;
+        height: 18px;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+        color: white;
+        font-size: 10px;
+    }
+    .red-ui-palette-editor-node-label {
+        flex: 1;
+    }
+    .red-ui-palette-editor-node-toggle {
+        font-size: 12px;
+        color: #666;
+    }
+    .red-ui-palette-editor-loading,
+    .red-ui-palette-editor-empty {
+        padding: 40px;
+        text-align: center;
+        color: #888;
+    }
+    .red-ui-palette-editor-hint {
+        font-size: 12px;
+        color: #aaa;
+    }
+    .red-ui-palette-editor-results {
+        padding: 10px;
+    }
+    .red-ui-palette-editor-result {
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        padding: 12px;
+        margin-bottom: 8px;
+    }
+    .red-ui-palette-editor-result-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .red-ui-palette-editor-result-name {
+        font-weight: 500;
+        margin-right: 10px;
+    }
+    .red-ui-palette-editor-result-version {
+        color: #888;
+        font-size: 12px;
+        flex: 1;
+    }
+    .red-ui-palette-editor-result-installed {
+        color: #080;
+        font-size: 12px;
+        padding: 2px 8px;
+        background: #e8f5e9;
+        border-radius: 3px;
+    }
+    .red-ui-palette-editor-install-btn {
+        padding: 4px 12px;
+        background: #8e0000;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+    .red-ui-palette-editor-result-description {
+        color: #666;
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+    .red-ui-palette-editor-result-meta {
+        display: flex;
+        gap: 15px;
+        font-size: 12px;
+        color: #888;
+    }
+</style>
+
+@code {
+    private List<PaletteModule> _modules = new();
+    private List<NpmPackageResult> _searchResults = new();
+    private bool _isSearching = false;
+
+    public bool IsVisible { get; private set; }
+    public string ActiveTab { get; private set; } = "nodes";
+    public string FilterText { get; set; } = "";
+    public string InstallSearchText { get; set; } = "";
+
+    protected override void OnInitialized()
+    {
+        LoadModules();
+    }
+
+    public void Show()
+    {
+        LoadModules();
+        IsVisible = true;
+        ActiveTab = "nodes";
+        StateHasChanged();
+    }
+
+    public void Hide()
+    {
+        IsVisible = false;
+        StateHasChanged();
+    }
+
+    private void LoadModules()
+    {
+        _modules = new List<PaletteModule>
+        {
+            new()
+            {
+                Name = "node-red",
+                Version = "3.1.0",
+                Enabled = true,
+                CanDisable = false,
+                CanRemove = false,
+                Nodes = new List<PaletteNode>
+                {
+                    new() { Type = "inject", Color = "#a6bbcf", Icon = "fa-play", Enabled = true },
+                    new() { Type = "debug", Color = "#87a980", Icon = "fa-bug", Enabled = true },
+                    new() { Type = "function", Color = "#fdd0a2", Icon = "fa-code", Enabled = true },
+                    new() { Type = "switch", Color = "#fdd0a2", Icon = "fa-random", Enabled = true },
+                    new() { Type = "change", Color = "#fdd0a2", Icon = "fa-edit", Enabled = true },
+                    new() { Type = "http request", Color = "#e1d5a7", Icon = "fa-globe", Enabled = true }
+                }
+            }
+        };
+    }
+
+    private IEnumerable<PaletteModule> GetFilteredModules()
+    {
+        if (string.IsNullOrWhiteSpace(FilterText))
+            return _modules;
+
+        var filter = FilterText.ToLowerInvariant();
+        return _modules.Where(m => 
+            m.Name.ToLowerInvariant().Contains(filter) ||
+            m.Nodes.Any(n => n.Type.ToLowerInvariant().Contains(filter)));
+    }
+
+    private void ToggleModule(PaletteModule module)
+    {
+        module.Expanded = !module.Expanded;
+    }
+
+    private void ToggleModuleEnabled(PaletteModule module)
+    {
+        module.Enabled = !module.Enabled;
+        foreach (var node in module.Nodes)
+        {
+            node.Enabled = module.Enabled;
+        }
+        StateHasChanged();
+    }
+
+    private void RemoveModule(PaletteModule module)
+    {
+        _modules.Remove(module);
+        StateHasChanged();
+    }
+
+    private void ToggleNode(PaletteNode node)
+    {
+        node.Enabled = !node.Enabled;
+        StateHasChanged();
+    }
+
+    private void OnInstallSearch(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            SearchNpmPackages();
+        }
+    }
+
+    private async Task SearchNpmPackages()
+    {
+        if (string.IsNullOrWhiteSpace(InstallSearchText)) return;
+
+        _isSearching = true;
+        StateHasChanged();
+
+        await Task.Delay(500); // Simulate search
+
+        _searchResults = new List<NpmPackageResult>
+        {
+            new() { Name = "node-red-dashboard", Version = "3.6.0", Description = "A dashboard UI for Node-RED", Stars = 1200, Downloads = "50k/week", LastUpdated = "2 months ago" },
+            new() { Name = "node-red-contrib-mqtt", Version = "2.1.0", Description = "MQTT nodes for Node-RED", Stars = 800, Downloads = "30k/week", LastUpdated = "1 month ago" },
+            new() { Name = "node-red-node-serialport", Version = "1.0.0", Description = "Serial port nodes", Stars = 400, Downloads = "10k/week", LastUpdated = "3 months ago" }
+        };
+
+        _isSearching = false;
+        StateHasChanged();
+    }
+
+    private async Task InstallPackage(NpmPackageResult package)
+    {
+        package.Installing = true;
+        StateHasChanged();
+
+        await Task.Delay(1000); // Simulate install
+
+        package.Installed = true;
+        package.Installing = false;
+        StateHasChanged();
+    }
+
+    private class PaletteModule
+    {
+        public string Name { get; set; } = "";
+        public string Version { get; set; } = "";
+        public bool Enabled { get; set; } = true;
+        public bool Expanded { get; set; }
+        public bool CanDisable { get; set; } = true;
+        public bool CanRemove { get; set; } = true;
+        public List<PaletteNode> Nodes { get; set; } = new();
+    }
+
+    private class PaletteNode
+    {
+        public string Type { get; set; } = "";
+        public string Color { get; set; } = "#ddd";
+        public string Icon { get; set; } = "fa-cube";
+        public bool Enabled { get; set; } = true;
+    }
+
+    private class NpmPackageResult
+    {
+        public string Name { get; set; } = "";
+        public string Version { get; set; } = "";
+        public string Description { get; set; } = "";
+        public int Stars { get; set; }
+        public string Downloads { get; set; } = "";
+        public string LastUpdated { get; set; } = "";
+        public bool Installed { get; set; }
+        public bool Installing { get; set; }
+    }
+}
