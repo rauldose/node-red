@@ -88,7 +88,7 @@
                         <label style="width: 20px; text-align: right;">@(index + 1).</label>
                         <input type="text" 
                                value="@GetInputLabel(index)"
-                               @onchange="@((ChangeEventArgs e) => SetInputLabel(index, e.Value?.ToString() ?? ""))"
+                               @onchange="@((Microsoft.AspNetCore.Components.ChangeEventArgs e) => SetInputLabel(index, e.Value?.ToString() ?? ""))"
                                placeholder="@InputPlaceholder"
                                style="flex: 1; padding: 4px; border: 1px solid #ccc; border-radius: 3px;" />
                         <button type="button" 
@@ -120,7 +120,7 @@
                         <label style="width: 20px; text-align: right;">@(index + 1).</label>
                         <input type="text" 
                                value="@GetOutputLabel(index)"
-                               @onchange="@((ChangeEventArgs e) => SetOutputLabel(index, e.Value?.ToString() ?? ""))"
+                               @onchange="@((Microsoft.AspNetCore.Components.ChangeEventArgs e) => SetOutputLabel(index, e.Value?.ToString() ?? ""))"
                                placeholder="@OutputPlaceholder"
                                style="flex: 1; padding: 4px; border: 1px solid #ccc; border-radius: 3px;" />
                         <button type="button" 
@@ -233,7 +233,7 @@
         // This could be enhanced with a full icon picker modal
     }
 
-    private void OnColorChange(ChangeEventArgs e)
+    private void OnColorChange(Microsoft.AspNetCore.Components.ChangeEventArgs e)
     {
         NodeColor = e.Value?.ToString() ?? "#ddd";
         BorderColor = GetDarkerColor(NodeColor);

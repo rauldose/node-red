@@ -10,7 +10,7 @@
                     Label="@option.Label"
                     Checked="@IsSelected(option.Value)"
                     Disabled="@Disabled"
-                    ValueChange="@((args) => OnOptionChanged(option.Value, args.Checked))"
+                    ValueChange="@((Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args) => OnOptionChanged(option.Value, args.Checked))"
                     CssClass="red-ui-checkboxSet-item">
         </SfCheckBox>
     }

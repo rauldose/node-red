@@ -6,7 +6,7 @@
 <SfSwitch @bind-Checked="@Value" 
           Disabled="@Disabled"
           CssClass="@CssClass"
-          ValueChange="@OnValueChange">
+          ValueChange="@(new EventCallback<Syncfusion.Blazor.Buttons.ChangeEventArgs<bool>>(this, OnValueChange))">
     <label>
         @if (!string.IsNullOrEmpty(CurrentIcon))
         {

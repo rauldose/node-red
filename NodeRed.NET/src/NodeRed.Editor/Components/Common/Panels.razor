@@ -2,7 +2,7 @@
 @* Replaces custom panels with Syncfusion Splitter *@
 
 <SfSplitter Height="100%" Width="100%" 
-             Orientation="@(Horizontal ? Orientation.Horizontal : Orientation.Vertical)"
+             Orientation="@(Horizontal ? Syncfusion.Blazor.Layouts.Orientation.Horizontal : Syncfusion.Blazor.Layouts.Orientation.Vertical)"
              SeparatorSize="6"
              CssClass="red-ui-panels">
     <SplitterPanes>
@@ -32,18 +32,11 @@
     {
         if (args.PaneSize != null && args.PaneSize.Length > 0)
         {
-            // Calculate ratio from first pane size
+            // PaneSize is a double array representing percentages
             var size = args.PaneSize[0];
-            if (double.TryParse(size?.Replace("%", ""), out var percent))
-            {
-                var ratio = percent / 100.0;
-                await OnRatioChanged.InvokeAsync(ratio);
-            }
+            var ratio = size / 100.0;
+            await OnRatioChanged.InvokeAsync(ratio);
         }
-    }
-}
-
-        OnRatioChanged.InvokeAsync(_ratio);
     }
 }
 

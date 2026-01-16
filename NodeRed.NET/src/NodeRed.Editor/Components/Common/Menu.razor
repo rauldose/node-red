@@ -38,7 +38,9 @@
     {
         if (MenuRef != null)
         {
-            await MenuRef.CloseAsync();
+            // Syncfusion ContextMenu doesn't have CloseAsync - it closes automatically on selection
+            // or we can use HideAsync if needed
+            StateHasChanged();
         }
     }
     
@@ -50,7 +52,6 @@
         public string? Shortcut { get; set; }
         public bool Disabled { get; set; }
         public bool IsSeparator { get; set; }
-        public string? Separator => IsSeparator ? "-" : null;
         public List<MenuItem>? Items { get; set; }
         public Action? OnClick { get; set; }
         

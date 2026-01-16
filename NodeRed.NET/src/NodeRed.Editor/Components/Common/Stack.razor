@@ -3,48 +3,61 @@
 
 <SfAccordion ExpandMode="ExpandMode.Multiple" CssClass="red-ui-stack">
     <AccordionItems>
-        @foreach (var section in Sections)
+        @foreach (var item in Sections)
         {
-            <AccordionItem Expanded="@(!section.Collapsed)">
+            <AccordionItem Expanded="@(!item.Collapsed)">
                 <HeaderTemplate>
                     <div>
-                        @section.Title
-                        @if (!string.IsNullOrEmpty(section.Badge))
+                        @item.Title
+                        @if (!string.IsNullOrEmpty(item.Badge))
                         {
-                            <span class="red-ui-stack-badge">@section.Badge</span>
+                            <span class="red-ui-stack-badge">@item.Badge</span>
                         }
                     </div>
                 </HeaderTemplate>
                 <ContentTemplate>
-                    @section.Content
+                    @item.Content
                 </ContentTemplate>
             </AccordionItem>
         }
     </AccordionItems>
-    <AccordionEvents Expanding="@OnExpanding" Collapsed="@OnCollapsed" />
+    <AccordionEvents Expanding="@OnExpandingWrapper" 
+                     Collapsed="@OnCollapsedWrapper" />
 </SfAccordion>
 
 @code {
     [Parameter] public List<StackSection> Sections { get; set; } = new();
     [Parameter] public EventCallback<StackSection> OnSectionToggle { get; set; }
 
+    private async Task OnExpandingWrapper()
+    {
+        // Wrapper for non-generic EventCallback
+        await Task.CompletedTask;
+    }
+
+    private async Task OnCollapsedWrapper()
+    {
+        // Wrapper for non-generic EventCallback
+        await Task.CompletedTask;
+    }
+
     private async Task OnExpanding(ExpandEventArgs args)
     {
-        var section = Sections.ElementAtOrDefault(args.Index);
-        if (section != null)
+        var item = Sections.ElementAtOrDefault(args.Index);
+        if (item != null)
         {
-            section.Collapsed = false;
-            await OnSectionToggle.InvokeAsync(section);
+            item.Collapsed = false;
+            await OnSectionToggle.InvokeAsync(item);
         }
     }
 
     private async Task OnCollapsed(CollapseEventArgs args)
     {
-        var section = Sections.ElementAtOrDefault(args.Index);
-        if (section != null)
+        var item = Sections.ElementAtOrDefault(args.Index);
+        if (item != null)
         {
-            section.Collapsed = true;
-            await OnSectionToggle.InvokeAsync(section);
+            item.Collapsed = true;
+            await OnSectionToggle.InvokeAsync(item);
         }
     }
 

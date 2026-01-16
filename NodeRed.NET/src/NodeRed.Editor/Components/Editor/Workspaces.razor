@@ -419,7 +419,7 @@
     /// <summary>
     /// Handle dragover to allow drop
     /// </summary>
-    private void HandleDragOver(DragEventArgs e)
+    private void HandleDragOver(Microsoft.AspNetCore.Components.Web.DragEventArgs e)
     {
         // Allow drop
     }
@@ -428,7 +428,7 @@
     /// Handle drop from palette
     /// Translated from chart drop handler
     /// </summary>
-    private async Task HandleDrop(DragEventArgs e)
+    private async Task HandleDrop(Microsoft.AspNetCore.Components.Web.DragEventArgs e)
     {
         // Get node type from JS interop
         string? nodeType = null;

@@ -1,7 +1,7 @@
 @* Syncfusion Blazor ListView Component Wrapper *@
 @* Replaces custom editableList with Syncfusion ListView *@
 
-@typeparam TItem
+@typeparam TItem where TItem : class
 
 <div class="red-ui-editableList @Class">
     @if (!string.IsNullOrEmpty(Header) || Addable)

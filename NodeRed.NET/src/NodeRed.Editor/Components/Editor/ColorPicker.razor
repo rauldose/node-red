@@ -93,12 +93,12 @@
         _tempValue = color;
     }
 
-    private void OnCustomColorChange(ChangeEventArgs e)
+    private void OnCustomColorChange(Microsoft.AspNetCore.Components.ChangeEventArgs e)
     {
         _tempValue = e.Value?.ToString() ?? "#A6BBCF";
     }
 
-    private void OnTextColorChange(ChangeEventArgs e)
+    private void OnTextColorChange(Microsoft.AspNetCore.Components.ChangeEventArgs e)
     {
         var text = e.Value?.ToString() ?? "";
         if (System.Text.RegularExpressions.Regex.IsMatch(text, @"^#[0-9A-Fa-f]{6}$"))

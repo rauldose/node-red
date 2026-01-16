@@ -122,7 +122,7 @@
         _lineCount = string.IsNullOrEmpty(Content) ? 1 : Content.Split('\n').Length;
     }
 
-    private async Task OnContentChanged(ChangeEventArgs e)
+    private async Task OnContentChanged(Microsoft.AspNetCore.Components.ChangeEventArgs e)
     {
         Content = e.Value?.ToString() ?? "";
         UpdateLineCount();
