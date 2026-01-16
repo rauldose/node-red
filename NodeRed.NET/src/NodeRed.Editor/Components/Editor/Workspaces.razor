@@ -32,7 +32,10 @@
     @foreach (var ws in State.Workspaces.GetAll())
     {
         <div class="red-ui-tab @(State.Workspaces.Active() == ws.Id ? "active" : "")"
-             @onclick="() => State.Workspaces.Show(ws.Id)">
+             @onclick="() => SelectWorkspaceTab(ws.Id)"
+             @ondblclick="() => EditWorkspaceTab(ws)"
+             @oncontextmenu="(e) => ShowTabContextMenu(e, ws)"
+             @oncontextmenu:preventDefault="true">
             <span>@(string.IsNullOrEmpty(ws.Label) ? "Flow" : ws.Label)</span>
         </div>
     }
@@ -42,7 +45,8 @@
             <span>Flow 1</span>
         </div>
     }
-    <div class="red-ui-tab" style="opacity: 0.6; cursor: pointer;" title="Add new flow">
+    <div class="red-ui-tab" style="opacity: 0.6; cursor: pointer;" title="Add new flow"
+         @onclick="AddNewWorkspace">
         <span>+</span>
     </div>
 </div>
@@ -262,20 +266,24 @@
     // Mouse event handlers - translated from view.js event handlers
     // ============================================================
 
+    private double _mouseDownX = 0;
+    private double _mouseDownY = 0;
+
     private void HandleMouseDown(MouseEventArgs e)
     {
         // Translated from chart.on('mousedown', ...)
         if (e.Button == 0) // Left click
         {
-            if (e.ShiftKey)
+            _mouseDownX = e.OffsetX;
+            _mouseDownY = e.OffsetY;
+            
+            // Start lasso selection (shift+click or just click on empty space)
+            _mouseMode = MouseMode.Lasso;
+            Lasso = new LassoRect { X = e.OffsetX, Y = e.OffsetY, Width = 0, Height = 0 };
+            
+            if (!e.ShiftKey && !e.CtrlKey)
             {
-                // Start lasso selection
-                _mouseMode = MouseMode.Lasso;
-                Lasso = new LassoRect { X = e.OffsetX, Y = e.OffsetY, Width = 0, Height = 0 };
-            }
-            else
-            {
-                // Clear selection
+                // Clear selection when clicking on empty space
                 MovingSet.Clear();
                 SelectedLinks.Clear();
             }
@@ -293,11 +301,12 @@
                 {
                     Lasso.Width = e.OffsetX - Lasso.X;
                     Lasso.Height = e.OffsetY - Lasso.Y;
+                    StateHasChanged();
                 }
                 break;
 
             case MouseMode.Moving:
-                if (_mousedownNode != null && _mousePosition.HasValue)
+                if (MovingSet.Count > 0)
                 {
                     foreach (var item in MovingSet.GetAll())
                     {
@@ -310,6 +319,7 @@
                             item.Node.Y = Math.Round(item.Node.Y / GridSize) * GridSize;
                         }
                     }
+                    StateHasChanged();
                 }
                 break;
 
@@ -321,8 +331,6 @@
                 }
                 break;
         }
-
-        StateHasChanged();
     }
 
     private void HandleMouseUp(MouseEventArgs e)
@@ -422,7 +430,10 @@
             y = Math.Round(y / GridSize) * GridSize;
         }
 
-        // Create new node
+        // Get default inputs/outputs for node type
+        var (inputs, outputs) = GetDefaultPortsForNodeType(nodeType);
+
+        // Create new node with proper ports
         var newNode = new FlowNode
         {
             Id = Guid.NewGuid().ToString(),
@@ -430,6 +441,8 @@
             X = x,
             Y = y,
             Z = State.Workspaces.Active(),
+            Inputs = inputs,
+            Outputs = outputs,
             Dirty = true
         };
 
@@ -442,6 +455,60 @@
 
         // Refresh view
         RefreshView();
+    }
+
+    /// <summary>
+    /// Get default input/output ports for a node type
+    /// Translated from node type definitions
+    /// </summary>
+    private (int inputs, int outputs) GetDefaultPortsForNodeType(string nodeType)
+    {
+        return nodeType switch
+        {
+            "inject" => (0, 1),
+            "debug" => (1, 0),
+            "complete" => (0, 1),
+            "catch" => (0, 1),
+            "status" => (0, 1),
+            "link in" => (0, 1),
+            "link out" => (1, 0),
+            "link call" => (1, 1),
+            "comment" => (0, 0),
+            "junction" => (1, 1),
+            "function" => (1, 1),
+            "switch" => (1, 2),
+            "change" => (1, 1),
+            "range" => (1, 1),
+            "template" => (1, 1),
+            "delay" => (1, 1),
+            "trigger" => (1, 1),
+            "exec" => (1, 3),
+            "rbe" or "filter" => (1, 1),
+            "mqtt in" => (0, 1),
+            "mqtt out" => (1, 0),
+            "http in" => (0, 1),
+            "http response" => (1, 0),
+            "http request" => (1, 1),
+            "websocket in" => (0, 1),
+            "websocket out" => (1, 0),
+            "tcp in" => (0, 1),
+            "tcp out" => (1, 0),
+            "udp in" => (0, 1),
+            "udp out" => (1, 0),
+            "csv" => (1, 1),
+            "html" => (1, 1),
+            "json" => (1, 1),
+            "xml" => (1, 1),
+            "yaml" => (1, 1),
+            "split" => (1, 1),
+            "join" => (1, 1),
+            "sort" => (1, 1),
+            "batch" => (1, 1),
+            "file" => (1, 1),
+            "file in" => (1, 1),
+            "watch" => (0, 1),
+            _ => (1, 1) // Default: 1 input, 1 output
+        };
     }
 
     /// <summary>
@@ -525,6 +592,47 @@
     private void EditNode(FlowNode node)
     {
         State.Events.Emit("node:edit", node);
+    }
+
+    // ============================================================
+    // Workspace tab interactions - translated from workspaces.js
+    // ============================================================
+
+    private void SelectWorkspaceTab(string workspaceId)
+    {
+        State.Workspaces.Show(workspaceId);
+        RefreshView();
+    }
+
+    private void AddNewWorkspace()
+    {
+        var newId = Guid.NewGuid().ToString();
+        var flowCount = State.Workspaces.GetAll().Count() + 1;
+        var newWorkspace = new Workspace
+        {
+            Id = newId,
+            Label = $"Flow {flowCount}"
+        };
+        State.Workspaces.Add(newWorkspace);
+        State.Workspaces.Show(newId);
+        State.Nodes.SetDirty(true);
+        RefreshView();
+    }
+
+    private void EditWorkspaceTab(Workspace workspace)
+    {
+        // Emit event for RedEditor to open the flow properties tray
+        State.Events.Emit("workspace:edit", workspace);
+    }
+
+    private void ShowTabContextMenu(MouseEventArgs e, Workspace workspace)
+    {
+        // Emit event for RedEditor to show tab context menu
+        State.Events.Emit("workspace:contextmenu", new {
+            X = e.ClientX,
+            Y = e.ClientY,
+            Workspace = workspace
+        });
     }
 
     // ============================================================

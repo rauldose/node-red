@@ -16,7 +16,8 @@
           width="@NodeWidth"
           height="@NodeHeight"
           rx="5" ry="5"
-          fill="@GetNodeColor()" />
+          fill="@GetNodeColor()" 
+          style="cursor: move;" />
     
     @* Input port *@
     @if (Node.Inputs > 0)
@@ -24,17 +25,26 @@
         <rect class="red-ui-flow-port red-ui-flow-port-input"
               x="-5" y="@((NodeHeight / 2) - 5)"
               width="10" height="10"
-              rx="3" ry="3" />
+              rx="3" ry="3"
+              style="cursor: crosshair; fill: #999;"
+              @onmousedown="HandleInputPortMouseDown"
+              @onmousedown:stopPropagation="true"
+              @onmouseup="HandleInputPortMouseUp"
+              @onmouseup:stopPropagation="true" />
     }
     
     @* Output ports *@
     @for (int i = 0; i < Node.Outputs; i++)
     {
         var portY = GetOutputPortY(i, Node.Outputs);
+        var portIndex = i;
         <rect class="red-ui-flow-port red-ui-flow-port-output"
               x="@(NodeWidth - 5)" y="@portY"
               width="10" height="10"
-              rx="3" ry="3" />
+              rx="3" ry="3"
+              style="cursor: crosshair; fill: #999;"
+              @onmousedown="(e) => HandleOutputPortMouseDown(e, portIndex)"
+              @onmousedown:stopPropagation="true" />
     }
     
     @* Node icon *@
@@ -88,6 +98,29 @@
 
     [Parameter]
     public EventCallback OnDoubleClick { get; set; }
+
+    [Parameter]
+    public EventCallback<(FlowNode Node, int PortIndex)> OnOutputPortDragStart { get; set; }
+
+    [Parameter]
+    public EventCallback<FlowNode> OnInputPortDrop { get; set; }
+
+    private void HandleOutputPortMouseDown(MouseEventArgs e, int portIndex)
+    {
+        // Start wire dragging from output port
+        OnOutputPortDragStart.InvokeAsync((Node, portIndex));
+    }
+
+    private void HandleInputPortMouseDown(MouseEventArgs e)
+    {
+        // Could be used for reverse wire creation
+    }
+
+    private void HandleInputPortMouseUp(MouseEventArgs e)
+    {
+        // Complete wire connection to input port
+        OnInputPortDrop.InvokeAsync(Node);
+    }
 
     private string GetNodeColor()
     {
