@@ -1,0 +1,218 @@
+@* Translated from: packages/node_modules/@node-red/editor-client/src/js/ui/editors/panes/subflowModule.js *@
+@* Subflow module properties pane for converting subflows to modules *@
+
+<div class="red-ui-editor-pane-subflow-module">
+    <div class="module-info-section">
+        <h3><i class="fa fa-cube"></i> Module Information</h3>
+        
+        <div class="form-row">
+            <label>Module Name</label>
+            <input type="text" @bind="ModuleName" class="red-ui-text-input"
+                   placeholder="e.g., my-subflow-module" />
+            <span class="field-help">The npm module name (lowercase, no spaces)</span>
+        </div>
+
+        <div class="form-row">
+            <label>Version</label>
+            <input type="text" @bind="Version" class="red-ui-text-input"
+                   placeholder="1.0.0" />
+            <span class="field-help">Semantic version number</span>
+        </div>
+
+        <div class="form-row">
+            <label>Description</label>
+            <textarea @bind="Description" rows="3" class="red-ui-text-input"
+                      placeholder="A brief description of what this module does"></textarea>
+        </div>
+
+        <div class="form-row">
+            <label>Author</label>
+            <input type="text" @bind="Author" class="red-ui-text-input"
+                   placeholder="Your Name <email@example.com>" />
+        </div>
+
+        <div class="form-row">
+            <label>License</label>
+            <select @bind="License" class="red-ui-select">
+                <option value="Apache-2.0">Apache 2.0</option>
+                <option value="MIT">MIT</option>
+                <option value="ISC">ISC</option>
+                <option value="GPL-3.0">GPL 3.0</option>
+                <option value="BSD-3-Clause">BSD 3-Clause</option>
+                <option value="UNLICENSED">Unlicensed</option>
+            </select>
+        </div>
+
+        <div class="form-row">
+            <label>Keywords</label>
+            <input type="text" @bind="Keywords" class="red-ui-text-input"
+                   placeholder="node-red, automation, iot (comma-separated)" />
+            <span class="field-help">Keywords for npm search</span>
+        </div>
+    </div>
+
+    <div class="module-node-section">
+        <h3><i class="fa fa-sitemap"></i> Node Settings</h3>
+
+        <div class="form-row">
+            <label>Node Type Name</label>
+            <input type="text" @bind="NodeTypeName" class="red-ui-text-input"
+                   placeholder="e.g., my-custom-node" />
+            <span class="field-help">The node type that will appear in the palette</span>
+        </div>
+
+        <div class="form-row">
+            <label>Category</label>
+            <input type="text" @bind="Category" class="red-ui-text-input"
+                   placeholder="function" />
+            <span class="field-help">Palette category for this node</span>
+        </div>
+
+        <div class="form-row">
+            <label>Node Color</label>
+            <div class="color-picker-row">
+                <input type="color" @bind="NodeColor" class="color-input" />
+                <input type="text" @bind="NodeColor" class="red-ui-text-input color-text" />
+            </div>
+        </div>
+
+        <div class="form-row">
+            <label>Icon</label>
+            <div class="icon-picker-row">
+                <div class="icon-preview" style="background-color: @NodeColor">
+                    <i class="fa @Icon"></i>
+                </div>
+                <input type="text" @bind="Icon" class="red-ui-text-input"
+                       placeholder="fa-cog" />
+            </div>
+        </div>
+    </div>
+
+    <div class="module-preview-section">
+        <h3><i class="fa fa-file-code-o"></i> package.json Preview</h3>
+        <pre class="package-json-preview">@GeneratePackageJson()</pre>
+    </div>
+</div>
+
+<style>
+.red-ui-editor-pane-subflow-module {
+    padding: 10px;
+}
+.red-ui-editor-pane-subflow-module h3 {
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0 0 10px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ddd;
+}
+.red-ui-editor-pane-subflow-module h3 i {
+    margin-right: 6px;
+}
+.module-info-section, .module-node-section, .module-preview-section {
+    margin-bottom: 20px;
+}
+.form-row {
+    margin-bottom: 10px;
+}
+.form-row label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #444;
+}
+.field-help {
+    display: block;
+    font-size: 11px;
+    color: #999;
+    margin-top: 2px;
+}
+.red-ui-text-input, .red-ui-select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+textarea.red-ui-text-input {
+    resize: vertical;
+    font-family: inherit;
+}
+.color-picker-row, .icon-picker-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.color-input {
+    width: 40px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.color-text {
+    flex: 1;
+}
+.icon-preview {
+    width: 40px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    color: white;
+}
+.icon-picker-row input {
+    flex: 1;
+}
+.package-json-preview {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    font-size: 11px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    max-height: 200px;
+    overflow: auto;
+}
+</style>
+
+@code {
+    [Parameter] public string ModuleName { get; set; } = "";
+    [Parameter] public string Version { get; set; } = "1.0.0";
+    [Parameter] public string Description { get; set; } = "";
+    [Parameter] public string Author { get; set; } = "";
+    [Parameter] public string License { get; set; } = "Apache-2.0";
+    [Parameter] public string Keywords { get; set; } = "";
+    [Parameter] public string NodeTypeName { get; set; } = "";
+    [Parameter] public string Category { get; set; } = "function";
+    [Parameter] public string NodeColor { get; set; } = "#E2D96E";
+    [Parameter] public string Icon { get; set; } = "fa-cog";
+
+    private string GeneratePackageJson()
+    {
+        var keywordsList = string.IsNullOrEmpty(Keywords) 
+            ? "\"node-red\"" 
+            : string.Join(", ", Keywords.Split(',').Select(k => "\"" + k.Trim() + "\""));
+
+        var moduleName = string.IsNullOrEmpty(ModuleName) ? "my-module" : ModuleName;
+        var nodeType = string.IsNullOrEmpty(NodeTypeName) ? "my-node" : NodeTypeName;
+
+        return "{" + Environment.NewLine +
+               $"  \"name\": \"{moduleName}\"," + Environment.NewLine +
+               $"  \"version\": \"{Version}\"," + Environment.NewLine +
+               $"  \"description\": \"{Description}\"," + Environment.NewLine +
+               $"  \"author\": \"{Author}\"," + Environment.NewLine +
+               $"  \"license\": \"{License}\"," + Environment.NewLine +
+               $"  \"keywords\": [{keywordsList}]," + Environment.NewLine +
+               "  \"node-red\": {" + Environment.NewLine +
+               "    \"nodes\": {" + Environment.NewLine +
+               $"      \"{nodeType}\": \"my-node.js\"" + Environment.NewLine +
+               "    }" + Environment.NewLine +
+               "  }," + Environment.NewLine +
+               "  \"dependencies\": {}" + Environment.NewLine +
+               "}";
+    }
+}

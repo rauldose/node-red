@@ -8,8 +8,34 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // Register NodeRed.NET editor services
+// Core state management
 builder.Services.AddSingleton<EditorState>();
+builder.Services.AddSingleton<EditorUIState>();
+
+// Communication
 builder.Services.AddScoped<IEditorComms>(sp => EditorCommsFactory.Create("/comms"));
+
+// Editor features
+builder.Services.AddSingleton<History>();
+builder.Services.AddSingleton<Clipboard>();
+builder.Services.AddSingleton<Keyboard>();
+builder.Services.AddSingleton<Actions>();
+
+// Node management
+builder.Services.AddSingleton<GroupManager>();
+builder.Services.AddSingleton<SubflowManager>();
+builder.Services.AddSingleton<Library>();
+
+// UI utilities
+builder.Services.AddSingleton<Diagnostics>();
+builder.Services.AddSingleton<StatusBar>();
+builder.Services.AddSingleton<ViewTools>();
+builder.Services.AddSingleton<Projects>();
+builder.Services.AddSingleton<Plugins>();
+builder.Services.AddSingleton<Runtime>();
+builder.Services.AddSingleton<User>();
+builder.Services.AddSingleton<Diff>();
+
 builder.Services.AddHttpClient();
 
 var app = builder.Build();

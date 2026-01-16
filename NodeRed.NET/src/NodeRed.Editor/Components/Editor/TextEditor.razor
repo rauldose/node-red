@@ -1,0 +1,167 @@
+@* Translated from: packages/node_modules/@node-red/editor-client/src/js/ui/editors/text.js *@
+@* Multi-line text editor component *@
+
+<div class="red-ui-editor-type-text @(_fullscreen ? "fullscreen" : "")">
+    <div class="text-toolbar">
+        <select class="text-mode-select" @bind="_mode">
+            <option value="text">Plain Text</option>
+            <option value="json">JSON</option>
+            <option value="html">HTML</option>
+            <option value="markdown">Markdown</option>
+            <option value="javascript">JavaScript</option>
+            <option value="css">CSS</option>
+        </select>
+        
+        <button class="red-ui-button red-ui-button-small" @onclick="Format" title="Format">
+            <i class="fa fa-indent"></i>
+        </button>
+        <button class="red-ui-button red-ui-button-small" @onclick="Clear" title="Clear">
+            <i class="fa fa-trash"></i>
+        </button>
+        <button class="red-ui-button red-ui-button-small" @onclick="ToggleWrap" title="Toggle Word Wrap">
+            <i class="fa fa-align-left"></i>
+        </button>
+        <button class="red-ui-button red-ui-button-small" @onclick="ToggleFullscreen" title="Fullscreen">
+            <i class="fa @(_fullscreen ? "fa-compress" : "fa-expand")"></i>
+        </button>
+        
+        <span class="text-status">
+            Lines: @_lineCount | Characters: @Content.Length
+        </span>
+    </div>
+    
+    <div class="text-content">
+        <textarea @bind="Content" @oninput="OnContentChanged"
+                  class="@(_wrap ? "wrap" : "nowrap")"
+                  placeholder="@Placeholder"
+                  spellcheck="false"></textarea>
+    </div>
+</div>
+
+<style>
+.red-ui-editor-type-text {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.red-ui-editor-type-text.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: white;
+}
+.text-toolbar {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-bottom: 1px solid #ccc;
+    background: #f5f5f5;
+    align-items: center;
+}
+.text-mode-select {
+    padding: 2px 4px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+.text-status {
+    margin-left: auto;
+    font-size: 12px;
+    color: #666;
+}
+.text-content {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+.text-content textarea {
+    flex: 1;
+    resize: none;
+    border: none;
+    padding: 8px;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.4;
+}
+.text-content textarea.nowrap {
+    white-space: pre;
+    overflow-x: auto;
+}
+.text-content textarea.wrap {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+</style>
+
+@code {
+    [Parameter] public string Content { get; set; } = "";
+    [Parameter] public EventCallback<string> ContentChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Enter text...";
+    [Parameter] public string Mode { get; set; } = "text";
+
+    private string _mode = "text";
+    private bool _wrap = true;
+    private bool _fullscreen = false;
+    private int _lineCount = 1;
+
+    protected override void OnInitialized()
+    {
+        _mode = Mode;
+        UpdateLineCount();
+    }
+
+    protected override void OnParametersSet()
+    {
+        UpdateLineCount();
+    }
+
+    private void UpdateLineCount()
+    {
+        _lineCount = string.IsNullOrEmpty(Content) ? 1 : Content.Split('\n').Length;
+    }
+
+    private async Task OnContentChanged(ChangeEventArgs e)
+    {
+        Content = e.Value?.ToString() ?? "";
+        UpdateLineCount();
+        await ContentChanged.InvokeAsync(Content);
+    }
+
+    private async Task Format()
+    {
+        if (_mode == "json")
+        {
+            try
+            {
+                var parsed = System.Text.Json.JsonDocument.Parse(Content);
+                Content = System.Text.Json.JsonSerializer.Serialize(
+                    parsed, 
+                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                await ContentChanged.InvokeAsync(Content);
+            }
+            catch
+            {
+                // Invalid JSON, leave as-is
+            }
+        }
+    }
+
+    private async Task Clear()
+    {
+        Content = "";
+        UpdateLineCount();
+        await ContentChanged.InvokeAsync(Content);
+    }
+
+    private void ToggleWrap()
+    {
+        _wrap = !_wrap;
+    }
+
+    private void ToggleFullscreen()
+    {
+        _fullscreen = !_fullscreen;
+    }
+}

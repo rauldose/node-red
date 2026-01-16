@@ -21,6 +21,16 @@ public class Projects
     }
     
     /// <summary>
+    /// Check if there's an active project
+    /// </summary>
+    public bool HasActiveProject => _activeProject != null;
+    
+    /// <summary>
+    /// Get the current git branch
+    /// </summary>
+    public string? CurrentBranch => _activeProject?.Branch;
+    
+    /// <summary>
     /// Get the active project.
     /// Translated from: projects.getActiveProject = function()
     /// </summary>
@@ -146,6 +156,7 @@ public class Project
     public string Version { get; set; } = "0.0.1";
     public DateTime CreatedAt { get; set; }
     public DateTime ModifiedAt { get; set; }
+    public string Branch { get; set; } = "main";
     public ProjectFiles Files { get; set; } = new();
     public ProjectGit Git { get; set; } = new();
     public ProjectSettings Settings { get; set; } = new();
