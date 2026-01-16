@@ -152,6 +152,7 @@ module.exports = function(grunt) {
                     "packages/node_modules/@node-red/editor-client/src/js/history.js",
                     "packages/node_modules/@node-red/editor-client/src/js/validators.js",
                     "packages/node_modules/@node-red/editor-client/src/js/ui/utils.js",
+                    "packages/node_modules/@node-red/editor-client/src/js/ui/syncfusion-wrappers.js",
                     "packages/node_modules/@node-red/editor-client/src/js/ui/common/editableList.js",
                     "packages/node_modules/@node-red/editor-client/src/js/ui/common/treeList.js",
                     "packages/node_modules/@node-red/editor-client/src/js/ui/common/checkboxSet.js",
@@ -218,6 +219,12 @@ module.exports = function(grunt) {
                             "packages/node_modules/@node-red/editor-client/src/vendor/jquery/js/jquery-migrate-3.5.2.min.js",
                             "packages/node_modules/@node-red/editor-client/src/vendor/jquery/js/jquery-ui-1.14.1.min.js",
                             "packages/node_modules/@node-red/editor-client/src/vendor/jquery/js/jquery.ui.touch-punch.min.js",
+                            "node_modules/@syncfusion/ej2-base/dist/ej2-base.min.js",
+                            "node_modules/@syncfusion/ej2-buttons/dist/ej2-buttons.min.js",
+                            "node_modules/@syncfusion/ej2-popups/dist/ej2-popups.min.js",
+                            "node_modules/@syncfusion/ej2-navigations/dist/ej2-navigations.min.js",
+                            "node_modules/@syncfusion/ej2-inputs/dist/ej2-inputs.min.js",
+                            "node_modules/@syncfusion/ej2-splitbuttons/dist/ej2-splitbuttons.min.js",
                             "node_modules/marked/marked.min.js",
                             "node_modules/dompurify/dist/purify.min.js",
                             "packages/node_modules/@node-red/editor-client/src/vendor/d3/d3.v3.min.js",
@@ -417,6 +424,19 @@ module.exports = function(grunt) {
                         ],
                         expand: true,
                         dest: 'packages/node_modules/@node-red/editor-client/public/vendor/'
+                    },
+                    {
+                        cwd: 'node_modules/@syncfusion',
+                        src: [
+                            'ej2-base/styles/material.css',
+                            'ej2-buttons/styles/material.css',
+                            'ej2-popups/styles/material.css',
+                            'ej2-navigations/styles/material.css',
+                            'ej2-inputs/styles/material.css',
+                            'ej2-splitbuttons/styles/material.css'
+                        ],
+                        expand: true,
+                        dest: 'packages/node_modules/@node-red/editor-client/public/vendor/syncfusion/'
                     },
                     {
                         cwd: 'packages/node_modules/@node-red/editor-client/src',
