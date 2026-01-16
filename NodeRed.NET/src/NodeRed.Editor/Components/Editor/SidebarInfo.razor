@@ -53,7 +53,7 @@
                             @foreach (var node in GetNodesInFlow(workspace.Id).Take(10))
                             {
                                 <div class="red-ui-treeList-item" style="padding-left: 40px; cursor: pointer;"
-                                     @onclick="() => SelectNode(node)">
+                                     @onclick="() => SelectNode(node)" @onclick:stopPropagation="true">
                                     <span class="red-ui-palette-icon-small" style="background-color: @GetNodeColor(node.Type); width: 16px; height: 16px; display: inline-block; border-radius: 2px;"></span>
                                     <span style="margin-left: 6px;">@(string.IsNullOrEmpty(node.Name) ? node.Type : node.Name)</span>
                                 </div>

@@ -1,0 +1,17 @@
+{
+  "name": "nodered.editor.e2e",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:debug": "npx playwright test --debug"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "E2E tests for NodeRed.Editor using Playwright",
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
+  }
+}

@@ -294,12 +294,7 @@
                     // Clear selection when clicking on empty space
                     MovingSet.Clear();
                     SelectedLinks.Clear();
-                }
-                
-                // Start global mouse tracking for lasso selection
-                if (_dotNetRef != null)
-                {
-                    _ = JS.InvokeVoidAsync("startCanvasInteraction", _dotNetRef, "lasso");
+                    State.Nodes.ClearSelection();
                 }
             }
         }
@@ -384,8 +379,8 @@
                 break;
 
             case MouseMode.Joining:
-                // Complete wire connection
-                DragLines.Clear();
+                // Wire creation cancelled (didn't land on a port)
+                ClearWireState();
                 break;
         }
 
@@ -553,32 +548,8 @@
     }
 
     private string? _draggedNodeType;
-    private DotNetObjectReference<Workspaces>? _dotNetRef;
-    private (double X, double Y) _canvasOffset;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            _dotNetRef = DotNetObjectReference.Create(this);
-            // Get canvas position for coordinate calculations
-            try
-            {
-                var rect = await JS.InvokeAsync<BoundingRect>("eval", 
-                    "((el) => { var r = el.getBoundingClientRect(); return { x: r.x, y: r.y }; })(document.getElementById('red-ui-workspace-chart'))");
-                _canvasOffset = (rect?.X ?? 0, rect?.Y ?? 0);
-            }
-            catch { }
-        }
-    }
-
-    private class BoundingRect
-    {
-        public double X { get; set; }
-        public double Y { get; set; }
-    }
-
-    private async Task HandleNodeMouseDown(MouseEventArgs e, FlowNode node)
+    private void HandleNodeMouseDown(MouseEventArgs e, FlowNode node)
     {
         _mousedownNode = node;
 
@@ -589,88 +560,33 @@
                 if (!e.CtrlKey && !e.ShiftKey)
                 {
                     MovingSet.Clear();
+                    State.Nodes.ClearSelection();
                 }
                 MovingSet.Add(node);
+                State.Nodes.SelectNode(node);
             }
             _mouseMode = MouseMode.Moving;
-            
-            // Start global mouse tracking for smooth dragging
-            if (_dotNetRef != null)
-            {
-                try
-                {
-                    await JS.InvokeVoidAsync("startCanvasInteraction", _dotNetRef, "moving");
-                }
-                catch { }
-            }
         }
 
         StateHasChanged();
     }
 
     /// <summary>
-    /// Called from JS when mouse moves during global tracking
+    /// Clear wire creation state
     /// </summary>
-    [JSInvokable]
-    public void OnGlobalMouseMove(double clientX, double clientY, double movementX, double movementY)
+    private void ClearWireState()
     {
-        if (_mouseMode == MouseMode.Moving && MovingSet.Count > 0)
-        {
-            foreach (var item in MovingSet.GetAll())
-            {
-                item.Node.X += movementX / ScaleFactor;
-                item.Node.Y += movementY / ScaleFactor;
-                
-                if (SnapGrid)
-                {
-                    item.Node.X = Math.Round(item.Node.X / GridSize) * GridSize;
-                    item.Node.Y = Math.Round(item.Node.Y / GridSize) * GridSize;
-                }
-            }
-            InvokeAsync(StateHasChanged);
-        }
-        else if (_mouseMode == MouseMode.Lasso && Lasso != null)
-        {
-            var localX = clientX - _canvasOffset.X;
-            var localY = clientY - _canvasOffset.Y;
-            Lasso.Width = localX - Lasso.X;
-            Lasso.Height = localY - Lasso.Y;
-            InvokeAsync(StateHasChanged);
-        }
-    }
-
-    /// <summary>
-    /// Called from JS when mouse up during global tracking
-    /// </summary>
-    [JSInvokable]
-    public void OnGlobalMouseUp(double clientX, double clientY)
-    {
-        if (_mouseMode == MouseMode.Moving)
-        {
-            State.Nodes.SetDirty(true);
-        }
-        else if (_mouseMode == MouseMode.Lasso && Lasso != null)
-        {
-            SelectNodesInLasso(Lasso);
-            Lasso = null;
-        }
-        else if (_mouseMode == MouseMode.Joining)
-        {
-            // Wire creation cancelled (didn't land on a port)
-            _wireSourceNode = null;
-            _wireSourcePortIndex = 0;
-            DragLines.Clear();
-        }
-        
-        _mouseMode = MouseMode.None;
-        _mousedownNode = null;
-        InvokeAsync(StateHasChanged);
+        _wireSourceNode = null;
+        _wireSourcePortIndex = 0;
+        DragLines.Clear();
     }
 
     private void SelectNode(FlowNode node)
     {
         MovingSet.Clear();
+        State.Nodes.ClearSelection();
         MovingSet.Add(node);
+        State.Nodes.SelectNode(node);
         SelectedLinks.Clear();
         StateHasChanged();
     }
@@ -710,6 +626,7 @@
                 node.Y >= minY && node.Y + NodeHeight <= maxY)
             {
                 MovingSet.Add(node);
+                State.Nodes.SelectNode(node);
             }
         }
     }
@@ -771,7 +688,7 @@
     /// Handle output port drag start - initiates wire creation
     /// Translated from port mousedown in view.js
     /// </summary>
-    private async Task HandleOutputPortDragStart((FlowNode Node, int PortIndex) args)
+    private void HandleOutputPortDragStart((FlowNode Node, int PortIndex) args)
     {
         _wireSourceNode = args.Node;
         _wireSourcePortIndex = args.PortIndex;
@@ -786,16 +703,6 @@
         };
         DragLines.Clear();
         DragLines.Add(dragLine);
-        
-        // Start global mouse tracking for wiring
-        if (_dotNetRef != null)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("startCanvasInteraction", _dotNetRef, "wiring");
-            }
-            catch { }
-        }
         
         StateHasChanged();
     }
@@ -829,10 +736,8 @@
         }
         
         // Clear wire state
-        _wireSourceNode = null;
-        _wireSourcePortIndex = 0;
+        ClearWireState();
         _mouseMode = MouseMode.None;
-        DragLines.Clear();
         StateHasChanged();
     }
 
