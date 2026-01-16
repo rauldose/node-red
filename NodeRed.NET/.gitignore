@@ -29,3 +29,9 @@ TestResults/
 
 # Package lock file - commented out as it may be useful to track
 # packages.lock.json
+
+# Node.js (for E2E tests)
+node_modules/
+test-results/
+playwright-report/
+playwright/.cache/
