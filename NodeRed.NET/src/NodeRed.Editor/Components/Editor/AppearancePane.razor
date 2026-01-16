@@ -1,0 +1,378 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/editors/panes/appearance.js
+   ============================================================
+   Appearance tab for node editing - controls label visibility, icon, color, and port labels
+   ============================================================ *@
+
+<div class="red-ui-editor-appearance-pane" style="padding: 12px;">
+    @* Label visibility - translated from lines 198-214 *@
+    <div class="form-row" style="margin-bottom: 16px;">
+        <label style="display: inline-block; width: 100px;">Label</label>
+        <button type="button" 
+                class="red-ui-toggle-button @(ShowLabel ? "active" : "")"
+                style="padding: 4px 12px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; background: @(ShowLabel ? "#8a8" : "#aaa"); color: white;"
+                @onclick="ToggleShowLabel">
+            @(ShowLabel ? "Show" : "Hide")
+        </button>
+    </div>
+
+    @* Icon picker - translated from lines 256-298 *@
+    @if (!HasIconDefault)
+    {
+        <div class="form-row" style="margin-bottom: 16px;">
+            <label style="display: inline-block; width: 100px;">Icon</label>
+            <button type="button" 
+                    class="red-ui-button red-ui-editor-node-appearance-button"
+                    style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;"
+                    @onclick="OpenIconPicker">
+                <div class="red-ui-search-result-node" 
+                     style="width: 24px; height: 24px; background-color: @NodeColor; border: 1px solid @BorderColor; border-radius: 2px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa @GetIconClass()" style="font-size: 12px;"></i>
+                </div>
+                <i class="fa fa-caret-down"></i>
+            </button>
+            <span style="margin-left: 8px; color: #888;">@(string.IsNullOrEmpty(CurrentIcon) ? "(default)" : CurrentIcon)</span>
+        </div>
+    }
+
+    @* Color picker for subflows - translated from lines 215-252 *@
+    @if (IsSubflow)
+    {
+        <div class="form-row" style="margin-bottom: 16px;">
+            <label style="display: inline-block; width: 100px;">Color</label>
+            <div style="display: inline-flex; align-items: center; gap: 8px;">
+                <input type="color" 
+                       value="@NodeColor"
+                       @onchange="OnColorChange"
+                       style="width: 40px; height: 30px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;" />
+                <span style="color: #888;">@NodeColor</span>
+            </div>
+        </div>
+
+        @* Category selector for subflows - translated from lines 143-196 *@
+        <div class="form-row" style="margin-bottom: 16px;">
+            <label style="display: inline-block; width: 100px;">Category</label>
+            <select @bind="Category" style="width: 200px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;">
+                @foreach (var cat in Categories)
+                {
+                    <option value="@cat.Id">@cat.Label</option>
+                }
+                <option disabled>---</option>
+                <option value="_custom_">Add category...</option>
+            </select>
+            @if (Category == "_custom_")
+            {
+                <input type="text" 
+                       @bind="CustomCategory"
+                       placeholder="Category name"
+                       style="margin-left: 8px; width: 150px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;" />
+            }
+        </div>
+    }
+
+    @* Port labels section - translated from lines 301-333 *@
+    <div class="form-row" style="margin-bottom: 8px; border-top: 1px solid #ddd; padding-top: 16px;">
+        <span style="font-weight: 500;">Port Labels</span>
+    </div>
+
+    @* Input labels *@
+    <div class="form-row" style="margin-bottom: 12px; margin-left: 50px;">
+        <span style="color: #666; font-size: 12px;">Inputs</span>
+        <div id="red-ui-editor-node-label-form-inputs" style="margin-top: 4px;">
+            @if (InputCount > 0)
+            {
+                @for (int i = 0; i < InputCount; i++)
+                {
+                    var index = i;
+                    <div class="red-ui-editor-node-label-form-row" style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <label style="width: 20px; text-align: right;">@(index + 1).</label>
+                        <input type="text" 
+                               value="@GetInputLabel(index)"
+                               @onchange="@((ChangeEventArgs e) => SetInputLabel(index, e.Value?.ToString() ?? ""))"
+                               placeholder="@InputPlaceholder"
+                               style="flex: 1; padding: 4px; border: 1px solid #ccc; border-radius: 3px;" />
+                        <button type="button" 
+                                class="red-ui-button red-ui-button-small"
+                                style="padding: 2px 6px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;"
+                                @onclick="@(() => ClearInputLabel(index))">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                }
+            }
+            else
+            {
+                <span class="red-ui-editor-node-label-form-none" style="color: #888; font-style: italic;">no default label</span>
+            }
+        </div>
+    </div>
+
+    @* Output labels *@
+    <div class="form-row" style="margin-bottom: 12px; margin-left: 50px;">
+        <span style="color: #666; font-size: 12px;">Outputs</span>
+        <div id="red-ui-editor-node-label-form-outputs" style="margin-top: 4px;">
+            @if (OutputCount > 0)
+            {
+                @for (int i = 0; i < OutputCount; i++)
+                {
+                    var index = i;
+                    <div class="red-ui-editor-node-label-form-row" style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <label style="width: 20px; text-align: right;">@(index + 1).</label>
+                        <input type="text" 
+                               value="@GetOutputLabel(index)"
+                               @onchange="@((ChangeEventArgs e) => SetOutputLabel(index, e.Value?.ToString() ?? ""))"
+                               placeholder="@OutputPlaceholder"
+                               style="flex: 1; padding: 4px; border: 1px solid #ccc; border-radius: 3px;" />
+                        <button type="button" 
+                                class="red-ui-button red-ui-button-small"
+                                style="padding: 2px 6px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;"
+                                @onclick="@(() => ClearOutputLabel(index))">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                }
+            }
+            else
+            {
+                <span class="red-ui-editor-node-label-form-none" style="color: #888; font-style: italic;">no default label</span>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Dictionary<string, object>? Node { get; set; }
+    [Parameter] public EventCallback<AppearanceSettings> OnSettingsChanged { get; set; }
+
+    private bool ShowLabel = true;
+    private string CurrentIcon = "";
+    private string NodeColor = "#ddd";
+    private string BorderColor = "#ccc";
+    private bool IsSubflow = false;
+    private bool HasIconDefault = false;
+    private string Category = "subflows";
+    private string CustomCategory = "";
+    private int InputCount = 0;
+    private int OutputCount = 0;
+    private string InputPlaceholder = "no default label";
+    private string OutputPlaceholder = "no default label";
+    private List<string> InputLabels = new();
+    private List<string> OutputLabels = new();
+    private List<CategoryInfo> Categories = new();
+
+    protected override void OnParametersSet()
+    {
+        if (Node != null)
+        {
+            // Show label - translated from lines 209-213
+            ShowLabel = !Node.TryGetValue("l", out var l) || (l is bool boolL && boolL);
+            
+            // Icon
+            CurrentIcon = Node.TryGetValue("icon", out var icon) ? icon?.ToString() ?? "" : "";
+            
+            // Color
+            NodeColor = GetNodeColor();
+            BorderColor = GetDarkerColor(NodeColor);
+            
+            // Node type
+            var nodeType = Node.TryGetValue("type", out var t) ? t?.ToString() ?? "" : "";
+            IsSubflow = nodeType == "subflow" || nodeType.StartsWith("subflow:");
+            
+            // Category for subflows
+            if (IsSubflow && Node.TryGetValue("category", out var cat))
+            {
+                Category = cat?.ToString() ?? "subflows";
+            }
+            
+            // Input/Output counts
+            InputCount = Node.TryGetValue("inputs", out var inputs) && inputs is int inputsInt ? inputsInt : 0;
+            OutputCount = Node.TryGetValue("outputs", out var outputs) && outputs is int outputsInt ? outputsInt : 0;
+            
+            // Labels
+            if (Node.TryGetValue("inputLabels", out var inputLabelsObj) && inputLabelsObj is List<string> iLabels)
+            {
+                InputLabels = new List<string>(iLabels);
+            }
+            else
+            {
+                InputLabels = new List<string>(new string[InputCount]);
+            }
+            
+            if (Node.TryGetValue("outputLabels", out var outputLabelsObj) && outputLabelsObj is List<string> oLabels)
+            {
+                OutputLabels = new List<string>(oLabels);
+            }
+            else
+            {
+                OutputLabels = new List<string>(new string[OutputCount]);
+            }
+            
+            // Populate categories - translated from lines 164-172
+            Categories = new List<CategoryInfo>
+            {
+                new CategoryInfo { Id = "subflows", Label = "subflows" },
+                new CategoryInfo { Id = "common", Label = "common" },
+                new CategoryInfo { Id = "function", Label = "function" },
+                new CategoryInfo { Id = "network", Label = "network" },
+                new CategoryInfo { Id = "sequence", Label = "sequence" },
+                new CategoryInfo { Id = "parser", Label = "parser" },
+                new CategoryInfo { Id = "storage", Label = "storage" }
+            };
+        }
+    }
+
+    private void ToggleShowLabel()
+    {
+        ShowLabel = !ShowLabel;
+        NotifySettingsChanged();
+    }
+
+    private void OpenIconPicker()
+    {
+        // Icon picker would open a modal - for now just toggle between default icons
+        // This could be enhanced with a full icon picker modal
+    }
+
+    private void OnColorChange(ChangeEventArgs e)
+    {
+        NodeColor = e.Value?.ToString() ?? "#ddd";
+        BorderColor = GetDarkerColor(NodeColor);
+        NotifySettingsChanged();
+    }
+
+    private string GetNodeColor()
+    {
+        if (Node != null && Node.TryGetValue("color", out var c))
+        {
+            return c?.ToString() ?? "#ddd";
+        }
+        
+        var nodeType = Node?.TryGetValue("type", out var t) == true ? t?.ToString() ?? "" : "";
+        return nodeType switch
+        {
+            "inject" => "#a6bbcf",
+            "debug" => "#87a980",
+            "function" => "#fdd0a2",
+            "switch" => "#e2d96e",
+            "change" => "#e2d96e",
+            "template" => "#e2d96e",
+            "http request" => "#87a980",
+            "subflow" => "#DDAA99",
+            _ => "#ddd"
+        };
+    }
+
+    private string GetDarkerColor(string color)
+    {
+        // Simplified darker color calculation
+        try
+        {
+            if (color.StartsWith("#") && color.Length == 7)
+            {
+                int r = Convert.ToInt32(color.Substring(1, 2), 16);
+                int g = Convert.ToInt32(color.Substring(3, 2), 16);
+                int b = Convert.ToInt32(color.Substring(5, 2), 16);
+                r = Math.Max(0, r - 30);
+                g = Math.Max(0, g - 30);
+                b = Math.Max(0, b - 30);
+                return $"#{r:X2}{g:X2}{b:X2}";
+            }
+        }
+        catch { }
+        return color;
+    }
+
+    private string GetIconClass()
+    {
+        var nodeType = Node?.TryGetValue("type", out var t) == true ? t?.ToString() ?? "" : "";
+        return nodeType switch
+        {
+            "inject" => "fa-bolt",
+            "debug" => "fa-bug",
+            "function" => "fa-code",
+            "switch" => "fa-random",
+            "change" => "fa-random",
+            "template" => "fa-file-code-o",
+            "http request" => "fa-globe",
+            "subflow" => "fa-share-alt",
+            _ => "fa-cube"
+        };
+    }
+
+    private string GetInputLabel(int index)
+    {
+        return index < InputLabels.Count ? InputLabels[index] ?? "" : "";
+    }
+
+    private string GetOutputLabel(int index)
+    {
+        return index < OutputLabels.Count ? OutputLabels[index] ?? "" : "";
+    }
+
+    private void SetInputLabel(int index, string value)
+    {
+        while (InputLabels.Count <= index)
+        {
+            InputLabels.Add("");
+        }
+        InputLabels[index] = value;
+        NotifySettingsChanged();
+    }
+
+    private void SetOutputLabel(int index, string value)
+    {
+        while (OutputLabels.Count <= index)
+        {
+            OutputLabels.Add("");
+        }
+        OutputLabels[index] = value;
+        NotifySettingsChanged();
+    }
+
+    private void ClearInputLabel(int index)
+    {
+        if (index < InputLabels.Count)
+        {
+            InputLabels[index] = "";
+            NotifySettingsChanged();
+        }
+    }
+
+    private void ClearOutputLabel(int index)
+    {
+        if (index < OutputLabels.Count)
+        {
+            OutputLabels[index] = "";
+            NotifySettingsChanged();
+        }
+    }
+
+    private void NotifySettingsChanged()
+    {
+        OnSettingsChanged.InvokeAsync(new AppearanceSettings
+        {
+            ShowLabel = ShowLabel,
+            Icon = CurrentIcon,
+            Color = NodeColor,
+            Category = Category == "_custom_" ? CustomCategory : Category,
+            InputLabels = InputLabels,
+            OutputLabels = OutputLabels
+        });
+    }
+
+    public class AppearanceSettings
+    {
+        public bool ShowLabel { get; set; }
+        public string Icon { get; set; } = "";
+        public string Color { get; set; } = "";
+        public string Category { get; set; } = "";
+        public List<string> InputLabels { get; set; } = new();
+        public List<string> OutputLabels { get; set; } = new();
+    }
+
+    public class CategoryInfo
+    {
+        public string Id { get; set; } = "";
+        public string Label { get; set; } = "";
+    }
+}

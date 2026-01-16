@@ -1,0 +1,359 @@
+@* ============================================================
+   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/editors/panes/properties.js
+   ============================================================
+   Properties tab for node editing - main configuration form
+   ============================================================ *@
+
+<div class="red-ui-editor-properties-pane" style="padding: 12px;">
+    <form class="dialog-form form-horizontal" autocomplete="off">
+        @* Name field - standard for all nodes *@
+        <div class="form-row" style="margin-bottom: 12px;">
+            <label for="node-input-name" style="display: inline-block; width: 100px; font-weight: 500;">
+                <i class="fa fa-tag" style="margin-right: 4px;"></i> Name
+            </label>
+            <input type="text" 
+                   id="node-input-name" 
+                   @bind="NodeName"
+                   placeholder="Name"
+                   style="width: calc(100% - 110px); padding: 6px; border: 1px solid #ccc; border-radius: 3px;" />
+        </div>
+
+        @* Node-specific properties based on type *@
+        @switch (NodeType)
+        {
+            case "inject":
+                @* Inject node properties - translated from 20-inject.html *@
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-envelope" style="margin-right: 4px;"></i> Payload
+                    </label>
+                    <select @bind="PayloadType" style="width: 120px; padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
+                        <option value="date">timestamp</option>
+                        <option value="str">string</option>
+                        <option value="num">number</option>
+                        <option value="bool">boolean</option>
+                        <option value="json">JSON</option>
+                        <option value="flow">flow.</option>
+                        <option value="global">global.</option>
+                    </select>
+                    @if (PayloadType != "date")
+                    {
+                        <input type="text" 
+                               @bind="PayloadValue"
+                               style="width: calc(100% - 240px); margin-left: 8px; padding: 6px; border: 1px solid #ccc; border-radius: 3px;" />
+                    }
+                </div>
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-tasks" style="margin-right: 4px;"></i> Topic
+                    </label>
+                    <input type="text" 
+                           @bind="Topic"
+                           placeholder="topic"
+                           style="width: calc(100% - 110px); padding: 6px; border: 1px solid #ccc; border-radius: 3px;" />
+                </div>
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-repeat" style="margin-right: 4px;"></i> Repeat
+                    </label>
+                    <select @bind="RepeatType" style="width: 120px; padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
+                        <option value="none">none</option>
+                        <option value="interval">interval</option>
+                        <option value="interval-time">at a specific time</option>
+                        <option value="cron">cron</option>
+                    </select>
+                    @if (RepeatType == "interval")
+                    {
+                        <span style="margin-left: 8px;">every</span>
+                        <input type="number" 
+                               @bind="RepeatInterval"
+                               style="width: 60px; margin-left: 4px; padding: 6px; border: 1px solid #ccc; border-radius: 3px;" />
+                        <select @bind="RepeatUnits" style="margin-left: 4px; padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
+                            <option value="s">seconds</option>
+                            <option value="m">minutes</option>
+                            <option value="h">hours</option>
+                        </select>
+                    }
+                </div>
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px;">
+                    </label>
+                    <input type="checkbox" id="node-input-once" @bind="InjectOnStart" style="margin-right: 4px;" />
+                    <label for="node-input-once">Inject once after <input type="number" @bind="OnceDelay" style="width: 50px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;" /> seconds</label>
+                </div>
+                break;
+
+            case "debug":
+                @* Debug node properties - translated from 21-debug.html *@
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-bullseye" style="margin-right: 4px;"></i> Output
+                    </label>
+                    <select @bind="DebugOutput" style="width: 200px; padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
+                        <option value="msg">msg.payload</option>
+                        <option value="full">complete msg object</option>
+                        <option value="prop">msg property</option>
+                    </select>
+                    @if (DebugOutput == "prop")
+                    {
+                        <input type="text" 
+                               @bind="DebugProperty"
+                               placeholder="payload"
+                               style="width: calc(100% - 320px); margin-left: 8px; padding: 6px; border: 1px solid #ccc; border-radius: 3px;" />
+                    }
+                </div>
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-sign-out" style="margin-right: 4px;"></i> To
+                    </label>
+                    <select @bind="DebugTo" style="width: 200px; padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
+                        <option value="debug">debug tab</option>
+                        <option value="console">system console</option>
+                        <option value="status">node status</option>
+                        <option value="all">debug tab and console</option>
+                    </select>
+                </div>
+                break;
+
+            case "function":
+                @* Function node properties - translated from 10-function.html *@
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-wrench" style="margin-right: 4px;"></i> Setup
+                    </label>
+                    <div style="width: calc(100% - 110px); display: inline-block; vertical-align: top;">
+                        <textarea @bind="FunctionSetup"
+                                  placeholder="// Code to run on start..."
+                                  style="width: 100%; height: 60px; padding: 6px; border: 1px solid #ccc; border-radius: 3px; font-family: monospace; font-size: 12px;"></textarea>
+                    </div>
+                </div>
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-code" style="margin-right: 4px;"></i> Function
+                    </label>
+                    <div style="width: calc(100% - 110px); display: inline-block; vertical-align: top;">
+                        <textarea @bind="FunctionCode"
+                                  placeholder="return msg;"
+                                  style="width: 100%; height: 200px; padding: 6px; border: 1px solid #ccc; border-radius: 3px; font-family: monospace; font-size: 12px;"></textarea>
+                    </div>
+                </div>
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-sign-out" style="margin-right: 4px;"></i> Outputs
+                    </label>
+                    <input type="number" 
+                           @bind="FunctionOutputs"
+                           min="0"
+                           max="10"
+                           style="width: 60px; padding: 6px; border: 1px solid #ccc; border-radius: 3px;" />
+                </div>
+                break;
+
+            case "switch":
+                @* Switch node properties *@
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-sign-in" style="margin-right: 4px;"></i> Property
+                    </label>
+                    <input type="text" 
+                           @bind="SwitchProperty"
+                           placeholder="payload"
+                           style="width: calc(100% - 110px); padding: 6px; border: 1px solid #ccc; border-radius: 3px;" />
+                </div>
+                <div class="form-row" style="margin-bottom: 8px;">
+                    <span style="font-weight: 500;">Rules</span>
+                </div>
+                <div style="border: 1px solid #ccc; border-radius: 3px; padding: 8px; background: #fafafa;">
+                    <div style="color: #888; font-style: italic;">Configure rules for message routing...</div>
+                </div>
+                break;
+
+            case "change":
+                @* Change node properties *@
+                <div class="form-row" style="margin-bottom: 8px;">
+                    <span style="font-weight: 500;">Rules</span>
+                </div>
+                <div style="border: 1px solid #ccc; border-radius: 3px; padding: 8px; background: #fafafa;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <select style="padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
+                            <option>Set</option>
+                            <option>Change</option>
+                            <option>Delete</option>
+                            <option>Move</option>
+                        </select>
+                        <span>msg.</span>
+                        <input type="text" placeholder="payload" style="flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 3px;" />
+                        <span>to</span>
+                        <input type="text" placeholder="value" style="flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 3px;" />
+                    </div>
+                    <button type="button" class="red-ui-button red-ui-button-small" style="width: 100%;">
+                        <i class="fa fa-plus"></i> Add rule
+                    </button>
+                </div>
+                break;
+
+            case "http request":
+                @* HTTP request node properties *@
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-globe" style="margin-right: 4px;"></i> Method
+                    </label>
+                    <select @bind="HttpMethod" style="width: 120px; padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="DELETE">DELETE</option>
+                        <option value="PATCH">PATCH</option>
+                        <option value="HEAD">HEAD</option>
+                        <option value="set">- set by msg.method -</option>
+                    </select>
+                </div>
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-link" style="margin-right: 4px;"></i> URL
+                    </label>
+                    <input type="text" 
+                           @bind="HttpUrl"
+                           placeholder="http://example.com/api"
+                           style="width: calc(100% - 110px); padding: 6px; border: 1px solid #ccc; border-radius: 3px;" />
+                </div>
+                <div class="form-row" style="margin-bottom: 12px;">
+                    <label style="display: inline-block; width: 100px; font-weight: 500;">
+                        <i class="fa fa-file-o" style="margin-right: 4px;"></i> Return
+                    </label>
+                    <select @bind="HttpReturn" style="width: 200px; padding: 6px; border: 1px solid #ccc; border-radius: 3px;">
+                        <option value="txt">a UTF-8 string</option>
+                        <option value="bin">a binary buffer</option>
+                        <option value="obj">a parsed JSON object</option>
+                    </select>
+                </div>
+                break;
+
+            default:
+                @* Generic properties placeholder for other node types *@
+                <div class="form-row" style="margin-bottom: 12px; color: #888; font-style: italic;">
+                    <p>Configure this @NodeType node using the properties above.</p>
+                </div>
+                break;
+        }
+    </form>
+</div>
+
+@code {
+    [Parameter] public Dictionary<string, object>? Node { get; set; }
+    [Parameter] public EventCallback<Dictionary<string, object>> OnPropertiesChanged { get; set; }
+
+    // Common properties
+    private string NodeName = "";
+    private string NodeType = "";
+
+    // Inject node properties
+    private string PayloadType = "date";
+    private string PayloadValue = "";
+    private string Topic = "";
+    private string RepeatType = "none";
+    private int RepeatInterval = 1;
+    private string RepeatUnits = "s";
+    private bool InjectOnStart = false;
+    private decimal OnceDelay = 0.1m;
+
+    // Debug node properties
+    private string DebugOutput = "msg";
+    private string DebugProperty = "payload";
+    private string DebugTo = "debug";
+
+    // Function node properties
+    private string FunctionSetup = "";
+    private string FunctionCode = "return msg;";
+    private int FunctionOutputs = 1;
+
+    // Switch node properties
+    private string SwitchProperty = "payload";
+
+    // HTTP request node properties
+    private string HttpMethod = "GET";
+    private string HttpUrl = "";
+    private string HttpReturn = "txt";
+
+    protected override void OnParametersSet()
+    {
+        if (Node != null)
+        {
+            NodeType = Node.TryGetValue("type", out var t) ? t?.ToString() ?? "" : "";
+            NodeName = Node.TryGetValue("name", out var n) ? n?.ToString() ?? "" : "";
+
+            // Load node-specific properties
+            switch (NodeType)
+            {
+                case "inject":
+                    PayloadType = Node.TryGetValue("payloadType", out var pt) ? pt?.ToString() ?? "date" : "date";
+                    PayloadValue = Node.TryGetValue("payload", out var pv) ? pv?.ToString() ?? "" : "";
+                    Topic = Node.TryGetValue("topic", out var topic) ? topic?.ToString() ?? "" : "";
+                    RepeatType = Node.TryGetValue("repeat", out var r) && r != null ? "interval" : "none";
+                    InjectOnStart = Node.TryGetValue("once", out var once) && once is bool b && b;
+                    break;
+
+                case "debug":
+                    DebugOutput = Node.TryGetValue("complete", out var dc) ? dc?.ToString() ?? "msg" : "msg";
+                    DebugTo = Node.TryGetValue("tosidebar", out var ts) && ts is bool tsb && tsb ? "debug" : "console";
+                    break;
+
+                case "function":
+                    FunctionCode = Node.TryGetValue("func", out var fc) ? fc?.ToString() ?? "return msg;" : "return msg;";
+                    FunctionOutputs = Node.TryGetValue("outputs", out var fo) && fo is int foInt ? foInt : 1;
+                    break;
+
+                case "http request":
+                    HttpMethod = Node.TryGetValue("method", out var hm) ? hm?.ToString() ?? "GET" : "GET";
+                    HttpUrl = Node.TryGetValue("url", out var hu) ? hu?.ToString() ?? "" : "";
+                    HttpReturn = Node.TryGetValue("ret", out var hr) ? hr?.ToString() ?? "txt" : "txt";
+                    break;
+            }
+        }
+    }
+
+    public Dictionary<string, object> GetProperties()
+    {
+        var props = new Dictionary<string, object>
+        {
+            ["name"] = NodeName,
+            ["type"] = NodeType
+        };
+
+        switch (NodeType)
+        {
+            case "inject":
+                props["payloadType"] = PayloadType;
+                props["payload"] = PayloadValue;
+                props["topic"] = Topic;
+                props["once"] = InjectOnStart;
+                props["onceDelay"] = OnceDelay;
+                if (RepeatType == "interval")
+                {
+                    props["repeat"] = RepeatInterval.ToString();
+                }
+                break;
+
+            case "debug":
+                props["complete"] = DebugOutput == "full" ? "true" : DebugOutput == "prop" ? DebugProperty : "false";
+                props["tosidebar"] = DebugTo == "debug" || DebugTo == "all";
+                props["console"] = DebugTo == "console" || DebugTo == "all";
+                props["tostatus"] = DebugTo == "status";
+                break;
+
+            case "function":
+                props["func"] = FunctionCode;
+                props["initialize"] = FunctionSetup;
+                props["outputs"] = FunctionOutputs;
+                break;
+
+            case "http request":
+                props["method"] = HttpMethod;
+                props["url"] = HttpUrl;
+                props["ret"] = HttpReturn;
+                break;
+        }
+
+        return props;
+    }
+}
