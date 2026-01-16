@@ -9,7 +9,9 @@
 <g class="red-ui-flow-node @(IsSelected ? "selected" : "") @(Node.Dirty ? "dirty" : "")"
    transform="translate(@Node.X, @Node.Y)"
    @onmousedown="OnMouseDown"
-   @ondblclick="OnDoubleClick">
+   @onmousedown:stopPropagation="true"
+   @ondblclick="OnDoubleClick"
+   @ondblclick:stopPropagation="true">
     
     @* Node body *@
     <rect class="red-ui-flow-node-body"

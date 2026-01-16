@@ -12,6 +12,9 @@ let activeResize = null;
 // Dragged node type from palette
 let draggedNodeType = null;
 
+// Canvas interaction state
+let canvasInteraction = null;
+
 /**
  * Start tracking mouse movement for panel resize
  * Called from Blazor when user starts dragging a resize handle
@@ -102,6 +105,61 @@ window.getDraggedNodeType = function() {
  */
 window.clearDraggedNodeType = function() {
     draggedNodeType = null;
+};
+
+// ============================================================
+// Canvas Node/Wire Interaction support
+// ============================================================
+
+/**
+ * Start tracking global mouse events for canvas interactions (node move, wire drag)
+ * @param {DotNetObjectReference} dotNetRef - Reference to the Workspaces component
+ * @param {string} mode - Interaction mode ('moving', 'wiring', 'lasso')
+ */
+window.startCanvasInteraction = function(dotNetRef, mode) {
+    canvasInteraction = {
+        dotNetRef: dotNetRef,
+        mode: mode
+    };
+    
+    document.addEventListener('mousemove', onCanvasMove);
+    document.addEventListener('mouseup', onCanvasUp);
+    
+    // Prevent text selection
+    document.body.style.userSelect = 'none';
+    if (mode === 'moving') {
+        document.body.style.cursor = 'move';
+    } else if (mode === 'wiring') {
+        document.body.style.cursor = 'crosshair';
+    }
+};
+
+function onCanvasMove(e) {
+    if (canvasInteraction && canvasInteraction.dotNetRef) {
+        canvasInteraction.dotNetRef.invokeMethodAsync('OnGlobalMouseMove', e.clientX, e.clientY, e.movementX, e.movementY);
+    }
+}
+
+function onCanvasUp(e) {
+    if (canvasInteraction && canvasInteraction.dotNetRef) {
+        canvasInteraction.dotNetRef.invokeMethodAsync('OnGlobalMouseUp', e.clientX, e.clientY);
+    }
+    
+    document.removeEventListener('mousemove', onCanvasMove);
+    document.removeEventListener('mouseup', onCanvasUp);
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+    canvasInteraction = null;
+}
+
+window.stopCanvasInteraction = function() {
+    if (canvasInteraction) {
+        document.removeEventListener('mousemove', onCanvasMove);
+        document.removeEventListener('mouseup', onCanvasUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        canvasInteraction = null;
+    }
 };
 
 // ============================================================
