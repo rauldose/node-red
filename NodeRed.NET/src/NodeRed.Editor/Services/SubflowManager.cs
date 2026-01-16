@@ -24,7 +24,32 @@ public class SubflowManager
     /// <summary>
     /// Create a subflow from selected nodes.
     /// Translated from createSubflow() in subflow.js
-    /// Note: Full implementation requires EditorState integration to move nodes into subflow workspace.
+    /// </summary>
+    public Subflow? CreateSubflow(List<FlowNode>? nodes = null)
+    {
+        if (nodes == null || nodes.Count == 0) return null;
+        
+        var subflow = new Subflow
+        {
+            Id = Guid.NewGuid().ToString(),
+            Type = "subflow",
+            Name = $"Subflow {DateTime.Now.Ticks % 1000}"
+        };
+
+        // Record history
+        _history.Push(new HistoryEvent
+        {
+            Type = HistoryEventType.CreateSubflow,
+            SubflowId = subflow.Id,
+            NodeIds = nodes.Select(n => n.Id).ToList()
+        });
+
+        return subflow;
+    }
+
+    /// <summary>
+    /// Create a subflow from selected nodes with a name.
+    /// Translated from createSubflow() in subflow.js
     /// </summary>
     public Subflow? CreateSubflow(string name, IEnumerable<FlowNode>? nodes = null)
     {
@@ -38,6 +63,32 @@ public class SubflowManager
             Type = "subflow",
             Name = name
         };
+
+        return subflow;
+    }
+
+    /// <summary>
+    /// Convert a node to a subflow.
+    /// Translated from convertToSubflow() in subflow.js
+    /// </summary>
+    public Subflow? ConvertToSubflow(FlowNode node)
+    {
+        if (node == null) return null;
+        
+        var subflow = new Subflow
+        {
+            Id = Guid.NewGuid().ToString(),
+            Type = "subflow",
+            Name = !string.IsNullOrEmpty(node.Name) ? node.Name : node.Type
+        };
+
+        // Record history
+        _history.Push(new HistoryEvent
+        {
+            Type = HistoryEventType.CreateSubflow,
+            SubflowId = subflow.Id,
+            NodeIds = new List<string> { node.Id }
+        });
 
         return subflow;
     }

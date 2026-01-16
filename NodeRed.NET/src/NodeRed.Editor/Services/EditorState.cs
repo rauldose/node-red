@@ -34,6 +34,32 @@ public class EditorState
     public EditorDeploy Deploy { get; } = new();
     public EditorEventLog EventLog { get; } = new();
     
+    // Manager services (lazily initialized as they need History)
+    private GroupManager? _groupManager;
+    private SubflowManager? _subflowManager;
+    
+    public GroupManager GroupManager 
+    { 
+        get => _groupManager ?? throw new InvalidOperationException("GroupManager not initialized. Call Initialize() first.");
+        set => _groupManager = value;
+    }
+    
+    public SubflowManager SubflowManager 
+    { 
+        get => _subflowManager ?? throw new InvalidOperationException("SubflowManager not initialized. Call Initialize() first.");
+        set => _subflowManager = value;
+    }
+    
+    /// <summary>
+    /// Initialize services that have dependencies.
+    /// Called from Program.cs after DI registration.
+    /// </summary>
+    public void Initialize(History history)
+    {
+        _groupManager = new GroupManager(this, history);
+        _subflowManager = new SubflowManager(this, history);
+    }
+    
     public ThemeSettings? Theme { get; set; }
     
     // Plugin and node configs loaded from server

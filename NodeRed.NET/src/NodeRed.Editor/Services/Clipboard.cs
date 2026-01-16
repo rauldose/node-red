@@ -95,6 +95,11 @@ public class Clipboard
     public bool HasData() => _clipboardData.Count > 0;
 
     /// <summary>
+    /// Check if clipboard has content (property for easier use).
+    /// </summary>
+    public bool HasContent => _clipboardData.Count > 0;
+
+    /// <summary>
     /// Export nodes to JSON string.
     /// Translated from exportNodes() in clipboard.js
     /// </summary>

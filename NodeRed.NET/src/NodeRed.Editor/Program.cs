@@ -47,6 +47,14 @@ builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
+// Initialize EditorState with dependencies
+using (var scope = app.Services.CreateScope())
+{
+    var editorState = scope.ServiceProvider.GetRequiredService<EditorState>();
+    var history = scope.ServiceProvider.GetRequiredService<History>();
+    editorState.Initialize(history);
+}
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {

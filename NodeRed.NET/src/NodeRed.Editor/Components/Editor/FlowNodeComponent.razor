@@ -47,13 +47,15 @@
               @onmousedown:stopPropagation="true" />
     }
     
-    @* Node icon *@
-    <g transform="translate(5, @((NodeHeight / 2) - 8))">
-        <image href="@GetNodeIcon()" width="16" height="16" />
-    </g>
+    @* Node icon using foreignObject for HTML icon *@
+    <foreignObject x="5" y="@((NodeHeight / 2) - 8)" width="18" height="18">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px;">
+            <i class="@GetNodeIconClass()" style="font-size: 12px; color: #666;"></i>
+        </div>
+    </foreignObject>
     
     @* Node label *@
-    @((MarkupString)$"<text class=\"red-ui-flow-node-label\" x=\"30\" y=\"{(NodeHeight / 2) + 4}\" fill=\"{GetLabelColor()}\">{System.Net.WebUtility.HtmlEncode(GetNodeLabel())}</text>")
+    @((MarkupString)$"<text class=\"red-ui-flow-node-label\" x=\"28\" y=\"{(NodeHeight / 2) + 4}\" fill=\"{GetLabelColor()}\" style=\"font-size: 13px;\">{System.Net.WebUtility.HtmlEncode(GetNodeLabel())}</text>")
     
     @* Status indicator *@
     @if (Node.Status != null)
@@ -124,16 +126,27 @@
 
     private string GetNodeColor()
     {
-        // Default colors based on node type category
+        // Default colors based on node type - translated from node type definitions
         return Node.Type switch
         {
             "inject" => "#a6bbcf",
             "debug" => "#87a980",
+            "complete" or "catch" or "status" => "#a6bbcf",
+            "link in" or "link out" or "link call" => "#ddd",
+            "comment" => "#fff",
+            "junction" => "#999",
             "function" => "#fdd0a2",
-            "change" => "#e2d96e",
-            "switch" => "#e2d96e",
-            "http in" or "http response" => "#c0d0e0",
-            "mqtt in" or "mqtt out" => "#d3d3d3",
+            "switch" or "change" or "range" or "rbe" or "filter" => "#e2d96e",
+            "template" => "#e2c96e",
+            "delay" or "trigger" => "#e6e0f8",
+            "exec" => "#fdd0a2",
+            "split" or "join" or "sort" or "batch" => "#e2d96e",
+            "csv" or "html" or "json" or "xml" or "yaml" => "#DEBD5C",
+            "mqtt in" or "mqtt out" => "#d8bfd8",
+            "http in" or "http response" or "http request" => "#d8bfd8",
+            "websocket in" or "websocket out" => "#d8bfd8",
+            "tcp in" or "tcp out" or "udp in" or "udp out" => "#c7c7c7",
+            "file" or "file in" or "watch" => "#ff9966",
             _ => "#d3d3d3"
         };
     }
@@ -143,10 +156,47 @@
         return "#000";
     }
 
-    private string GetNodeIcon()
+    private string GetNodeIconClass()
     {
-        // Return icon path based on node type
-        return $"icons/{Node.Type.Replace(" ", "-")}.svg";
+        // Return Font Awesome icon class based on node type
+        return Node.Type switch
+        {
+            "inject" => "fa fa-clock-o",
+            "debug" => "fa fa-bug",
+            "complete" => "fa fa-check",
+            "catch" => "fa fa-warning",
+            "status" => "fa fa-info-circle",
+            "link in" => "fa fa-arrow-left",
+            "link out" => "fa fa-arrow-right",
+            "link call" => "fa fa-share",
+            "comment" => "fa fa-comment",
+            "junction" => "fa fa-circle",
+            "function" => "fa fa-code",
+            "switch" => "fa fa-random",
+            "change" => "fa fa-pencil",
+            "range" => "fa fa-arrows-h",
+            "template" => "fa fa-file-text-o",
+            "delay" => "fa fa-clock-o",
+            "trigger" => "fa fa-crosshairs",
+            "exec" => "fa fa-terminal",
+            "rbe" or "filter" => "fa fa-filter",
+            "csv" => "fa fa-table",
+            "html" => "fa fa-code",
+            "json" => "fa fa-list-alt",
+            "xml" => "fa fa-file-code-o",
+            "yaml" => "fa fa-file-text-o",
+            "split" => "fa fa-expand",
+            "join" => "fa fa-compress",
+            "sort" => "fa fa-sort",
+            "batch" => "fa fa-th-large",
+            "mqtt in" or "websocket in" or "tcp in" or "udp in" or "http in" => "fa fa-sign-in",
+            "mqtt out" or "websocket out" or "tcp out" or "udp out" or "http response" => "fa fa-sign-out",
+            "http request" => "fa fa-cloud",
+            "file" => "fa fa-file",
+            "file in" => "fa fa-file-o",
+            "watch" => "fa fa-eye",
+            _ => "fa fa-cube"
+        };
     }
 
     private string GetNodeLabel()

@@ -131,6 +131,7 @@ public class HistoryEvent
     public List<NodeLink>? Links { get; set; }
     public NodeGroup? Group { get; set; }
     public string? GroupId { get; set; }
+    public string? SubflowId { get; set; }
     public List<string>? NodeIds { get; set; }
 }
 

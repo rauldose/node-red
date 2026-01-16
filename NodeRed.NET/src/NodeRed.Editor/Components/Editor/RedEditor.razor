@@ -1029,19 +1029,22 @@
             if (obj is { } data && contextMenuRef != null)
             {
                 // Build context menu items
+                var selectedNodes = State.Nodes.GetSelectedNodes();
+                var hasSelection = selectedNodes.Any();
+                
                 var items = new List<ContextMenu.ContextMenuItem>
                 {
                     new() { Label = "Add node...", Icon = "fa-plus", OnClick = () => typeSearchRef?.Show() },
                     new() { IsSeparator = true },
-                    new() { Label = "Cut", Icon = "fa-cut", Shortcut = "Ctrl+X", OnClick = () => {
+                    new() { Label = "Cut", Icon = "fa-cut", Shortcut = "Ctrl+X", Disabled = !hasSelection, OnClick = () => {
                         ClipboardService.CopySelection(State.Nodes.GetSelectedNodes());
                         State.Nodes.DeleteSelection();
                         workspacesRef?.Redraw(true);
                     }},
-                    new() { Label = "Copy", Icon = "fa-copy", Shortcut = "Ctrl+C", OnClick = () => {
+                    new() { Label = "Copy", Icon = "fa-copy", Shortcut = "Ctrl+C", Disabled = !hasSelection, OnClick = () => {
                         ClipboardService.CopySelection(State.Nodes.GetSelectedNodes());
                     }},
-                    new() { Label = "Paste", Icon = "fa-paste", Shortcut = "Ctrl+V", OnClick = () => {
+                    new() { Label = "Paste", Icon = "fa-paste", Shortcut = "Ctrl+V", Disabled = !ClipboardService.HasContent, OnClick = () => {
                         var pastedNodes = ClipboardService.PasteNodes();
                         foreach (var node in pastedNodes)
                         {
@@ -1050,7 +1053,29 @@
                         workspacesRef?.Redraw(true);
                     }},
                     new() { IsSeparator = true },
-                    new() { Label = "Delete", Icon = "fa-trash", Shortcut = "Delete", OnClick = () => {
+                    new() { Label = "Group selection", Icon = "fa-object-group", Shortcut = "Ctrl+Shift+G", Disabled = selectedNodes.Count() < 2, OnClick = () => {
+                        State.GroupManager.CreateGroup(State.Nodes.GetSelectedNodes().ToList(), State.Workspaces.Active());
+                        workspacesRef?.Redraw(true);
+                    }},
+                    new() { Label = "Ungroup selection", Icon = "fa-object-ungroup", Disabled = !hasSelection, OnClick = () => {
+                        State.GroupManager.UngroupSelection(State.Nodes.GetSelectedNodes().ToList());
+                        workspacesRef?.Redraw(true);
+                    }},
+                    new() { IsSeparator = true },
+                    new() { Label = "Create subflow", Icon = "fa-cube", Shortcut = "Ctrl+Shift+S", Disabled = !hasSelection, OnClick = () => {
+                        State.SubflowManager.CreateSubflow(State.Nodes.GetSelectedNodes().ToList());
+                        workspacesRef?.Redraw(true);
+                    }},
+                    new() { Label = "Convert to subflow", Icon = "fa-cubes", Disabled = selectedNodes.Count() != 1, OnClick = () => {
+                        var node = selectedNodes.FirstOrDefault();
+                        if (node != null)
+                        {
+                            State.SubflowManager.ConvertToSubflow(node);
+                            workspacesRef?.Redraw(true);
+                        }
+                    }},
+                    new() { IsSeparator = true },
+                    new() { Label = "Delete", Icon = "fa-trash", Shortcut = "Delete", Disabled = !hasSelection, OnClick = () => {
                         State.Nodes.DeleteSelection();
                         workspacesRef?.Redraw(true);
                     }},

@@ -25,7 +25,7 @@ public class GroupManager
     /// Create a group from selected nodes.
     /// Translated from createGroup() in group.js
     /// </summary>
-    public NodeGroup? CreateGroup(IEnumerable<FlowNode>? nodes = null)
+    public NodeGroup? CreateGroup(IEnumerable<FlowNode>? nodes = null, string? workspaceId = null)
     {
         var nodesToGroup = nodes?.ToList();
         
@@ -46,7 +46,7 @@ public class GroupManager
             Id = Guid.NewGuid().ToString(),
             Type = "group",
             Name = "",
-            Z = nodesToGroup.First().Z
+            Z = workspaceId ?? nodesToGroup.First().Z
         };
 
         // Record history
@@ -57,6 +57,24 @@ public class GroupManager
         });
 
         return group;
+    }
+
+    /// <summary>
+    /// Ungroup selected nodes.
+    /// Translated from ungroup() in group.js
+    /// </summary>
+    public void UngroupSelection(List<FlowNode> nodes)
+    {
+        // TODO: Full implementation would remove group membership from selected nodes
+        // For now, just record that an ungroup happened
+        if (nodes.Count > 0)
+        {
+            _history.Push(new HistoryEvent
+            {
+                Type = HistoryEventType.DeleteGroup,
+                NodeIds = nodes.Select(n => n.Id).ToList()
+            });
+        }
     }
 
     /// <summary>
