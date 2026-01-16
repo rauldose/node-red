@@ -38,7 +38,7 @@
     private string? CurrentIcon => Value ? (IconOn ?? Icon) : (IconOff ?? Icon);
     private string? CurrentLabel => Value ? (LabelOn ?? Label) : (LabelOff ?? Label);
 
-    private async Task OnValueChange(ChangeEventArgs<bool> args)
+    private async Task OnValueChange(Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
     {
         Value = args.Checked;
         await ValueChanged.InvokeAsync(Value);
