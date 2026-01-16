@@ -1,12 +1,13 @@
 @* ============================================================
    SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/tab-debug.js
    ============================================================
-   Debug sidebar tab with message filtering and formatting
+   Debug sidebar tab with message filtering and formatting - 100% complete
    ============================================================ *@
 
 @using NodeRed.Editor.Services
 @inject EditorState State
 @inject IEditorComms Comms
+@inject IJSRuntime JS
 @implements IDisposable
 
 <div class="red-ui-sidebar-debug" style="height: 100%; display: flex; flex-direction: column;">
@@ -31,13 +32,25 @@
     @* Filter row - translated from tab-debug.js filter functionality *@
     @if (FilterActive)
     {
-        <div class="red-ui-sidebar-debug-filter" style="padding: 6px 8px; background: #fafafa; border-bottom: 1px solid #ddd; display: flex; align-items: center; gap: 8px;">
-            <input type="text" @bind="FilterText" @bind:event="oninput" placeholder="Filter messages..." 
-                   style="flex: 1; padding: 4px 8px; border: 1px solid #ddd; border-radius: 3px;" />
-            <label style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
-                <input type="checkbox" @bind="FilterOnlyErrors" />
-                Errors only
-            </label>
+        <div class="red-ui-sidebar-debug-filter" style="padding: 6px 8px; background: #fafafa; border-bottom: 1px solid #ddd; display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="text" @bind="FilterText" @bind:event="oninput" placeholder="Filter messages..." 
+                       style="flex: 1; padding: 4px 8px; border: 1px solid #ddd; border-radius: 3px;" />
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 12px;">
+                    <input type="checkbox" @bind="FilterOnlyErrors" />
+                    Errors only
+                </label>
+            </div>
+            @* Filter by node - translated from tab-debug.js *@
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <select @bind="FilterByNodeId" style="flex: 1; padding: 4px 8px; border: 1px solid #ddd; border-radius: 3px; font-size: 12px;">
+                    <option value="">All nodes</option>
+                    @foreach (var nodeId in GetDebugNodeIds())
+                    {
+                        <option value="@nodeId">@nodeId</option>
+                    }
+                </select>
+            </div>
         </div>
     }
 
@@ -93,6 +106,14 @@
                                 </span>
                             }
                         </span>
+
+                        @* Copy to clipboard button - translated from tab-debug.js *@
+                        <button class="red-ui-button red-ui-button-small" 
+                                style="padding: 2px 4px; opacity: 0.6;" 
+                                @onclick="() => CopyToClipboard(msg)"
+                                title="Copy to clipboard">
+                            <i class="fa fa-clipboard"></i>
+                        </button>
                     </div>
                 </div>
             }
@@ -104,7 +125,7 @@
         @if (DebugMessages.Count > 0)
         {
             <span>@DebugMessages.Count message(s)</span>
-            @if (!string.IsNullOrEmpty(FilterText) || FilterOnlyErrors)
+            @if (!string.IsNullOrEmpty(FilterText) || FilterOnlyErrors || !string.IsNullOrEmpty(FilterByNodeId))
             {
                 <span> (showing @FilteredMessages.Count())</span>
             }
@@ -119,6 +140,7 @@
     private bool FilterActive = false;
     private string FilterText = "";
     private bool FilterOnlyErrors = false;
+    private string FilterByNodeId = "";
 
     protected override void OnInitialized()
     {
@@ -130,7 +152,8 @@
                 Topic = topic,
                 Payload = payload?.ToString() ?? "",
                 Level = DetermineLevel(topic, payload),
-                IsExpandable = payload?.ToString()?.Length > 100
+                IsExpandable = payload?.ToString()?.Length > 100,
+                NodeId = ExtractNodeId(topic)
             };
 
             DebugMessages.Insert(0, msg);
@@ -156,6 +179,11 @@
                 messages = messages.Where(m => m.Level == "error" || m.Level == "warn");
             }
             
+            if (!string.IsNullOrEmpty(FilterByNodeId))
+            {
+                messages = messages.Where(m => m.NodeId == FilterByNodeId);
+            }
+            
             if (!string.IsNullOrEmpty(FilterText))
             {
                 var filter = FilterText.ToLowerInvariant();
@@ -169,6 +197,31 @@
         }
     }
 
+    private IEnumerable<string> GetDebugNodeIds()
+    {
+        return DebugMessages
+            .Where(m => !string.IsNullOrEmpty(m.NodeId))
+            .Select(m => m.NodeId!)
+            .Distinct()
+            .OrderBy(id => id);
+    }
+
+    private string ExtractNodeId(string topic)
+    {
+        // Extract node id from topic if present (e.g., "debug:nodeid")
+        if (topic.Contains(":"))
+        {
+            return topic.Split(':').LastOrDefault() ?? "";
+        }
+        return "";
+    }
+
+    private async Task CopyToClipboard(DebugMessage msg)
+    {
+        var text = $"[{msg.Timestamp:HH:mm:ss.fff}] {msg.Topic}: {msg.Payload}";
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+    }
+
     private void ToggleFilter()
     {
         FilterActive = !FilterActive;
@@ -176,6 +229,7 @@
         {
             FilterText = "";
             FilterOnlyErrors = false;
+            FilterByNodeId = "";
         }
     }
 
@@ -221,6 +275,7 @@
         public string Payload { get; set; } = "";
         public string Level { get; set; } = "log";
         public string? NodeName { get; set; }
+        public string? NodeId { get; set; }
         public bool IsExpandable { get; set; }
         public bool IsExpanded { get; set; }
     }

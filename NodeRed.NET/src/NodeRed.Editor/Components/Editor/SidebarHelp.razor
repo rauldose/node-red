@@ -1,7 +1,7 @@
 @* ============================================================
    SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/tab-help.js
    ============================================================
-   Help sidebar tab with TreeView navigation
+   Help sidebar tab with TreeView navigation - 100% complete
    ============================================================ *@
 
 @using NodeRed.Editor.Services
@@ -15,6 +15,12 @@
         </button>
         <input type="text" class="red-ui-searchBox" placeholder="Search help..." style="flex: 1; margin-left: 8px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;"
                @bind="SearchFilter" @bind:event="oninput" />
+        @if (!string.IsNullOrEmpty(SearchFilter))
+        {
+            <button class="red-ui-button red-ui-button-small" @onclick="ClearSearch" title="Clear search" style="margin-left: 4px;">
+                <i class="fa fa-times"></i>
+            </button>
+        }
     </div>
 
     @* TreeView Panel - translated from tab-help.js treeList *@
@@ -35,6 +41,35 @@
                              @onclick='() => ShowContent("changelog", "Change Log", GetChangelogContent())'>
                             <i class="fa fa-file-text-o" style="margin-right: 6px;"></i>
                             <span>Change Log</span>
+                        </div>
+                    }
+                </div>
+
+                @* API Documentation section - translated from tab-help.js *@
+                <div class="red-ui-treeList-container">
+                    <div class="red-ui-treeList-item red-ui-treeList-item-header" @onclick="() => ApiDocsExpanded = !ApiDocsExpanded" style="cursor: pointer;">
+                        <i class="fa @(ApiDocsExpanded ? "fa-caret-down" : "fa-caret-right")" style="width: 16px;"></i>
+                        <span style="font-weight: bold;">API Documentation</span>
+                    </div>
+                    @if (ApiDocsExpanded)
+                    {
+                        <div class="red-ui-treeList-item @(SelectedHelpItem == "api-flows" ? "selected" : "")"
+                             style="padding-left: 20px; cursor: pointer;"
+                             @onclick='() => ShowContent("api-flows", "Flows API", GetApiFlowsContent())'>
+                            <i class="fa fa-code" style="margin-right: 6px;"></i>
+                            <span>Flows API</span>
+                        </div>
+                        <div class="red-ui-treeList-item @(SelectedHelpItem == "api-nodes" ? "selected" : "")"
+                             style="padding-left: 20px; cursor: pointer;"
+                             @onclick='() => ShowContent("api-nodes", "Nodes API", GetApiNodesContent())'>
+                            <i class="fa fa-code" style="margin-right: 6px;"></i>
+                            <span>Nodes API</span>
+                        </div>
+                        <div class="red-ui-treeList-item @(SelectedHelpItem == "api-context" ? "selected" : "")"
+                             style="padding-left: 20px; cursor: pointer;"
+                             @onclick='() => ShowContent("api-context", "Context API", GetApiContextContent())'>
+                            <i class="fa fa-code" style="margin-right: 6px;"></i>
+                            <span>Context API</span>
                         </div>
                     }
                 </div>
@@ -100,11 +135,18 @@
     .red-ui-button.selected {
         background-color: #e0e0e0;
     }
+    .red-ui-treeList-item:hover {
+        background-color: #f0f0f0;
+    }
+    .red-ui-treeList-item.selected {
+        background-color: #e0e0e0;
+    }
 </style>
 
 @code {
     private bool ShowTOC = true;
     private bool NodeRedExpanded = true;
+    private bool ApiDocsExpanded = false;
     private bool NodeHelpExpanded = true;
     private HashSet<string> ExpandedCategories = new() { "common", "function" };
     private string? SelectedHelpItem;
@@ -127,6 +169,11 @@
     private void ToggleTOC()
     {
         ShowTOC = !ShowTOC;
+    }
+
+    private void ClearSearch()
+    {
+        SearchFilter = "";
     }
 
     private void ToggleCategory(string category)
@@ -184,6 +231,67 @@
                 <li>36 core node types translated</li>
                 <li>Real-time communication via SignalR</li>
                 <li>Groups and subflows support</li>
+            </ul>
+        ";
+    }
+
+    private string GetApiFlowsContent()
+    {
+        return @"
+            <h3>Flows API</h3>
+            <p>The Flows API provides endpoints for managing flows in NodeRed.NET.</p>
+            <h4>Endpoints</h4>
+            <dl>
+                <dt><code>GET /flows</code></dt>
+                <dd>Get all flows</dd>
+                <dt><code>POST /flows</code></dt>
+                <dd>Deploy flows (full, nodes, or flows deploy type)</dd>
+                <dt><code>GET /flow/:id</code></dt>
+                <dd>Get a single flow by ID</dd>
+                <dt><code>PUT /flow/:id</code></dt>
+                <dd>Update a flow</dd>
+                <dt><code>DELETE /flow/:id</code></dt>
+                <dd>Delete a flow</dd>
+            </dl>
+        ";
+    }
+
+    private string GetApiNodesContent()
+    {
+        return @"
+            <h3>Nodes API</h3>
+            <p>The Nodes API provides endpoints for managing installed node types.</p>
+            <h4>Endpoints</h4>
+            <dl>
+                <dt><code>GET /nodes</code></dt>
+                <dd>Get all installed node types</dd>
+                <dt><code>POST /nodes</code></dt>
+                <dd>Install a new node module</dd>
+                <dt><code>GET /nodes/:module</code></dt>
+                <dd>Get a specific module's node types</dd>
+                <dt><code>DELETE /nodes/:module</code></dt>
+                <dd>Uninstall a node module</dd>
+            </dl>
+        ";
+    }
+
+    private string GetApiContextContent()
+    {
+        return @"
+            <h3>Context API</h3>
+            <p>The Context API provides endpoints for accessing flow and global context data.</p>
+            <h4>Endpoints</h4>
+            <dl>
+                <dt><code>GET /context/:scope/:id/:key?</code></dt>
+                <dd>Get context value(s)</dd>
+                <dt><code>DELETE /context/:scope/:id/:key?</code></dt>
+                <dd>Delete context value(s)</dd>
+            </dl>
+            <h4>Scopes</h4>
+            <ul>
+                <li><code>node</code> - Node-level context</li>
+                <li><code>flow</code> - Flow-level context</li>
+                <li><code>global</code> - Global context</li>
             </ul>
         ";
     }

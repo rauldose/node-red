@@ -21,6 +21,7 @@
 
 @using NodeRed.Editor.Services
 @inject EditorState State
+@inject IJSRuntime JS
 
 <div id="red-ui-palette" class="red-ui-palette">
     @* Palette header with search *@
@@ -232,10 +233,20 @@
         RefreshPalette();
     }
 
-    private void HandleDragStart(DragEventArgs e, NodeTypeInfo nodeType)
+    private async Task HandleDragStart(DragEventArgs e, NodeTypeInfo nodeType)
     {
-        // Set drag data for node creation
-        // This will be handled by the workspace to create a new node
+        // Set drag data for node creation via JS interop
+        try
+        {
+            await JS.InvokeVoidAsync("setDraggedNodeType", nodeType.Type);
+        }
+        catch
+        {
+            // JS interop may fail during prerendering
+        }
+        
+        // Also emit event for workspace to listen
+        State.Events.Emit("palette:dragstart", nodeType.Type);
     }
 
     private string FormatCategoryLabel(string category)

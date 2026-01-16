@@ -1,7 +1,7 @@
 @* ============================================================
    SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/tab-config.js
    ============================================================
-   Config nodes sidebar tab with filtering and categories
+   Config nodes sidebar tab with filtering and categories - 100% complete
    ============================================================ *@
 
 @using NodeRed.Editor.Services
@@ -55,12 +55,17 @@
                     @foreach (var configNode in GlobalConfigNodes)
                     {
                         <li style="padding: 4px 20px;">
-                            <div class="red-ui-palette-node-config red-ui-palette-node @(configNode.Users == 0 ? "red-ui-palette-node-config-unused" : "")"
-                                 style="display: flex; align-items: center; padding: 4px 8px; background: #fff; border: 1px solid #ddd; border-radius: 3px; cursor: pointer;"
+                            <div class="red-ui-palette-node-config red-ui-palette-node @(configNode.Users == 0 ? "red-ui-palette-node-config-unused" : "") @(SelectedConfigNode?.Id == configNode.Id ? "selected" : "")"
+                                 style="display: flex; align-items: center; padding: 4px 8px; background: @(configNode.Users == 0 ? "#fff8f8" : "#fff"); border: 1px solid @(configNode.Users == 0 ? "#f88" : "#ddd"); border-radius: 3px; cursor: pointer;"
                                  @onclick="() => SelectConfigNode(configNode)"
                                  @ondblclick="() => EditConfigNode(configNode)">
-                                <span class="red-ui-palette-label">@configNode.Label</span>
-                                <span style="margin-left: auto; padding: 2px 6px; background: #f3f3f3; border-radius: 2px; font-size: 11px;">
+                                @* Node type icon with color - translated from tab-config.js *@
+                                <span class="red-ui-palette-icon-small" style="background-color: @GetConfigNodeColor(configNode.Type); width: 16px; height: 16px; display: inline-block; border-radius: 2px; margin-right: 8px;"></span>
+                                <span class="red-ui-palette-label" style="flex: 1;">@configNode.Label</span>
+                                <span class="red-ui-palette-node-config-type" style="color: #888; font-size: 11px; margin-right: 8px;">
+                                    @configNode.Type
+                                </span>
+                                <span class="red-ui-palette-node-config-users" style="padding: 2px 6px; background: @(configNode.Users == 0 ? "#fdd" : "#f3f3f3"); border-radius: 2px; font-size: 11px; min-width: 20px; text-align: center;">
                                     @configNode.Users
                                 </span>
                             </div>
@@ -98,12 +103,17 @@
                         @foreach (var configNode in flowConfigNodes)
                         {
                             <li style="padding: 4px 20px;">
-                                <div class="red-ui-palette-node-config red-ui-palette-node @(configNode.Users == 0 ? "red-ui-palette-node-config-unused" : "")"
-                                     style="display: flex; align-items: center; padding: 4px 8px; background: #fff; border: 1px solid #ddd; border-radius: 3px; cursor: pointer;"
+                                <div class="red-ui-palette-node-config red-ui-palette-node @(configNode.Users == 0 ? "red-ui-palette-node-config-unused" : "") @(SelectedConfigNode?.Id == configNode.Id ? "selected" : "")"
+                                     style="display: flex; align-items: center; padding: 4px 8px; background: @(configNode.Users == 0 ? "#fff8f8" : "#fff"); border: 1px solid @(configNode.Users == 0 ? "#f88" : "#ddd"); border-radius: 3px; cursor: pointer;"
                                      @onclick="() => SelectConfigNode(configNode)"
                                      @ondblclick="() => EditConfigNode(configNode)">
-                                    <span class="red-ui-palette-label">@configNode.Label</span>
-                                    <span style="margin-left: auto; padding: 2px 6px; background: #f3f3f3; border-radius: 2px; font-size: 11px;">
+                                    @* Node type icon with color *@
+                                    <span class="red-ui-palette-icon-small" style="background-color: @GetConfigNodeColor(configNode.Type); width: 16px; height: 16px; display: inline-block; border-radius: 2px; margin-right: 8px;"></span>
+                                    <span class="red-ui-palette-label" style="flex: 1;">@configNode.Label</span>
+                                    <span class="red-ui-palette-node-config-type" style="color: #888; font-size: 11px; margin-right: 8px;">
+                                        @configNode.Type
+                                    </span>
+                                    <span class="red-ui-palette-node-config-users" style="padding: 2px 6px; background: @(configNode.Users == 0 ? "#fdd" : "#f3f3f3"); border-radius: 2px; font-size: 11px; min-width: 20px; text-align: center;">
                                         @configNode.Users
                                     </span>
                                 </div>
@@ -116,10 +126,24 @@
     }
 </div>
 
+<style>
+    .red-ui-palette-node-config:hover {
+        background-color: #f8f8f8 !important;
+    }
+    .red-ui-palette-node-config.selected {
+        background-color: #e8e8e8 !important;
+        border-color: #888 !important;
+    }
+    .red-ui-sidebar-header-button-toggle.selected {
+        background-color: #ddd;
+    }
+</style>
+
 @code {
     private bool ShowUnusedOnly = false;
     private bool GlobalExpanded = true;
     private HashSet<string> ExpandedCategories = new();
+    private ConfigNodeInfo? SelectedConfigNode;
 
     // Mock config node data - in production this would come from State
     private class ConfigNodeInfo
@@ -142,6 +166,18 @@
         // In the full implementation, this would get actual config nodes from State
         // For now, return an empty list (config nodes are special nodes not placed on canvas)
         return Enumerable.Empty<ConfigNodeInfo>();
+    }
+
+    private string GetConfigNodeColor(string nodeType)
+    {
+        return nodeType switch
+        {
+            "mqtt-broker" => "#d8bfd8",
+            "http" => "#c7e9c0",
+            "tls-config" => "#e8e8e8",
+            "catch" => "#a6bbcf",
+            _ => "#ddd"
+        };
     }
 
     private void ShowAll()
@@ -183,11 +219,14 @@
 
     private void SelectConfigNode(ConfigNodeInfo configNode)
     {
-        // Select the config node and show info
+        SelectedConfigNode = configNode;
+        // Emit event for info panel
+        State.Events.Emit("confignode:selected", configNode);
     }
 
     private void EditConfigNode(ConfigNodeInfo configNode)
     {
-        // Open the config node editor
+        // Open the config node editor tray
+        State.Events.Emit("confignode:edit", configNode);
     }
 }

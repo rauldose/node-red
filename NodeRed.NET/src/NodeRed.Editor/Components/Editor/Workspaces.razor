@@ -53,6 +53,12 @@
      @onmousemove="HandleMouseMove"
      @onmouseup="HandleMouseUp"
      @onwheel="HandleWheel"
+     @oncontextmenu="HandleContextMenu"
+     @oncontextmenu:preventDefault="true"
+     @ondrop="HandleDrop"
+     @ondrop:preventDefault="true"
+     @ondragover="HandleDragOver"
+     @ondragover:preventDefault="true"
      @ref="_chartElement">
     
     <svg class="red-ui-workspace-chart-svg"
@@ -359,6 +365,95 @@
             StateHasChanged();
         }
     }
+
+    /// <summary>
+    /// Handle right-click for context menu
+    /// Translated from chart.on('contextmenu', ...)
+    /// </summary>
+    private void HandleContextMenu(MouseEventArgs e)
+    {
+        // Emit event for RedEditor to show context menu
+        State.Events.Emit("view:contextmenu", new {
+            X = e.ClientX,
+            Y = e.ClientY,
+            OffsetX = e.OffsetX,
+            OffsetY = e.OffsetY
+        });
+    }
+
+    /// <summary>
+    /// Handle dragover to allow drop
+    /// </summary>
+    private void HandleDragOver(DragEventArgs e)
+    {
+        // Allow drop
+    }
+
+    /// <summary>
+    /// Handle drop from palette
+    /// Translated from chart drop handler
+    /// </summary>
+    private async Task HandleDrop(DragEventArgs e)
+    {
+        // Get node type from JS interop
+        string? nodeType = null;
+        try
+        {
+            nodeType = await JS.InvokeAsync<string>("getDraggedNodeType");
+            await JS.InvokeVoidAsync("clearDraggedNodeType");
+        }
+        catch
+        {
+            // Fallback to internal state
+            nodeType = _draggedNodeType;
+        }
+
+        if (string.IsNullOrEmpty(nodeType))
+            return;
+
+        // Calculate position in canvas coordinates
+        var x = (e.OffsetX / ScaleFactor);
+        var y = (e.OffsetY / ScaleFactor);
+
+        // Snap to grid if enabled
+        if (SnapGrid)
+        {
+            x = Math.Round(x / GridSize) * GridSize;
+            y = Math.Round(y / GridSize) * GridSize;
+        }
+
+        // Create new node
+        var newNode = new FlowNode
+        {
+            Id = Guid.NewGuid().ToString(),
+            Type = nodeType,
+            X = x,
+            Y = y,
+            Z = State.Workspaces.Active(),
+            Dirty = true
+        };
+
+        // Add to state
+        State.Nodes.Add(newNode);
+        State.Nodes.SetDirty(true);
+
+        // Clear drag state
+        _draggedNodeType = null;
+
+        // Refresh view
+        RefreshView();
+    }
+
+    /// <summary>
+    /// Set the node type being dragged from palette
+    /// Called from Palette component
+    /// </summary>
+    public void SetDraggedNodeType(string? nodeType)
+    {
+        _draggedNodeType = nodeType;
+    }
+
+    private string? _draggedNodeType;
 
     private void HandleNodeMouseDown(MouseEventArgs e, FlowNode node)
     {

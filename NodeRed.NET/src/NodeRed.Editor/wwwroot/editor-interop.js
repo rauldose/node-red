@@ -9,6 +9,9 @@
 // Active resize state
 let activeResize = null;
 
+// Dragged node type from palette
+let draggedNodeType = null;
+
 /**
  * Start tracking mouse movement for panel resize
  * Called from Blazor when user starts dragging a resize handle
@@ -71,5 +74,95 @@ window.stopPanelResize = function() {
         document.body.style.userSelect = '';
         document.body.style.cursor = '';
         activeResize = null;
+    }
+};
+
+// ============================================================
+// Drag and Drop support for palette nodes
+// ============================================================
+
+/**
+ * Set the node type being dragged from palette
+ * @param {string} nodeType - The type of node being dragged
+ */
+window.setDraggedNodeType = function(nodeType) {
+    draggedNodeType = nodeType;
+};
+
+/**
+ * Get the currently dragged node type
+ * @returns {string|null} The node type or null
+ */
+window.getDraggedNodeType = function() {
+    return draggedNodeType;
+};
+
+/**
+ * Clear the dragged node type
+ */
+window.clearDraggedNodeType = function() {
+    draggedNodeType = null;
+};
+
+// ============================================================
+// Context Menu support
+// ============================================================
+
+/**
+ * Show a context menu at specified position
+ * @param {DotNetObjectReference} dotNetRef - Reference to the Blazor component
+ * @param {number} x - X position
+ * @param {number} y - Y position
+ */
+window.showContextMenu = function(dotNetRef, x, y) {
+    // Close any existing context menu first
+    const existingMenu = document.querySelector('.red-ui-context-menu:not(.hide)');
+    if (existingMenu) {
+        existingMenu.classList.add('hide');
+    }
+    
+    // Add click handler to close menu when clicking outside
+    const closeHandler = function(e) {
+        if (!e.target.closest('.red-ui-context-menu')) {
+            dotNetRef.invokeMethodAsync('Hide');
+            document.removeEventListener('click', closeHandler);
+        }
+    };
+    
+    setTimeout(() => {
+        document.addEventListener('click', closeHandler);
+    }, 10);
+};
+
+/**
+ * Hide any visible context menu
+ */
+window.hideContextMenu = function() {
+    const menu = document.querySelector('.red-ui-context-menu');
+    if (menu) {
+        menu.classList.add('hide');
+    }
+};
+
+// ============================================================
+// Hamburger Menu support
+// ============================================================
+
+let menuDotNetRef = null;
+
+/**
+ * Initialize the main menu
+ * @param {DotNetObjectReference} dotNetRef - Reference to the menu component
+ */
+window.initMainMenu = function(dotNetRef) {
+    menuDotNetRef = dotNetRef;
+};
+
+/**
+ * Toggle the main menu visibility
+ */
+window.toggleMainMenu = function() {
+    if (menuDotNetRef) {
+        menuDotNetRef.invokeMethodAsync('Toggle');
     }
 };
