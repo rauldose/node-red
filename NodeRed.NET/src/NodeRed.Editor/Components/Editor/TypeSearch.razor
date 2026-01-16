@@ -252,7 +252,7 @@
         });
     }
 
-    private async void SelectType(TypeSearchResult result)
+    private void SelectType(TypeSearchResult result)
     {
         TypeSelected?.Invoke(this, new TypeSelectedEventArgs
         {
@@ -260,7 +260,7 @@
             X = X,
             Y = Y
         });
-        await OnNodeSelected.InvokeAsync(result.Type);
+        _ = OnNodeSelected.InvokeAsync(result.Type);
         Hide();
     }
 

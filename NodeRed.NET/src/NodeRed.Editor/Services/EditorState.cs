@@ -489,7 +489,7 @@ public class EditorNodes
         {
             Remove(node);
         }
-        _dirty = true;
+        // _dirty is already set by Remove() for each node
     }
 
     /// <summary>
