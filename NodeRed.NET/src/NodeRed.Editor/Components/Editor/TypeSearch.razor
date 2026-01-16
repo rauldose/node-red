@@ -121,6 +121,9 @@
     private List<TypeSearchResult> _results = new();
     private List<TypeSearchResult> _allTypes = new();
 
+    [Parameter]
+    public EventCallback<string> OnNodeSelected { get; set; }
+
     public bool IsVisible { get; private set; }
     public int SelectedIndex { get; private set; }
     public double X { get; private set; }
@@ -142,6 +145,14 @@
     {
         // Initialize the list of available node types
         _allTypes = GetAvailableNodeTypes();
+    }
+
+    /// <summary>
+    /// Show the type search at default center position.
+    /// </summary>
+    public void Show()
+    {
+        Show(400, 200); // Center of screen approximately
     }
 
     /// <summary>
@@ -241,7 +252,7 @@
         });
     }
 
-    private void SelectType(TypeSearchResult result)
+    private async void SelectType(TypeSearchResult result)
     {
         TypeSelected?.Invoke(this, new TypeSelectedEventArgs
         {
@@ -249,6 +260,7 @@
             X = X,
             Y = Y
         });
+        await OnNodeSelected.InvokeAsync(result.Type);
         Hide();
     }
 

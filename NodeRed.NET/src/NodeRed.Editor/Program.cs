@@ -12,6 +12,9 @@ builder.Services.AddRazorComponents()
 builder.Services.AddSingleton<EditorState>();
 builder.Services.AddSingleton<EditorUIState>();
 
+// Events system (independent)
+builder.Services.AddSingleton<Events>();
+
 // Communication
 builder.Services.AddScoped<IEditorComms>(sp => EditorCommsFactory.Create("/comms"));
 
@@ -30,11 +33,15 @@ builder.Services.AddSingleton<Library>();
 builder.Services.AddSingleton<Diagnostics>();
 builder.Services.AddSingleton<StatusBar>();
 builder.Services.AddSingleton<ViewTools>();
+builder.Services.AddSingleton<ViewNavigator>();
 builder.Services.AddSingleton<Projects>();
 builder.Services.AddSingleton<Plugins>();
 builder.Services.AddSingleton<Runtime>();
 builder.Services.AddSingleton<User>();
 builder.Services.AddSingleton<Diff>();
+
+// Note: Bidi, TextFormat, Validators, UiUtils, State are static utility classes,
+// not injectable services
 
 builder.Services.AddHttpClient();
 

@@ -39,15 +39,20 @@
    ============================================================ *@
 
 @using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @using NodeRed.Editor.Services
 @inject EditorState State
 @inject IEditorComms Comms
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject Keyboard KeyboardService
+@inject History HistoryService
+@inject Clipboard ClipboardService
+@inject Actions ActionsService
 @implements IAsyncDisposable
 
-<div id="red-ui-editor" class="red-ui-editor">
+<div id="red-ui-editor" class="red-ui-editor" @onkeydown="HandleKeyDown" @onkeydown:preventDefault="@_preventKeyDefault" tabindex="0">
     @* Header *@
     <div id="red-ui-header">
         <span class="red-ui-header-logo">
@@ -67,6 +72,10 @@
             }
         </span>
         <ul class="red-ui-header-toolbar @(IsLoading ? "hide" : "")">
+            @* Connected users indicator - translated from multiplayer.js *@
+            <li style="margin-right: 8px;">
+                <Multiplayer Enabled="@_multiplayerEnabled" ConnectedUsers="@_connectedUsers" />
+            </li>
             @* Deploy button - translated from ui/deploy.js *@
             <li>
                 <DeployButton OnDeploy="HandleDeploy" />
@@ -108,6 +117,8 @@
         @* Workspace area *@
         <div id="red-ui-workspace" style="left: @(PaletteWidth + 7)px; right: @(SidebarClosed ? 7 : SidebarWidth + 7)px;">
             <Workspaces @ref="workspacesRef" />
+            @* View navigator mini-map - translated from view-navigator.js *@
+            <ViewNavigator />
         </div>
 
         @* Editor stack for tray dialogs - positioned left of sidebar *@
@@ -149,6 +160,24 @@
 @* Notifications component *@
 <Notifications @ref="notificationsRef" />
 
+@* Search dialog - translated from ui/search.js (Ctrl+F) *@
+<Search @ref="searchRef" />
+
+@* Type search dialog - translated from ui/typeSearch.js (Ctrl+Space) *@
+<TypeSearch @ref="typeSearchRef" OnNodeSelected="HandleQuickAddNode" />
+
+@* Action list dialog - translated from ui/actionList.js (Ctrl+Shift+P) *@
+<ActionList @ref="actionListRef" />
+
+@* Tour/welcome wizard - translated from ui/tour *@
+<Tour @ref="tourRef" />
+
+@* User settings dialog - translated from ui/userSettings.js *@
+<UserSettings @ref="userSettingsRef" />
+
+@* Palette editor dialog - translated from ui/palette-editor.js *@
+<PaletteEditor @ref="paletteEditorRef" />
+
 @code {
     // ============================================================
     // MAPPING NOTES:
@@ -169,6 +198,7 @@
     private bool SidebarClosed = true;
     private bool ShowHeaderShade = false;
     private bool ShowFullShade = false;
+    private bool _preventKeyDefault = false;
 
     // ============================================================
     // Panel resize state - translated from sidebarSeparator and palette resize
@@ -181,6 +211,12 @@
     private int _resizeStartWidth = 0;
     private DotNetObjectReference<RedEditor>? _dotNetRef;
 
+    // ============================================================
+    // Multiplayer state - translated from multiplayer.js
+    // ============================================================
+    private bool _multiplayerEnabled = true;
+    private List<Multiplayer.MultiplayerUser> _connectedUsers = new();
+
     // Component references
     private Workspaces? workspacesRef;
     private EditorTray? editorTrayRef;
@@ -188,6 +224,12 @@
     private Sidebar? sidebarRef;
     private ContextMenu? contextMenuRef;
     private Notifications? notificationsRef;
+    private Search? searchRef;
+    private TypeSearch? typeSearchRef;
+    private ActionList? actionListRef;
+    private Tour? tourRef;
+    private UserSettings? userSettingsRef;
+    private PaletteEditor? paletteEditorRef;
 
     // Subscriptions for cleanup
     private List<IDisposable> _subscriptions = new();
@@ -218,6 +260,9 @@
             // Clear any existing workspaces and add a default one
             State.Workspaces.Clear();
             State.Workspaces.Add(new Workspace { Id = "flow1", Label = "Flow 1" });
+            
+            // Setup keyboard shortcuts
+            SetupKeyboardHandlers();
             
             // Complete loading immediately
             IsLoading = false;
@@ -489,6 +534,50 @@
 
         // Subscribe to event log - translated from RED.comms.subscribe("event-log/#", ...)
         _subscriptions.Add(Comms.Subscribe("event-log/#", HandleEventLog));
+
+        // Subscribe to multiplayer/user presence - translated from multiplayer.js subscriptions
+        _subscriptions.Add(Comms.Subscribe("multiplayer/#", HandleMultiplayerUpdate));
+    }
+
+    /// <summary>
+    /// Handle multiplayer updates - user presence and cursor positions
+    /// Translated from multiplayer.js
+    /// </summary>
+    private void HandleMultiplayerUpdate(string topic, object? payload)
+    {
+        var parts = topic.Split('/');
+        if (parts.Length < 2) return;
+
+        var action = parts[1];
+        
+        switch (action)
+        {
+            case "join":
+                if (payload is Multiplayer.MultiplayerUser newUser)
+                {
+                    if (!_connectedUsers.Any(u => u.Id == newUser.Id))
+                    {
+                        _connectedUsers.Add(newUser);
+                        InvokeAsync(StateHasChanged);
+                    }
+                }
+                break;
+                
+            case "leave":
+                if (payload is string userId)
+                {
+                    _connectedUsers.RemoveAll(u => u.Id == userId);
+                    InvokeAsync(StateHasChanged);
+                }
+                break;
+                
+            case "cursor":
+            case "selection":
+                // Update existing user's cursor or selection
+                // Implementation would update the user in _connectedUsers
+                InvokeAsync(StateHasChanged);
+                break;
+        }
     }
 
     /// <summary>
@@ -738,6 +827,160 @@
         _dotNetRef = null;
         
         InvokeAsync(StateHasChanged);
+    }
+
+    // ============================================================
+    // Keyboard handling - translated from ui/keyboard.js
+    // ============================================================
+    
+    /// <summary>
+    /// Handle keyboard events at the editor level
+    /// Translated from keyboard.js handleKeyEvent
+    /// </summary>
+    private void HandleKeyDown(KeyboardEventArgs e)
+    {
+        var key = e.Key.ToLowerInvariant();
+        var handled = KeyboardService.HandleKeyEvent(key, e.CtrlKey, e.ShiftKey, e.AltKey);
+        
+        if (handled)
+        {
+            _preventKeyDefault = true;
+        }
+        else
+        {
+            // Handle specific shortcuts directly
+            if (e.CtrlKey && key == "f")
+            {
+                // Open search dialog
+                searchRef?.Show();
+                _preventKeyDefault = true;
+            }
+            else if (e.CtrlKey && key == " ")
+            {
+                // Open type search (quick add node)
+                typeSearchRef?.Show();
+                _preventKeyDefault = true;
+            }
+            else if (e.CtrlKey && e.ShiftKey && key == "p")
+            {
+                // Open action list
+                actionListRef?.Show();
+                _preventKeyDefault = true;
+            }
+            else if (e.CtrlKey && key == "z" && !e.ShiftKey)
+            {
+                // Undo
+                HistoryService.Undo();
+                _preventKeyDefault = true;
+            }
+            else if ((e.CtrlKey && e.ShiftKey && key == "z") || (e.CtrlKey && key == "y"))
+            {
+                // Redo
+                HistoryService.Redo();
+                _preventKeyDefault = true;
+            }
+            else if (e.CtrlKey && key == "c")
+            {
+                // Copy
+                ClipboardService.CopySelection(State.Nodes.GetSelectedNodes());
+                _preventKeyDefault = true;
+            }
+            else if (e.CtrlKey && key == "v")
+            {
+                // Paste
+                var pastedNodes = ClipboardService.PasteNodes();
+                foreach (var node in pastedNodes)
+                {
+                    State.Nodes.Add(node);
+                }
+                workspacesRef?.Redraw(true);
+                _preventKeyDefault = true;
+            }
+            else if (e.CtrlKey && key == "x")
+            {
+                // Cut
+                ClipboardService.CopySelection(State.Nodes.GetSelectedNodes());
+                State.Nodes.DeleteSelection();
+                workspacesRef?.Redraw(true);
+                _preventKeyDefault = true;
+            }
+            else if (key == "delete" || key == "backspace")
+            {
+                // Delete selection
+                State.Nodes.DeleteSelection();
+                workspacesRef?.Redraw(true);
+                _preventKeyDefault = true;
+            }
+            else
+            {
+                _preventKeyDefault = false;
+            }
+        }
+        
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Handle quick add node from type search
+    /// </summary>
+    private void HandleQuickAddNode(string nodeType)
+    {
+        // Create a new node of the specified type at a default position
+        var newNode = new FlowNode
+        {
+            Id = Guid.NewGuid().ToString(),
+            Type = nodeType,
+            X = 100,
+            Y = 100,
+            Z = State.Workspaces.Active(),
+            Dirty = true
+        };
+        
+        State.Nodes.Add(newNode);
+        State.Nodes.SetDirty(true);
+        workspacesRef?.Redraw(true);
+    }
+
+    /// <summary>
+    /// Setup keyboard action handlers
+    /// Called during initialization to wire up keyboard shortcuts to actions
+    /// </summary>
+    private void SetupKeyboardHandlers()
+    {
+        KeyboardService.AddHandler("core:copy-selection-to-internal-clipboard", () =>
+        {
+            ClipboardService.CopySelection(State.Nodes.GetSelectedNodes());
+        });
+        
+        KeyboardService.AddHandler("core:paste-from-internal-clipboard", () =>
+        {
+            var pastedNodes = ClipboardService.PasteNodes();
+            foreach (var node in pastedNodes)
+            {
+                State.Nodes.Add(node);
+            }
+            workspacesRef?.Redraw(true);
+        });
+        
+        KeyboardService.AddHandler("core:undo", () => HistoryService.Undo());
+        KeyboardService.AddHandler("core:redo", () => HistoryService.Redo());
+        
+        KeyboardService.AddHandler("core:delete-selection", () =>
+        {
+            State.Nodes.DeleteSelection();
+            workspacesRef?.Redraw(true);
+        });
+        
+        KeyboardService.AddHandler("core:search", () => searchRef?.Show());
+        KeyboardService.AddHandler("core:show-action-list", () => actionListRef?.Show());
+        
+        KeyboardService.AddHandler("core:toggle-sidebar", () =>
+        {
+            SidebarClosed = !SidebarClosed;
+            StateHasChanged();
+        });
+        
+        KeyboardService.AddHandler("core:deploy", async () => await HandleDeploy());
     }
 
     public async ValueTask DisposeAsync()

@@ -23,11 +23,17 @@
 <span class="red-ui-deploy-button-group">
     <a id="red-ui-header-button-deploy" 
        class="button red-ui-deploy-button @(HasChanges ? "" : "disabled")"
-       @onclick="HandleDeploy">
+       @onclick="HandleDeploy"
+       title="@(HasChanges ? "Deploy changes" : "No changes to deploy")">
         <span class="red-ui-deploy-button-content">
             @if (IsDeploying)
             {
-                <span style="margin-right: 8px;">⟳</span>
+                <span class="red-ui-deploy-button-spinner" style="margin-right: 8px;">⟳</span>
+            }
+            @if (HasChanges)
+            {
+                <span class="red-ui-deploy-button-dirty-indicator" 
+                      style="display: inline-block; width: 8px; height: 8px; background-color: #d93637; border-radius: 50%; margin-right: 6px;"></span>
             }
             @State.I18n.Translate("deploy.deploy")
         </span>

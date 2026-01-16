@@ -446,6 +446,89 @@ public class EditorNodes
     {
         return _nodeList.FirstOrDefault(n => n.Id == id);
     }
+
+    /// <summary>
+    /// Add a new node to the canvas.
+    /// Translated from RED.nodes.add() in nodes.js
+    /// </summary>
+    public void Add(FlowNode node)
+    {
+        _nodes.Add(node);
+        _dirty = true;
+    }
+
+    /// <summary>
+    /// Remove a node from the canvas.
+    /// Translated from RED.nodes.remove() in nodes.js
+    /// </summary>
+    public void Remove(FlowNode node)
+    {
+        _nodes.Remove(node);
+        // Also remove any links connected to this node
+        _links.RemoveAll(l => l.Source?.Id == node.Id || l.Target?.Id == node.Id);
+        _dirty = true;
+    }
+
+    /// <summary>
+    /// Get currently selected nodes.
+    /// Translated from RED.view.selection().nodes in view.js
+    /// </summary>
+    public IEnumerable<FlowNode> GetSelectedNodes()
+    {
+        return _nodes.Where(n => n.Selected);
+    }
+
+    /// <summary>
+    /// Delete all currently selected nodes.
+    /// Translated from RED.view.deleteSelection() in view.js
+    /// </summary>
+    public void DeleteSelection()
+    {
+        var selectedNodes = _nodes.Where(n => n.Selected).ToList();
+        foreach (var node in selectedNodes)
+        {
+            Remove(node);
+        }
+        _dirty = true;
+    }
+
+    /// <summary>
+    /// Select a node.
+    /// </summary>
+    public void SelectNode(FlowNode node)
+    {
+        node.Selected = true;
+    }
+
+    /// <summary>
+    /// Deselect a node.
+    /// </summary>
+    public void DeselectNode(FlowNode node)
+    {
+        node.Selected = false;
+    }
+
+    /// <summary>
+    /// Select all nodes in the current workspace.
+    /// </summary>
+    public void SelectAll(string? workspaceId)
+    {
+        foreach (var node in _nodes.Where(n => n.Z == workspaceId))
+        {
+            node.Selected = true;
+        }
+    }
+
+    /// <summary>
+    /// Clear all selections.
+    /// </summary>
+    public void ClearSelection()
+    {
+        foreach (var node in _nodes)
+        {
+            node.Selected = false;
+        }
+    }
 }
 
 // ============================================================
@@ -780,6 +863,7 @@ public class FlowNode
     public NodeStatus? Status { get; set; }
     public bool DirtyStatus { get; set; }
     public bool Dirty { get; set; }
+    public bool Selected { get; set; }
     public Dictionary<string, object?> Properties { get; set; } = new();
 }
 

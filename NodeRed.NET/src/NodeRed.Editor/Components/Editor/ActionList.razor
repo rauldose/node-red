@@ -86,6 +86,11 @@
         StateHasChanged();
     }
     
+    /// <summary>
+    /// Show the action list (alias for Open)
+    /// </summary>
+    public void Show() => Open();
+    
     public async Task Close()
     {
         IsOpen = false;
