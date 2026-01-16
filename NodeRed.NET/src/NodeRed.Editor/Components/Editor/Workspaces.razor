@@ -214,6 +214,9 @@
     private FlowNode? _mousedownNode;
     private NodeLink? _mousedownLink;
     private LassoRect? Lasso;
+    // Prevents duplicate mouseup processing when both Blazor handler and JS global handler fire.
+    // Thread-safe in Blazor WebAssembly since it runs on a single thread.
+    private bool _mouseUpProcessed = false;
 
     protected override void OnInitialized()
     {
@@ -278,6 +281,7 @@
         {
             _mouseDownX = e.OffsetX;
             _mouseDownY = e.OffsetY;
+            _mouseUpProcessed = false; // Reset flag for new interaction
             
             // Check if we clicked on a node - if so, don't start lasso
             // The node's own mouse down handler will be called for that
@@ -368,6 +372,13 @@
 
     private void HandleMouseUp(MouseEventArgs e)
     {
+        // Prevent race condition with OnGlobalMouseUp - only process once
+        if (_mouseUpProcessed)
+        {
+            return;
+        }
+        _mouseUpProcessed = true;
+        
         switch (_mouseMode)
         {
             case MouseMode.Lasso:
@@ -582,6 +593,7 @@
     private async Task HandleNodeMouseDown(MouseEventArgs e, FlowNode node)
     {
         _mousedownNode = node;
+        _mouseUpProcessed = false; // Reset flag for new interaction
 
         if (e.Button == 0) // Left click
         {
@@ -648,6 +660,13 @@
     [JSInvokable]
     public void OnGlobalMouseUp(double clientX, double clientY)
     {
+        // Prevent race condition with HandleMouseUp - only process once
+        if (_mouseUpProcessed)
+        {
+            return;
+        }
+        _mouseUpProcessed = true;
+        
         if (_mouseMode == MouseMode.Moving)
         {
             State.Nodes.SetDirty(true);
@@ -791,6 +810,7 @@
         _wireSourceNode = args.Node;
         _wireSourcePortIndex = args.PortIndex;
         _wireCompleted = false;
+        _mouseUpProcessed = false; // Reset flag for new interaction
         _mouseMode = MouseMode.Joining;
         
         // Create temporary drag line
