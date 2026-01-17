@@ -5,9 +5,10 @@
    transform="translate(@Group.X, @Group.Y)">
     <rect class="red-ui-flow-group-body"
           @onclick="OnClick"
-          @onmousedown="OnMouseDown"
+          @onmousedown="HandleMouseDown"
           @onmousedown:stopPropagation="true"
-          @onmouseup="OnMouseUp"
+          @onmouseup="HandleMouseUp"
+          @onmouseup:stopPropagation="true"
           x="0" y="0"
           width="@Group.Width" 
           height="@Group.Height"
@@ -17,7 +18,8 @@
           stroke="@(GetStyleValue("stroke", "#a4a4a4"))"
           stroke-opacity="@(GetStyleValue("stroke-opacity", "1"))"
           stroke-width="2"
-          stroke-dasharray="10,5" />
+          stroke-dasharray="10,5"
+          style="cursor: move;" />
     @if (!string.IsNullOrEmpty(Group.Name) && (Group.Style?.Label ?? true))
     {
         var labelColor = GetStyleValue("color", "#a4a4a4");
@@ -39,6 +41,16 @@
     
     [Parameter]
     public EventCallback<Microsoft.AspNetCore.Components.Web.MouseEventArgs> OnMouseUp { get; set; }
+    
+    private async Task HandleMouseDown(Microsoft.AspNetCore.Components.Web.MouseEventArgs e)
+    {
+        await OnMouseDown.InvokeAsync(e);
+    }
+    
+    private async Task HandleMouseUp(Microsoft.AspNetCore.Components.Web.MouseEventArgs e)
+    {
+        await OnMouseUp.InvokeAsync(e);
+    }
     
     private string GetStyleValue(string property, string defaultValue)
     {
