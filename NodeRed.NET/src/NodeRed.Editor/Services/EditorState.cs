@@ -732,6 +732,11 @@ public class EditorWorkspaces
     {
         _activeWorkspace = id;
     }
+    
+    public void SetActive(string id)
+    {
+        _activeWorkspace = id;
+    }
 
     public string Active() => _activeWorkspace;
 
