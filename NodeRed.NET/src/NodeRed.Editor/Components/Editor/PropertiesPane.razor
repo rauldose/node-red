@@ -6,6 +6,21 @@
 
 <div class="red-ui-editor-properties-pane" style="padding: 12px;">
     <form class="dialog-form form-horizontal" autocomplete="off">
+        @* For subflow instances, show edit subflow button *@
+        @if (NodeType?.StartsWith("subflow:") == true)
+        {
+            <div class="form-row" style="margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-radius: 4px;">
+                <button type="button" 
+                        @onclick="EditSubflow"
+                        style="padding: 8px 16px; background: #C02020; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: 500;">
+                    <i class="fa fa-edit" style="margin-right: 6px;"></i> Edit Subflow Template
+                </button>
+                <p style="margin-top: 8px; font-size: 12px; color: #666;">
+                    Open the subflow template to edit its implementation
+                </p>
+            </div>
+        }
+
         @* Name field - standard for all nodes *@
         <div class="form-row" style="margin-bottom: 12px;">
             <label for="node-input-name" style="display: inline-block; width: 100px; font-weight: 500;">
@@ -240,6 +255,7 @@
 </div>
 
 @using NodeRed.Editor.Services
+@inject EditorState State
 
 @code {
     [Parameter] public FlowNode? Node { get; set; }
@@ -357,5 +373,22 @@
         }
 
         return props;
+    }
+
+    private void EditSubflow()
+    {
+        if (NodeType?.StartsWith("subflow:") == true)
+        {
+            var subflowId = NodeType.Substring("subflow:".Length);
+            // Switch to the subflow workspace
+            var subflows = State.Nodes.GetAllSubflows();
+            var subflow = subflows.FirstOrDefault(s => s.Id == subflowId);
+            if (subflow != null)
+            {
+                State.Workspaces.SetActive(subflow.Id);
+                // Emit event to close the tray
+                State.Events.Emit("editor:close-tray", null);
+            }
+        }
     }
 }

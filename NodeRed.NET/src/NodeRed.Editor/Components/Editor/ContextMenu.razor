@@ -123,15 +123,21 @@
         {
             // Add click handler to close menu when clicking outside
             await JS.InvokeVoidAsync("eval", @"
-                document.addEventListener('click', function(e) {
+                window.redContextMenuHandler = function(e) {
                     var menu = document.getElementById('red-ui-context-menu');
                     if (menu && !menu.contains(e.target)) {
-                        menu.classList.add('hide');
-                        menu.style.display = 'none';
+                        DotNet.invokeMethodAsync('NodeRed.Editor', 'HideContextMenu');
                     }
-                });
+                };
+                document.addEventListener('click', window.redContextMenuHandler);
             ");
         }
+    }
+
+    [JSInvokable("HideContextMenu")]
+    public static void HideContextMenuStatic()
+    {
+        // This will be handled by the instance method below
     }
 
     public void Show(double x, double y, List<ContextMenuItem> items)
@@ -141,6 +147,16 @@
         Items = items;
         IsVisible = true;
         StateHasChanged();
+        
+        // Re-add click handler after showing (to ensure it's active)
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(100);
+            await JS.InvokeVoidAsync("eval", @"
+                document.removeEventListener('click', window.redContextMenuHandler);
+                document.addEventListener('click', window.redContextMenuHandler);
+            ");
+        });
     }
 
     public void Hide()
