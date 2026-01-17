@@ -1027,6 +1027,7 @@
     /// </summary>
     private void SetupContextMenuHandler()
     {
+        // Handle view context menu (right-click on canvas)
         State.Events.On("view:contextmenu", obj =>
         {
             if (obj is { } data && contextMenuRef != null)
@@ -1096,6 +1097,127 @@
                 var yProp = type.GetProperty("Y");
                 if (xProp != null) x = Convert.ToDouble(xProp.GetValue(data));
                 if (yProp != null) y = Convert.ToDouble(yProp.GetValue(data));
+
+                contextMenuRef.Show(x, y, items);
+                InvokeAsync(StateHasChanged);
+            }
+        });
+
+        // Handle workspace tab context menu (right-click on workspace tab)
+        // Translated from workspaces.js tab contextmenu handler
+        State.Events.On("workspace:contextmenu", obj =>
+        {
+            if (obj is { } data && contextMenuRef != null)
+            {
+                // Extract workspace from event data
+                Workspace? workspace = null;
+                double x = 100, y = 100;
+                
+                var type = data.GetType();
+                var xProp = type.GetProperty("X");
+                var yProp = type.GetProperty("Y");
+                var wsProp = type.GetProperty("Workspace");
+                
+                if (xProp != null) x = Convert.ToDouble(xProp.GetValue(data));
+                if (yProp != null) y = Convert.ToDouble(yProp.GetValue(data));
+                if (wsProp != null) workspace = wsProp.GetValue(data) as Workspace;
+                
+                if (workspace == null) return;
+
+                // Determine if this is a subflow workspace
+                var subflow = State.Nodes.GetSubflow(workspace.Id);
+                var isSubflow = subflow != null;
+                var workspaceCount = State.Workspaces.GetAll().Count();
+                
+                // Build tab context menu items
+                var items = new List<ContextMenu.ContextMenuItem>
+                {
+                    new() { 
+                        Label = isSubflow ? "Edit subflow" : "Edit flow", 
+                        Icon = "fa-pencil", 
+                        OnClick = () => {
+                            State.Events.Emit("workspace:edit", workspace);
+                        }
+                    },
+                    new() { IsSeparator = true },
+                    new() { 
+                        Label = workspace.Disabled ? "Enable flow" : "Disable flow", 
+                        Icon = workspace.Disabled ? "fa-toggle-on" : "fa-toggle-off",
+                        Disabled = isSubflow, // Subflows can't be disabled directly
+                        OnClick = () => {
+                            workspace.Disabled = !workspace.Disabled;
+                            State.Nodes.SetDirty(true);
+                            workspacesRef?.Redraw(true);
+                        }
+                    },
+                    new() { IsSeparator = true },
+                    new() { 
+                        Label = "Add flow", 
+                        Icon = "fa-plus", 
+                        OnClick = () => {
+                            var newId = Guid.NewGuid().ToString();
+                            var flowCount = State.Workspaces.GetAll().Count() + 1;
+                            var newWorkspace = new Workspace
+                            {
+                                Id = newId,
+                                Label = $"Flow {flowCount}"
+                            };
+                            State.Workspaces.Add(newWorkspace);
+                            State.Workspaces.Show(newId);
+                            State.Nodes.SetDirty(true);
+                            workspacesRef?.Redraw(true);
+                        }
+                    },
+                    new() { 
+                        Label = "Add subflow", 
+                        Icon = "fa-cube", 
+                        OnClick = () => {
+                            State.SubflowManager.CreateSubflow();
+                            workspacesRef?.Redraw(true);
+                        }
+                    },
+                    new() { IsSeparator = true },
+                    new() { 
+                        Label = "Delete", 
+                        Icon = "fa-trash", 
+                        Disabled = workspaceCount <= 1, // Don't allow deleting the last workspace
+                        OnClick = () => {
+                            // Remove workspace and switch to another
+                            var allWorkspaces = State.Workspaces.GetAll().ToList();
+                            var currentIndex = allWorkspaces.FindIndex(w => w.Id == workspace.Id);
+                            
+                            // Find next workspace to show
+                            var nextWorkspace = currentIndex > 0 
+                                ? allWorkspaces[currentIndex - 1] 
+                                : allWorkspaces.FirstOrDefault(w => w.Id != workspace.Id);
+                            
+                            // Remove nodes in this workspace
+                            var nodesToRemove = State.Nodes.GetNodes().Where(n => n.Z == workspace.Id).ToList();
+                            foreach (var node in nodesToRemove)
+                            {
+                                State.Nodes.Remove(node);
+                            }
+                            
+                            // If subflow, remove the subflow definition
+                            if (isSubflow)
+                            {
+                                State.Nodes.RemoveSubflow(workspace.Id);
+                            }
+                            
+                            // Switch to next workspace before removing
+                            if (nextWorkspace != null)
+                            {
+                                State.Workspaces.Show(nextWorkspace.Id);
+                            }
+                            
+                            // Remove the workspace from the collection
+                            State.Workspaces.Remove(workspace.Id);
+                            
+                            State.Nodes.SetDirty(true);
+                            workspacesRef?.Redraw(true);
+                        }
+                    }
+                };
 
                 contextMenuRef.Show(x, y, items);
                 InvokeAsync(StateHasChanged);
@@ -1184,6 +1306,135 @@
                     // Trigger sidebar to show node info - the sidebar will react to State.Nodes changes
                     StateHasChanged();
                 });
+            }
+        });
+
+        // Handle workspace/flow tab editing
+        // Translated from workspaces.js editWorkspace function
+        State.Events.On("workspace:edit", obj =>
+        {
+            if (obj is Workspace workspace && editorTrayRef != null)
+            {
+                // Check if this is a subflow workspace
+                var subflow = State.Nodes.GetSubflow(workspace.Id);
+                var isSubflow = subflow != null;
+                
+                // Store references to panes for saving
+                FlowPropertiesPane? flowPropertiesPaneRef = null;
+                SubflowTemplatePane? subflowTemplatePaneRef = null;
+                
+                // Store original values for cancel
+                var originalLabel = workspace.Label;
+                var originalDisabled = workspace.Disabled;
+                var originalInfo = workspace.Info;
+                
+                // Build tabs based on whether this is a subflow or regular flow
+                var tabs = new List<EditorTray.TrayTab>();
+                
+                // Properties tab (for both flows and subflows)
+                tabs.Add(new EditorTray.TrayTab
+                {
+                    Id = "properties",
+                    Label = "Properties",
+                    Icon = "fa-cog",
+                    Content = builder =>
+                    {
+                        builder.OpenComponent<FlowPropertiesPane>(0);
+                        builder.AddAttribute(1, "Name", workspace.Label);
+                        builder.AddAttribute(2, "NameChanged", EventCallback.Factory.Create<string>(this, value => workspace.Label = value));
+                        builder.AddAttribute(3, "Disabled", workspace.Disabled);
+                        builder.AddAttribute(4, "DisabledChanged", EventCallback.Factory.Create<bool>(this, value => workspace.Disabled = value));
+                        builder.AddAttribute(5, "Info", workspace.Info ?? "");
+                        builder.AddAttribute(6, "InfoChanged", EventCallback.Factory.Create<string>(this, value => workspace.Info = value));
+                        builder.AddAttribute(7, "ShowEnvVars", !isSubflow); // Show env vars for flows, not subflows (subflows have their own env var UI)
+                        builder.AddComponentReferenceCapture(8, compRef =>
+                        {
+                            if (compRef is FlowPropertiesPane pane)
+                            {
+                                flowPropertiesPaneRef = pane;
+                            }
+                        });
+                        builder.CloseComponent();
+                    }
+                });
+
+                // Subflow-specific tabs
+                if (isSubflow && subflow != null)
+                {
+                    // Edit Template tab for subflow input/output configuration
+                    tabs.Add(new EditorTray.TrayTab
+                    {
+                        Id = "template",
+                        Label = "Edit Template",
+                        Icon = "fa-sitemap",
+                        Content = builder =>
+                        {
+                            builder.OpenComponent<SubflowTemplatePane>(0);
+                            builder.AddAttribute(1, "Subflow", subflow);
+                            builder.AddComponentReferenceCapture(2, compRef =>
+                            {
+                                if (compRef is SubflowTemplatePane pane)
+                                {
+                                    subflowTemplatePaneRef = pane;
+                                }
+                            });
+                            builder.CloseComponent();
+                        }
+                    });
+
+                    // Module tab for converting subflow to module (uses existing SubflowModulePane)
+                    tabs.Add(new EditorTray.TrayTab
+                    {
+                        Id = "module",
+                        Label = "Module",
+                        Icon = "fa-cube",
+                        Content = builder =>
+                        {
+                            builder.OpenComponent<SubflowModulePane>(0);
+                            builder.AddAttribute(1, "ModuleName", subflow.Name?.ToLowerInvariant().Replace(" ", "-") ?? "");
+                            builder.AddAttribute(2, "NodeTypeName", subflow.Name?.ToLowerInvariant().Replace(" ", "-") ?? "");
+                            builder.AddAttribute(3, "NodeColor", subflow.Color ?? "#DDAA99");
+                            builder.CloseComponent();
+                        }
+                    });
+                }
+
+                var panel = new EditorTray.TrayPanel
+                {
+                    Title = isSubflow ? $"Edit subflow: {subflow!.Name}" : $"Edit flow: {workspace.Label}",
+                    NodeType = isSubflow ? "subflow" : null,
+                    ShowDone = true,
+                    ShowCancel = true,
+                    ShowDelete = false, // Delete via context menu instead
+                    OnDone = () =>
+                    {
+                        // Save subflow template changes if applicable
+                        if (isSubflow && subflow != null && subflowTemplatePaneRef != null)
+                        {
+                            var (inPorts, outPorts, statusPort) = subflowTemplatePaneRef.GetPortConfiguration();
+                            subflow.In = inPorts;
+                            subflow.Out = outPorts;
+                            subflow.Status = statusPort;
+                        }
+                        
+                        State.Nodes.SetDirty(true);
+                        editorTrayRef.Close();
+                        workspacesRef?.Redraw(true);
+                    },
+                    OnCancel = () =>
+                    {
+                        // Restore original values
+                        workspace.Label = originalLabel;
+                        workspace.Disabled = originalDisabled;
+                        workspace.Info = originalInfo;
+                        editorTrayRef.Close();
+                        workspacesRef?.Redraw(true);
+                    },
+                    Tabs = tabs
+                };
+
+                editorTrayRef.Show(panel);
+                InvokeAsync(StateHasChanged);
             }
         });
     }
