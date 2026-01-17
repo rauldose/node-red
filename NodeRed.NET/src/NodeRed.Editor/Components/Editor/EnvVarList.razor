@@ -103,13 +103,13 @@
         await NotifyChange();
     }
 
-    private async Task OnNameChange(EnvVariable variable, ChangeEventArgs e)
+    private async Task OnNameChange(EnvVariable variable, Microsoft.AspNetCore.Components.ChangeEventArgs e)
     {
         variable.Name = e.Value?.ToString() ?? "";
         await NotifyChange();
     }
 
-    private async Task OnTypeChange(EnvVariable variable, ChangeEventArgs e)
+    private async Task OnTypeChange(EnvVariable variable, Microsoft.AspNetCore.Components.ChangeEventArgs e)
     {
         variable.Type = e.Value?.ToString() ?? "str";
         // Reset value when type changes
@@ -120,7 +120,7 @@
         await NotifyChange();
     }
 
-    private async Task OnValueChange(EnvVariable variable, ChangeEventArgs e)
+    private async Task OnValueChange(EnvVariable variable, Microsoft.AspNetCore.Components.ChangeEventArgs e)
     {
         variable.Value = e.Value?.ToString() ?? "";
         await NotifyChange();

@@ -6,6 +6,21 @@
 
 <div class="red-ui-editor-properties-pane" style="padding: 12px;">
     <form class="dialog-form form-horizontal" autocomplete="off">
+        @* For subflow instances, show edit subflow button *@
+        @if (NodeType?.StartsWith("subflow:") == true)
+        {
+            <div class="form-row" style="margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-radius: 4px;">
+                <button type="button" 
+                        @onclick="EditSubflow"
+                        style="padding: 8px 16px; background: #C02020; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: 500;">
+                    <i class="fa fa-edit" style="margin-right: 6px;"></i> Edit Subflow Template
+                </button>
+                <p style="margin-top: 8px; font-size: 12px; color: #666;">
+                    Open the subflow template to edit its implementation
+                </p>
+            </div>
+        }
+
         @* Name field - standard for all nodes *@
         <div class="form-row" style="margin-bottom: 12px;">
             <label for="node-input-name" style="display: inline-block; width: 100px; font-weight: 500;">
@@ -239,9 +254,12 @@
     </form>
 </div>
 
+@using NodeRed.Editor.Services
+@inject EditorState State
+
 @code {
-    [Parameter] public Dictionary<string, object>? Node { get; set; }
-    [Parameter] public EventCallback<Dictionary<string, object>> OnPropertiesChanged { get; set; }
+    [Parameter] public FlowNode? Node { get; set; }
+    [Parameter] public EventCallback<FlowNode> OnPropertiesChanged { get; set; }
 
     // Common properties
     private string NodeName = "";
@@ -279,34 +297,34 @@
     {
         if (Node != null)
         {
-            NodeType = Node.TryGetValue("type", out var t) ? t?.ToString() ?? "" : "";
-            NodeName = Node.TryGetValue("name", out var n) ? n?.ToString() ?? "" : "";
+            NodeType = Node.Type;
+            NodeName = Node.Name;
 
-            // Load node-specific properties
+            // Load node-specific properties from Node.Properties dictionary
             switch (NodeType)
             {
                 case "inject":
-                    PayloadType = Node.TryGetValue("payloadType", out var pt) ? pt?.ToString() ?? "date" : "date";
-                    PayloadValue = Node.TryGetValue("payload", out var pv) ? pv?.ToString() ?? "" : "";
-                    Topic = Node.TryGetValue("topic", out var topic) ? topic?.ToString() ?? "" : "";
-                    RepeatType = Node.TryGetValue("repeat", out var r) && r != null ? "interval" : "none";
-                    InjectOnStart = Node.TryGetValue("once", out var once) && once is bool b && b;
+                    PayloadType = Node.Properties.TryGetValue("payloadType", out var pt) ? pt?.ToString() ?? "date" : "date";
+                    PayloadValue = Node.Properties.TryGetValue("payload", out var pv) ? pv?.ToString() ?? "" : "";
+                    Topic = Node.Properties.TryGetValue("topic", out var topic) ? topic?.ToString() ?? "" : "";
+                    RepeatType = Node.Properties.TryGetValue("repeat", out var r) && r != null ? "interval" : "none";
+                    InjectOnStart = Node.Properties.TryGetValue("once", out var once) && once is bool b && b;
                     break;
 
                 case "debug":
-                    DebugOutput = Node.TryGetValue("complete", out var dc) ? dc?.ToString() ?? "msg" : "msg";
-                    DebugTo = Node.TryGetValue("tosidebar", out var ts) && ts is bool tsb && tsb ? "debug" : "console";
+                    DebugOutput = Node.Properties.TryGetValue("complete", out var dc) ? dc?.ToString() ?? "msg" : "msg";
+                    DebugTo = Node.Properties.TryGetValue("tosidebar", out var ts) && ts is bool tsb && tsb ? "debug" : "console";
                     break;
 
                 case "function":
-                    FunctionCode = Node.TryGetValue("func", out var fc) ? fc?.ToString() ?? "return msg;" : "return msg;";
-                    FunctionOutputs = Node.TryGetValue("outputs", out var fo) && fo is int foInt ? foInt : 1;
+                    FunctionCode = Node.Properties.TryGetValue("func", out var fc) ? fc?.ToString() ?? "return msg;" : "return msg;";
+                    FunctionOutputs = Node.Properties.TryGetValue("outputs", out var fo) && fo is int foInt ? foInt : 1;
                     break;
 
                 case "http request":
-                    HttpMethod = Node.TryGetValue("method", out var hm) ? hm?.ToString() ?? "GET" : "GET";
-                    HttpUrl = Node.TryGetValue("url", out var hu) ? hu?.ToString() ?? "" : "";
-                    HttpReturn = Node.TryGetValue("ret", out var hr) ? hr?.ToString() ?? "txt" : "txt";
+                    HttpMethod = Node.Properties.TryGetValue("method", out var hm) ? hm?.ToString() ?? "GET" : "GET";
+                    HttpUrl = Node.Properties.TryGetValue("url", out var hu) ? hu?.ToString() ?? "" : "";
+                    HttpReturn = Node.Properties.TryGetValue("ret", out var hr) ? hr?.ToString() ?? "txt" : "txt";
                     break;
             }
         }
@@ -355,5 +373,28 @@
         }
 
         return props;
+    }
+
+    private void EditSubflow()
+    {
+        if (NodeType?.StartsWith("subflow:") == true)
+        {
+            var subflowId = NodeType.Substring("subflow:".Length);
+            // Switch to the subflow workspace
+            var subflows = State.Nodes.GetAllSubflows();
+            var subflow = subflows.FirstOrDefault(s => s.Id == subflowId);
+            if (subflow != null)
+            {
+                // Make sure workspace is visible and active
+                State.Workspaces.Show(subflow.Id);
+                State.Workspaces.SetActive(subflow.Id);
+                // Emit event to trigger workspace change
+                State.Events.Emit("workspace:change", subflow.Id);
+                // Emit event to close the tray
+                State.Events.Emit("editor:close-tray", null);
+                // Force UI update
+                StateHasChanged();
+            }
+        }
     }
 }

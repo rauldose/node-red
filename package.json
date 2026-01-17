@@ -87,6 +87,16 @@
         "@node-rs/bcrypt": "1.10.7"
     },
     "devDependencies": {
+        "@syncfusion/ej2-base": "^27.2.2",
+        "@syncfusion/ej2-buttons": "^27.2.2",
+        "@syncfusion/ej2-calendars": "^27.2.2",
+        "@syncfusion/ej2-data": "^27.2.2",
+        "@syncfusion/ej2-dropdowns": "^27.2.2",
+        "@syncfusion/ej2-inputs": "^27.2.2",
+        "@syncfusion/ej2-lists": "^27.2.2",
+        "@syncfusion/ej2-navigations": "^27.2.2",
+        "@syncfusion/ej2-popups": "^27.2.2",
+        "@syncfusion/ej2-splitbuttons": "^27.2.2",
         "dompurify": "3.2.6",
         "grunt": "1.6.1",
         "grunt-chmod": "~1.1.1",

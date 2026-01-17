@@ -1,97 +1,46 @@
-@* Source: @node-red/editor-client/src/js/ui/common/menu.js *@
-@* Translated to Blazor for NodeRed.NET *@
+@* Syncfusion Blazor ContextMenu Component Wrapper *@
+@* Replaces custom menu with Syncfusion ContextMenu *@
 
-<div class="red-ui-menu @(IsOpen ? "open" : "")" style="@GetPositionStyle()" @onmousedown:stopPropagation>
-    @if (IsOpen)
-    {
-        <ul class="red-ui-menu-list">
-            @foreach (var item in Items)
-            {
-                @if (item.IsSeparator)
-                {
-                    <li class="red-ui-menu-separator"></li>
-                }
-                else
-                {
-                    <li class="red-ui-menu-item @(item.Disabled ? "disabled" : "") @(item.Items?.Any() == true ? "has-submenu" : "")"
-                        @onclick="() => OnItemClick(item)"
-                        @onmouseenter="() => OpenSubmenu(item)">
-                        @if (!string.IsNullOrEmpty(item.Icon))
-                        {
-                            <i class="fa @item.Icon red-ui-menu-icon"></i>
-                        }
-                        else
-                        {
-                            <span class="red-ui-menu-icon-placeholder"></span>
-                        }
-                        <span class="red-ui-menu-label">@item.Label</span>
-                        @if (!string.IsNullOrEmpty(item.Shortcut))
-                        {
-                            <span class="red-ui-menu-shortcut">@item.Shortcut</span>
-                        }
-                        @if (item.Items?.Any() == true)
-                        {
-                            <i class="fa fa-caret-right red-ui-menu-submenu-arrow"></i>
-                        }
-                        
-                        @if (item.Items?.Any() == true && _openSubmenu == item.Id)
-                        {
-                            <ul class="red-ui-menu-submenu">
-                                @foreach (var subItem in item.Items)
-                                {
-                                    <li class="red-ui-menu-item @(subItem.Disabled ? "disabled" : "")"
-                                        @onclick="() => OnItemClick(subItem)">
-                                        @if (!string.IsNullOrEmpty(subItem.Icon))
-                                        {
-                                            <i class="fa @subItem.Icon red-ui-menu-icon"></i>
-                                        }
-                                        <span class="red-ui-menu-label">@subItem.Label</span>
-                                    </li>
-                                }
-                            </ul>
-                        }
-                    </li>
-                }
-            }
-        </ul>
-    }
-</div>
+<SfContextMenu @ref="MenuRef" TValue="MenuItem" Target="@Target" Items="@Items" CssClass="red-ui-menu">
+    <MenuEvents TValue="MenuItem" ItemSelected="@OnMenuItemSelected" />
+    <MenuFieldSettings Text="Label" IconCss="Icon" Children="Items" />
+</SfContextMenu>
 
 @code {
     [Parameter] public List<MenuItem> Items { get; set; } = new();
-    [Parameter] public bool IsOpen { get; set; }
-    [Parameter] public double Left { get; set; }
-    [Parameter] public double Top { get; set; }
+    [Parameter] public string Target { get; set; } = "body";
     [Parameter] public EventCallback<MenuItem> OnSelect { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
     
-    private string? _openSubmenu;
+    private SfContextMenu<MenuItem>? MenuRef;
     
-    private string GetPositionStyle()
+    private async Task OnMenuItemSelected(MenuEventArgs<MenuItem> args)
     {
-        return $"left: {Left}px; top: {Top}px;";
+        if (args.Item != null && !args.Item.Disabled && (args.Item.Items == null || !args.Item.Items.Any()))
+        {
+            await OnSelect.InvokeAsync(args.Item);
+            await OnClose.InvokeAsync();
+            
+            // Invoke the OnClick handler if present
+            args.Item.OnClick?.Invoke();
+        }
     }
     
-    private async Task OnItemClick(MenuItem item)
+    public async Task Open(double left, double top)
     {
-        if (item.Disabled || item.Items?.Any() == true)
+        if (MenuRef != null)
         {
-            return;
+            await MenuRef.OpenAsync(top, left);
         }
-        
-        await OnSelect.InvokeAsync(item);
-        await OnClose.InvokeAsync();
     }
     
-    private void OpenSubmenu(MenuItem item)
+    public async Task Close()
     {
-        if (item.Items?.Any() == true)
+        if (MenuRef != null)
         {
-            _openSubmenu = item.Id;
-        }
-        else
-        {
-            _openSubmenu = null;
+            // Syncfusion ContextMenu doesn't have CloseAsync - it closes automatically on selection
+            // or we can use HideAsync if needed
+            StateHasChanged();
         }
     }
     
@@ -110,76 +59,3 @@
     }
 }
 
-<style>
-    .red-ui-menu {
-        position: absolute;
-        z-index: 10000;
-        display: none;
-        min-width: 160px;
-        background: white;
-        border: 1px solid #ccc;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    .red-ui-menu.open {
-        display: block;
-    }
-    .red-ui-menu-list {
-        list-style: none;
-        margin: 0;
-        padding: 4px 0;
-    }
-    .red-ui-menu-item {
-        display: flex;
-        align-items: center;
-        padding: 6px 12px;
-        cursor: pointer;
-        position: relative;
-    }
-    .red-ui-menu-item:hover {
-        background-color: #e6f0fa;
-    }
-    .red-ui-menu-item.disabled {
-        color: #999;
-        cursor: default;
-    }
-    .red-ui-menu-item.disabled:hover {
-        background-color: transparent;
-    }
-    .red-ui-menu-separator {
-        height: 1px;
-        background-color: #ddd;
-        margin: 4px 0;
-    }
-    .red-ui-menu-icon {
-        width: 16px;
-        margin-right: 8px;
-        text-align: center;
-    }
-    .red-ui-menu-icon-placeholder {
-        width: 16px;
-        margin-right: 8px;
-    }
-    .red-ui-menu-label {
-        flex: 1;
-    }
-    .red-ui-menu-shortcut {
-        color: #888;
-        font-size: 0.9em;
-        margin-left: 16px;
-    }
-    .red-ui-menu-submenu-arrow {
-        margin-left: 8px;
-    }
-    .red-ui-menu-submenu {
-        position: absolute;
-        left: 100%;
-        top: 0;
-        list-style: none;
-        margin: 0;
-        padding: 4px 0;
-        min-width: 140px;
-        background: white;
-        border: 1px solid #ccc;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-</style>

@@ -1,19 +1,24 @@
-@* Source: @node-red/editor-client/src/js/ui/common/panels.js *@
-@* Translated to Blazor for NodeRed.NET *@
+@* Syncfusion Blazor Splitter Component Wrapper *@
+@* Replaces custom panels with Syncfusion Splitter *@
 
-<div class="red-ui-panels @(Horizontal ? "horizontal" : "vertical")">
-    <div class="red-ui-panel panel-1" style="@GetPanel1Style()">
-        @Panel1Content
-    </div>
-    <div class="red-ui-panels-separator" 
-         @onmousedown="StartResize"
-         @onmousedown:stopPropagation>
-        <div class="separator-handle"></div>
-    </div>
-    <div class="red-ui-panel panel-2" style="@GetPanel2Style()">
-        @Panel2Content
-    </div>
-</div>
+<SfSplitter Height="100%" Width="100%" 
+             Orientation="@(Horizontal ? Syncfusion.Blazor.Layouts.Orientation.Horizontal : Syncfusion.Blazor.Layouts.Orientation.Vertical)"
+             SeparatorSize="6"
+             CssClass="red-ui-panels">
+    <SplitterPanes>
+        <SplitterPane Size="@($"{InitialRatio * 100}%")" Min="@($"{MinSize}px")">
+            <ContentTemplate>
+                @Panel1Content
+            </ContentTemplate>
+        </SplitterPane>
+        <SplitterPane Size="@($"{(1 - InitialRatio) * 100}%")" Min="@($"{MinSize}px")">
+            <ContentTemplate>
+                @Panel2Content
+            </ContentTemplate>
+        </SplitterPane>
+    </SplitterPanes>
+    <SplitterEvents Resizing="@OnResizing" />
+</SfSplitter>
 
 @code {
     [Parameter] public RenderFragment? Panel1Content { get; set; }
@@ -23,42 +28,15 @@
     [Parameter] public double MinSize { get; set; } = 100;
     [Parameter] public EventCallback<double> OnRatioChanged { get; set; }
     
-    private double _ratio;
-    private bool _isResizing;
-    
-    protected override void OnInitialized()
+    private async Task OnResizing(ResizingEventArgs args)
     {
-        _ratio = InitialRatio;
-    }
-    
-    private string GetPanel1Style()
-    {
-        if (Horizontal)
+        if (args.PaneSize != null && args.PaneSize.Length > 0)
         {
-            return $"width: calc({_ratio * 100}% - 3px);";
+            // PaneSize is a double array representing percentages
+            var size = args.PaneSize[0];
+            var ratio = size / 100.0;
+            await OnRatioChanged.InvokeAsync(ratio);
         }
-        return $"height: calc({_ratio * 100}% - 3px);";
-    }
-    
-    private string GetPanel2Style()
-    {
-        if (Horizontal)
-        {
-            return $"width: calc({(1 - _ratio) * 100}% - 3px);";
-        }
-        return $"height: calc({(1 - _ratio) * 100}% - 3px);";
-    }
-    
-    private void StartResize()
-    {
-        _isResizing = true;
-    }
-    
-    public void SetRatio(double ratio)
-    {
-        _ratio = Math.Max(0.1, Math.Min(0.9, ratio));
-        StateHasChanged();
-        OnRatioChanged.InvokeAsync(_ratio);
     }
 }
 

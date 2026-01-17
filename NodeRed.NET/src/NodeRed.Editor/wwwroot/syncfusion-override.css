@@ -1,0 +1,396 @@
+/* ============================================================
+   Syncfusion Component Style Overrides
+   ============================================================
+   This stylesheet overrides Syncfusion's Material theme to match
+   Node-RED's visual style while maintaining component functionality.
+   ============================================================ */
+
+/* Tab Component Overrides */
+.e-tab .e-tab-header {
+    background: var(--red-ui-primary-background, #f3f3f3);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    padding: 0;
+}
+
+.e-tab .e-tab-header .e-toolbar-item {
+    background: var(--red-ui-tab-background, #fff);
+    color: var(--red-ui-tab-text-color-inactive, #666);
+    border-right: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    padding: 8px 15px;
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+}
+
+.e-tab .e-tab-header .e-toolbar-item:hover {
+    background: var(--red-ui-tab-background-hover, #e6e6e6);
+}
+
+.e-tab .e-tab-header .e-toolbar-item.e-active {
+    background: var(--red-ui-tab-background-active, #fff);
+    color: var(--red-ui-tab-text-color-active, #444);
+    border-bottom: 2px solid var(--red-ui-header-accent, #C02020);
+    margin-bottom: -1px;
+}
+
+/* Context Menu Overrides */
+.e-contextmenu-container.red-ui-menu {
+    background: var(--red-ui-secondary-background, #fff);
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    box-shadow: 0 2px 6px var(--red-ui-shadow, rgba(0,0,0,0.2));
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+}
+
+.e-contextmenu-container .e-menu-item {
+    color: var(--red-ui-primary-text-color, #555);
+    padding: 6px 12px;
+}
+
+.e-contextmenu-container .e-menu-item:hover {
+    background: var(--red-ui-secondary-background-hover, #e6e6e6);
+}
+
+.e-contextmenu-container .e-separator {
+    background: var(--red-ui-secondary-border-color, #ddd);
+    height: 1px;
+    margin: 4px 0;
+}
+
+/* Tooltip Overrides */
+.e-tooltip-wrap.red-ui-popover {
+    background: var(--red-ui-secondary-background, #fff);
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    border-radius: 4px;
+    box-shadow: 0 2px 10px var(--red-ui-shadow, rgba(0,0,0,0.2));
+    color: var(--red-ui-primary-text-color, #555);
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+}
+
+.e-tooltip-wrap .e-arrow-tip {
+    background: var(--red-ui-secondary-background, #fff);
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+}
+
+/* ListView Overrides */
+.e-listview.red-ui-editableList-list {
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    background: var(--red-ui-secondary-background, #fff);
+}
+
+.e-listview .e-list-item {
+    border-bottom: 1px solid var(--red-ui-tertiary-border-color, #eee);
+    color: var(--red-ui-primary-text-color, #555);
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+}
+
+.e-listview .e-list-item:hover {
+    background: var(--red-ui-secondary-background-hover, #e6e6e6);
+}
+
+/* TreeView Overrides */
+.e-treeview {
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+    color: var(--red-ui-primary-text-color, #555);
+}
+
+.e-treeview .e-list-item {
+    padding: 4px 8px;
+}
+
+.e-treeview .e-list-item:hover {
+    background: var(--red-ui-secondary-background-hover, #e6e6e6);
+}
+
+.e-treeview .e-list-item.e-active {
+    background: var(--red-ui-secondary-background-selected, #efefef);
+    color: var(--red-ui-primary-text-color, #555);
+}
+
+/* DropDownList / ComboBox Overrides */
+.e-dropdownlist,
+.e-combobox {
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+}
+
+.e-dropdownlist .e-input-group,
+.e-combobox .e-input-group {
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    background: var(--red-ui-form-input-background, #fff);
+}
+
+.e-dropdownlist .e-input-group:hover,
+.e-combobox .e-input-group:hover {
+    border-color: var(--red-ui-primary-border-color, #bbb);
+}
+
+.e-dropdownlist .e-input-group.e-input-focus,
+.e-combobox .e-input-group.e-input-focus {
+    border-color: var(--red-ui-form-input-focus-color, rgba(85,150,230,0.8));
+}
+
+.e-dropdownlist .e-list-item,
+.e-combobox .e-list-item {
+    color: var(--red-ui-primary-text-color, #555);
+}
+
+.e-dropdownlist .e-list-item:hover,
+.e-combobox .e-list-item:hover {
+    background: var(--red-ui-secondary-background-hover, #e6e6e6);
+}
+
+/* TextBox Overrides */
+.e-textbox,
+.e-input-group {
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+}
+
+.e-input-group {
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    border-radius: 3px;
+    background: var(--red-ui-form-input-background, #fff);
+}
+
+.e-input-group:hover {
+    border-color: var(--red-ui-primary-border-color, #bbb);
+}
+
+.e-input-group.e-input-focus {
+    border-color: var(--red-ui-form-input-focus-color, rgba(85,150,230,0.8));
+}
+
+.e-input-group .e-input {
+    color: var(--red-ui-primary-text-color, #555);
+}
+
+/* CheckBox Overrides */
+.e-checkbox-wrapper {
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+    color: var(--red-ui-primary-text-color, #555);
+}
+
+.e-checkbox-wrapper .e-frame {
+    border: 1px solid var(--red-ui-primary-border-color, #bbb);
+    background: var(--red-ui-form-input-background, #fff);
+}
+
+.e-checkbox-wrapper:hover .e-frame {
+    border-color: var(--red-ui-primary-text-color, #555);
+}
+
+.e-checkbox-wrapper .e-check {
+    color: var(--red-ui-header-accent, #C02020);
+}
+
+/* Switch Overrides */
+.e-switch-wrapper {
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+}
+
+.e-switch-wrapper .e-switch-inner {
+    background: var(--red-ui-tertiary-background, #f7f7f7);
+    border: 1px solid var(--red-ui-primary-border-color, #bbb);
+}
+
+.e-switch-wrapper .e-switch-on {
+    background: var(--red-ui-header-accent, #C02020);
+}
+
+/* AutoComplete Overrides */
+.e-autocomplete {
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+}
+
+.e-autocomplete .e-input-group {
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    background: var(--red-ui-form-input-background, #fff);
+}
+
+/* Splitter Overrides */
+.e-splitter.red-ui-panels {
+    font-family: var(--red-ui-primary-font);
+}
+
+.e-splitter .e-split-bar {
+    background: var(--red-ui-primary-background, #f3f3f3);
+    border-left: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    border-right: 1px solid var(--red-ui-secondary-border-color, #ddd);
+}
+
+.e-splitter .e-split-bar:hover {
+    background: var(--red-ui-grip-color, #ccc);
+}
+
+.e-splitter .e-split-bar .e-resize-handler {
+    background: var(--red-ui-grip-color, #ccc);
+}
+
+/* Accordion Overrides */
+.e-accordion.red-ui-stack {
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+}
+
+.e-accordion .e-acrdn-header {
+    background: var(--red-ui-tertiary-background, #f7f7f7);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    color: var(--red-ui-primary-text-color, #555);
+    padding: 8px 12px;
+}
+
+.e-accordion .e-acrdn-header:hover {
+    background: var(--red-ui-secondary-background-hover, #e6e6e6);
+}
+
+.e-accordion .e-acrdn-header.e-selected {
+    background: var(--red-ui-secondary-background, #fff);
+    color: var(--red-ui-primary-text-color, #555);
+}
+
+.e-accordion .e-acrdn-panel {
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+}
+
+.e-accordion .e-acrdn-content {
+    background: var(--red-ui-secondary-background, #fff);
+    color: var(--red-ui-primary-text-color, #555);
+    padding: 12px;
+}
+
+/* Button Overrides */
+.e-btn {
+    font-family: var(--red-ui-primary-font);
+    font-size: var(--red-ui-primary-font-size, 14px);
+    border-radius: 3px;
+}
+
+.e-btn.red-ui-editableList-addBtn,
+.e-btn.red-ui-editableList-item-remove {
+    background: var(--red-ui-secondary-background, #fff);
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    color: var(--red-ui-primary-text-color, #555);
+}
+
+.e-btn.red-ui-editableList-addBtn:hover,
+.e-btn.red-ui-editableList-item-remove:hover {
+    background: var(--red-ui-secondary-background-hover, #e6e6e6);
+    border-color: var(--red-ui-primary-border-color, #bbb);
+}
+
+.red-ui-editableList-item-remove {
+    opacity: 0.5;
+    color: var(--red-ui-header-accent, #C02020);
+}
+
+.red-ui-editableList-item-remove:hover {
+    opacity: 1;
+}
+
+/* Custom component styles */
+.red-ui-editableList {
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    border-radius: 3px;
+    background: var(--red-ui-secondary-background, #fff);
+}
+
+.red-ui-editableList-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: var(--red-ui-tertiary-background, #f7f7f7);
+    border-bottom: 1px solid var(--red-ui-secondary-border-color, #ddd);
+}
+
+.red-ui-editableList-header-text {
+    font-weight: 500;
+    color: var(--red-ui-primary-text-color, #555);
+}
+
+.red-ui-editableList-item-container {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+}
+
+.red-ui-editableList-item-handle {
+    cursor: move;
+    margin-right: 8px;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+.red-ui-editableList-item-content {
+    flex: 1;
+}
+
+.red-ui-editableList-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--red-ui-secondary-text-color, #888);
+}
+
+.red-ui-checkboxSet {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.red-ui-checkboxSet-inline {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.red-ui-stack-badge {
+    background: var(--red-ui-header-accent, #C02020);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    margin-left: 8px;
+}
+
+/* Ensure red-ui-searchBox uses Node-RED styling */
+.red-ui-searchBox .e-input-group {
+    border: 1px solid var(--red-ui-secondary-border-color, #ddd);
+    border-radius: 3px;
+    background: var(--red-ui-form-input-background, #fff);
+}
+
+.red-ui-searchBox .e-input-group:hover {
+    border-color: var(--red-ui-primary-border-color, #bbb);
+}
+
+.red-ui-searchBox .e-input-group.e-input-focus {
+    border-color: var(--red-ui-form-input-focus-color, rgba(85,150,230,0.8));
+}
+
+/* TypedInput specific styling */
+.red-ui-typedInput {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.red-ui-typedInput .red-ui-typedInput-type-select {
+    min-width: 100px;
+}
+
+.red-ui-typedInput .red-ui-typedInput-input-wrap {
+    flex: 1;
+}
+
+.red-ui-typedInput-option-icon {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 2px;
+    margin-right: 6px;
+    color: #fff;
+    font-size: 11px;
+}

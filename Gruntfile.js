@@ -216,8 +216,15 @@ module.exports = function(grunt) {
                         src: [
                             "packages/node_modules/@node-red/editor-client/src/vendor/jquery/js/jquery-3.7.1.min.js",
                             "packages/node_modules/@node-red/editor-client/src/vendor/jquery/js/jquery-migrate-3.5.2.min.js",
-                            "packages/node_modules/@node-red/editor-client/src/vendor/jquery/js/jquery-ui-1.14.1.min.js",
-                            "packages/node_modules/@node-red/editor-client/src/vendor/jquery/js/jquery.ui.touch-punch.min.js",
+                            "node_modules/@syncfusion/ej2-base/dist/global/ej2-base.min.js",
+                            "node_modules/@syncfusion/ej2-buttons/dist/global/ej2-buttons.min.js",
+                            "node_modules/@syncfusion/ej2-popups/dist/global/ej2-popups.min.js",
+                            "node_modules/@syncfusion/ej2-splitbuttons/dist/global/ej2-splitbuttons.min.js",
+                            "node_modules/@syncfusion/ej2-inputs/dist/global/ej2-inputs.min.js",
+                            "node_modules/@syncfusion/ej2-lists/dist/global/ej2-lists.min.js",
+                            "node_modules/@syncfusion/ej2-data/dist/global/ej2-data.min.js",
+                            "node_modules/@syncfusion/ej2-dropdowns/dist/global/ej2-dropdowns.min.js",
+                            "node_modules/@syncfusion/ej2-navigations/dist/global/ej2-navigations.min.js",
                             "node_modules/marked/marked.min.js",
                             "node_modules/dompurify/dist/purify.min.js",
                             "packages/node_modules/@node-red/editor-client/src/vendor/d3/d3.v3.min.js",
@@ -408,7 +415,6 @@ module.exports = function(grunt) {
                         cwd: 'packages/node_modules/@node-red/editor-client/src/vendor',
                         src: [
                             'ace/**',
-                            'jquery/css/base/**',
                             'font-awesome/**',
                             'monaco/dist/**',
                             'monaco/types/extraLibs.js',
@@ -417,6 +423,48 @@ module.exports = function(grunt) {
                         ],
                         expand: true,
                         dest: 'packages/node_modules/@node-red/editor-client/public/vendor/'
+                    },
+                    {
+                        cwd: 'node_modules/@syncfusion/ej2-base/styles',
+                        src: ['material.css'],
+                        expand: true,
+                        dest: 'packages/node_modules/@node-red/editor-client/public/vendor/syncfusion/styles/'
+                    },
+                    {
+                        cwd: 'node_modules/@syncfusion/ej2-buttons/styles',
+                        src: ['material.css'],
+                        expand: true,
+                        dest: 'packages/node_modules/@node-red/editor-client/public/vendor/syncfusion/styles/buttons/'
+                    },
+                    {
+                        cwd: 'node_modules/@syncfusion/ej2-inputs/styles',
+                        src: ['material.css'],
+                        expand: true,
+                        dest: 'packages/node_modules/@node-red/editor-client/public/vendor/syncfusion/styles/inputs/'
+                    },
+                    {
+                        cwd: 'node_modules/@syncfusion/ej2-navigations/styles',
+                        src: ['material.css'],
+                        expand: true,
+                        dest: 'packages/node_modules/@node-red/editor-client/public/vendor/syncfusion/styles/navigations/'
+                    },
+                    {
+                        cwd: 'node_modules/@syncfusion/ej2-popups/styles',
+                        src: ['material.css'],
+                        expand: true,
+                        dest: 'packages/node_modules/@node-red/editor-client/public/vendor/syncfusion/styles/popups/'
+                    },
+                    {
+                        cwd: 'node_modules/@syncfusion/ej2-lists/styles',
+                        src: ['material.css'],
+                        expand: true,
+                        dest: 'packages/node_modules/@node-red/editor-client/public/vendor/syncfusion/styles/lists/'
+                    },
+                    {
+                        cwd: 'node_modules/@syncfusion/ej2-dropdowns/styles',
+                        src: ['material.css'],
+                        expand: true,
+                        dest: 'packages/node_modules/@node-red/editor-client/public/vendor/syncfusion/styles/dropdowns/'
                     },
                     {
                         cwd: 'packages/node_modules/@node-red/editor-client/src',

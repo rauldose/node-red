@@ -1,70 +1,68 @@
-@* Source: @node-red/editor-client/src/js/ui/common/autoComplete.js *@
-@* Translated to Blazor for NodeRed.NET *@
+@* Syncfusion Blazor AutoComplete Component Wrapper *@
+@* Replaces custom autoComplete with Syncfusion AutoComplete *@
 
-<div class="red-ui-autocomplete @(IsOpen ? "open" : "")" style="@GetPositionStyle()">
-    @if (IsOpen && FilteredOptions.Any())
-    {
-        <div class="red-ui-autocomplete-options" @onmousedown:stopPropagation>
-            @foreach (var (option, index) in FilteredOptions.Select((o, i) => (o, i)))
-            {
-                <div class="red-ui-autocomplete-option @(index == SelectedIndex ? "selected" : "")"
-                     @onclick="() => SelectOption(option)"
-                     @onmouseover="() => SelectedIndex = index">
-                    @if (!string.IsNullOrEmpty(option.Icon))
-                    {
-                        <i class="fa @option.Icon"></i>
-                    }
-                    <span class="option-label">@option.Label</span>
-                    @if (!string.IsNullOrEmpty(option.Description))
-                    {
-                        <span class="option-description">@option.Description</span>
-                    }
-                </div>
+<SfAutoComplete @ref="AutoCompleteRef"
+                TValue="string"
+                TItem="AutoCompleteOption"
+                DataSource="@Options"
+                @bind-Value="@Value"
+                Placeholder="@Placeholder"
+                CssClass="red-ui-autocomplete"
+                ShowPopupButton="false"
+                AllowFiltering="true"
+                FilterType="FilterType.Contains">
+    <AutoCompleteFieldSettings Value="Value" Text="Label" />
+    <AutoCompleteTemplates TItem="AutoCompleteOption">
+        <ItemTemplate>
+            @{
+                var item = context as AutoCompleteOption;
             }
-        </div>
-    }
-</div>
+            <div class="autocomplete-item">
+                @if (!string.IsNullOrEmpty(item?.Icon))
+                {
+                    <i class="fa @item.Icon"></i>
+                }
+                <span class="option-label">@item?.Label</span>
+                @if (!string.IsNullOrEmpty(item?.Description))
+                {
+                    <span class="option-description">@item.Description</span>
+                }
+            </div>
+        </ItemTemplate>
+    </AutoCompleteTemplates>
+    <AutoCompleteEvents TValue="string" TItem="AutoCompleteOption" ValueChange="@OnValueChange" />
+</SfAutoComplete>
 
 @code {
     [Parameter] public List<AutoCompleteOption> Options { get; set; } = new();
     [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string Placeholder { get; set; } = "";
     [Parameter] public EventCallback<AutoCompleteOption> OnSelect { get; set; }
-    [Parameter] public double Left { get; set; }
-    [Parameter] public double Top { get; set; }
-    [Parameter] public bool IsOpen { get; set; }
     
-    private int SelectedIndex { get; set; } = 0;
+    private SfAutoComplete<string, AutoCompleteOption>? AutoCompleteRef;
     
-    private List<AutoCompleteOption> FilteredOptions => string.IsNullOrEmpty(Value)
-        ? Options
-        : Options.Where(o => 
-            o.Label.Contains(Value, StringComparison.OrdinalIgnoreCase) ||
-            (o.Value?.Contains(Value, StringComparison.OrdinalIgnoreCase) ?? false))
-            .ToList();
-    
-    private string GetPositionStyle()
+    private async Task OnValueChange(ChangeEventArgs<string, AutoCompleteOption> args)
     {
-        return $"left: {Left}px; top: {Top}px;";
-    }
-    
-    private async Task SelectOption(AutoCompleteOption option)
-    {
-        await OnSelect.InvokeAsync(option);
-    }
-    
-    public void MoveSelection(int delta)
-    {
-        SelectedIndex = Math.Max(0, Math.Min(FilteredOptions.Count - 1, SelectedIndex + delta));
-        StateHasChanged();
-    }
-    
-    public AutoCompleteOption? GetSelectedOption()
-    {
-        if (SelectedIndex >= 0 && SelectedIndex < FilteredOptions.Count)
+        if (args.ItemData != null)
         {
-            return FilteredOptions[SelectedIndex];
+            await OnSelect.InvokeAsync(args.ItemData);
         }
-        return null;
+    }
+    
+    public async Task ShowPopup()
+    {
+        if (AutoCompleteRef != null)
+        {
+            await AutoCompleteRef.ShowPopupAsync();
+        }
+    }
+    
+    public async Task HidePopup()
+    {
+        if (AutoCompleteRef != null)
+        {
+            await AutoCompleteRef.HidePopupAsync();
+        }
     }
     
     public class AutoCompleteOption
@@ -78,39 +76,17 @@
 }
 
 <style>
-    .red-ui-autocomplete {
-        position: absolute;
-        z-index: 10000;
-        display: none;
-        min-width: 200px;
-        max-width: 400px;
-        background: white;
-        border: 1px solid #ccc;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    }
-    .red-ui-autocomplete.open {
-        display: block;
-    }
-    .red-ui-autocomplete-options {
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    .red-ui-autocomplete-option {
-        padding: 4px 8px;
-        cursor: pointer;
+    .autocomplete-item {
         display: flex;
         align-items: center;
         gap: 6px;
     }
-    .red-ui-autocomplete-option:hover,
-    .red-ui-autocomplete-option.selected {
-        background-color: #e6f0fa;
-    }
-    .red-ui-autocomplete-option .option-label {
+    .autocomplete-item .option-label {
         flex: 1;
     }
-    .red-ui-autocomplete-option .option-description {
+    .autocomplete-item .option-description {
         color: #888;
         font-size: 0.9em;
     }
 </style>
+

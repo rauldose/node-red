@@ -458,9 +458,35 @@ public class EditorNodes
     public List<FlowWorkspace> GetWorkspaces() => _workspaces.Values.ToList();
     public List<string> GetWorkspaceOrder() => _workspacesOrder.ToList();
     public List<NodeGroup> GetGroups() => _groups.ToList();
+    
+    public void AddGroup(NodeGroup group)
+    {
+        _groups.Add(group);
+        SetDirty(true);
+    }
+
+    public void RemoveGroup(NodeGroup group)
+    {
+        _groups.Remove(group);
+        SetDirty(true);
+    }
+    
     public List<Junction> GetJunctions() => _junctions.ToList();
     public List<Subflow> GetSubflows() => _subflows.Values.ToList();
+    public List<Subflow> GetAllSubflows() => GetSubflows(); // Alias for consistency
     public Subflow? GetSubflow(string id) => _subflows.TryGetValue(id, out var sf) ? sf : null;
+    
+    public void AddSubflow(Subflow subflow)
+    {
+        _subflows[subflow.Id] = subflow;
+        SetDirty(true);
+    }
+    
+    public void RemoveSubflow(string id)
+    {
+        _subflows.Remove(id);
+        SetDirty(true);
+    }
 
     public bool IsDirty() => _dirty;
     public void SetDirty(bool dirty) => _dirty = dirty;
@@ -706,6 +732,11 @@ public class EditorWorkspaces
     {
         _activeWorkspace = id;
     }
+    
+    public void SetActive(string id)
+    {
+        _activeWorkspace = id;
+    }
 
     public string Active() => _activeWorkspace;
 
@@ -914,8 +945,12 @@ public class FlowNode
     public string Z { get; set; } = "";
     public double X { get; set; }
     public double Y { get; set; }
+    public double Width { get; set; } = 120;
+    public double Height { get; set; } = 30;
     public int Inputs { get; set; }
     public int Outputs { get; set; }
+    public List<List<string>>? Wires { get; set; }
+    public string? GroupId { get; set; }  // Group membership
     public NodeStatus? Status { get; set; }
     public bool DirtyStatus { get; set; }
     public bool Dirty { get; set; }
@@ -937,6 +972,23 @@ public class Subflow
     public string Id { get; set; } = "";
     public string Type { get; set; } = "subflow";
     public string Name { get; set; } = "";
+    public string? Info { get; set; }
+    public string? Color { get; set; }
+    public List<SubflowPort> In { get; set; } = new();
+    public List<SubflowPort> Out { get; set; } = new();
+    public SubflowPort? Status { get; set; }
+}
+
+public class SubflowPort
+{
+    public string Id { get; set; } = "";
+    public string Type { get; set; } = "subflow";
+    public string Direction { get; set; } = ""; // "in", "out", or "status"
+    public string Z { get; set; } = ""; // parent subflow id
+    public int I { get; set; } // port index
+    public double X { get; set; }
+    public double Y { get; set; }
+    public List<object> Wires { get; set; } = new();
 }
 
 public class NodeGroup
@@ -945,6 +997,23 @@ public class NodeGroup
     public string Type { get; set; } = "group";
     public string Name { get; set; } = "";
     public string Z { get; set; } = "";
+    public double X { get; set; }
+    public double Y { get; set; }
+    public double Width { get; set; }
+    public double Height { get; set; }
+    public GroupStyle? Style { get; set; }
+    public List<string> Nodes { get; set; } = new();
+}
+
+public class GroupStyle
+{
+    public string? Stroke { get; set; }
+    public double? StrokeOpacity { get; set; }
+    public string? Fill { get; set; }
+    public double? FillOpacity { get; set; }
+    public bool? Label { get; set; }
+    public string? LabelPosition { get; set; }
+    public string? Color { get; set; }
 }
 
 public class Junction

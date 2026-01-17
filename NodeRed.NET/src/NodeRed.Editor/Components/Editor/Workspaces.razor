@@ -101,7 +101,9 @@
                     @foreach (var group in ActiveGroups)
                     {
                         <NodeGroupComponent Group="@group" 
-                                           OnClick="@(() => SelectGroup(group))" />
+                                           OnClick="@(() => SelectGroup(group))"
+                                           OnMouseDown="@((e) => HandleGroupMouseDown(group, e))"
+                                           OnMouseUp="@((e) => HandleGroupMouseUp(group, e))" />
                     }
                 </g>
                 
@@ -151,9 +153,14 @@
                 @* Selection lasso *@
                 @if (Lasso != null)
                 {
+                    var lassoX = Lasso.Width < 0 ? Lasso.X + Lasso.Width : Lasso.X;
+                    var lassoY = Lasso.Height < 0 ? Lasso.Y + Lasso.Height : Lasso.Y;
+                    var lassoWidth = Math.Abs(Lasso.Width);
+                    var lassoHeight = Math.Abs(Lasso.Height);
+                    
                     <rect class="red-ui-workspace-lasso"
-                          x="@Lasso.X" y="@Lasso.Y"
-                          width="@Lasso.Width" height="@Lasso.Height"
+                          x="@lassoX" y="@lassoY"
+                          width="@lassoWidth" height="@lassoHeight"
                           fill="rgba(100, 149, 237, 0.2)"
                           stroke="#6495ed"
                           stroke-width="1"
@@ -207,6 +214,10 @@
     private NodeMovingSet MovingSet = new();
     private HashSet<NodeLink> SelectedLinks = new();
     private List<NodeLink> DragLines = new();
+    
+    // Group dragging state
+    private NodeGroup? _mousedownGroup;
+    private (double X, double Y)? _groupDragStart;
     
     // Mouse state - translated from mouse_mode, mousedown_*, etc.
     private MouseMode _mouseMode = MouseMode.None;
@@ -333,7 +344,34 @@
                 break;
 
             case MouseMode.Moving:
-                if (MovingSet.Count > 0)
+                // Handle group dragging
+                if (_mousedownGroup != null && _groupDragStart.HasValue)
+                {
+                    var deltaX = (e.OffsetX - _groupDragStart.Value.X) / ScaleFactor;
+                    var deltaY = (e.OffsetY - _groupDragStart.Value.Y) / ScaleFactor;
+                    
+                    _mousedownGroup.X += deltaX;
+                    _mousedownGroup.Y += deltaY;
+                    
+                    // Update drag start for next move
+                    _groupDragStart = (e.OffsetX, e.OffsetY);
+                    
+                    // Also move all nodes in the group
+                    if (_mousedownGroup.Nodes != null)
+                    {
+                        foreach (var nodeId in _mousedownGroup.Nodes)
+                        {
+                            var node = ActiveNodes.FirstOrDefault(n => n.Id == nodeId);
+                            if (node != null)
+                            {
+                                node.X += deltaX;
+                                node.Y += deltaY;
+                            }
+                        }
+                    }
+                    StateHasChanged();
+                }
+                else if (MovingSet.Count > 0)
                 {
                     foreach (var item in MovingSet.GetAll())
                     {
@@ -351,10 +389,26 @@
                 break;
 
             case MouseMode.Joining:
-                // Update drag line endpoint
+                // Update drag line endpoint to follow mouse
                 if (DragLines.Count > 0 && _mousePosition.HasValue)
                 {
-                    // Drag line will be rendered to mouse position
+                    // Update the drag line target position to mouse cursor
+                    var dragLine = DragLines[0];
+                    if (dragLine.Target == null)
+                    {
+                        // Create a temporary target node at mouse position for rendering
+                        dragLine.Target = new FlowNode
+                        {
+                            X = _mousePosition.Value.X,
+                            Y = _mousePosition.Value.Y
+                        };
+                    }
+                    else
+                    {
+                        dragLine.Target.X = _mousePosition.Value.X;
+                        dragLine.Target.Y = _mousePosition.Value.Y;
+                    }
+                    StateHasChanged();
                 }
                 break;
         }
@@ -419,7 +473,7 @@
     /// <summary>
     /// Handle dragover to allow drop
     /// </summary>
-    private void HandleDragOver(DragEventArgs e)
+    private void HandleDragOver(Microsoft.AspNetCore.Components.Web.DragEventArgs e)
     {
         // Allow drop
     }
@@ -428,7 +482,7 @@
     /// Handle drop from palette
     /// Translated from chart drop handler
     /// </summary>
-    private async Task HandleDrop(DragEventArgs e)
+    private async Task HandleDrop(Microsoft.AspNetCore.Components.Web.DragEventArgs e)
     {
         // Get node type from JS interop
         string? nodeType = null;
@@ -566,6 +620,9 @@
                 State.Nodes.SelectNode(node);
             }
             _mouseMode = MouseMode.Moving;
+            
+            // Emit node selection event for sidebar update
+            State.Events.Emit("node:selected", node);
         }
 
         StateHasChanged();
@@ -606,6 +663,25 @@
         // TODO: Get nodes in group
         StateHasChanged();
     }
+    
+    private void HandleGroupMouseDown(NodeGroup group, Microsoft.AspNetCore.Components.Web.MouseEventArgs e)
+    {
+        _mousedownGroup = group;
+        _groupDragStart = (e.OffsetX, e.OffsetY);
+        _mouseMode = MouseMode.Moving;
+    }
+    
+    private void HandleGroupMouseUp(NodeGroup group, Microsoft.AspNetCore.Components.Web.MouseEventArgs e)
+    {
+        if (_mouseMode == MouseMode.Moving && _mousedownGroup == group)
+        {
+            _mousedownGroup = null;
+            _groupDragStart = null;
+            _mouseMode = MouseMode.None;
+            State.Nodes.SetDirty(true);
+            StateHasChanged();
+        }
+    }
 
     private void SelectJunction(Junction junction)
     {
@@ -643,6 +719,8 @@
     private void SelectWorkspaceTab(string workspaceId)
     {
         State.Workspaces.Show(workspaceId);
+        State.Workspaces.SetActive(workspaceId);
+        State.Events.Emit("workspace:change", workspaceId);
         RefreshView();
     }
 

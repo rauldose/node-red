@@ -80,7 +80,7 @@
 
     private ElementReference _textArea;
 
-    private async Task OnInput(ChangeEventArgs e)
+    private async Task OnInput(Microsoft.AspNetCore.Components.ChangeEventArgs e)
     {
         Value = e.Value?.ToString() ?? "";
         await ValueChanged.InvokeAsync(Value);

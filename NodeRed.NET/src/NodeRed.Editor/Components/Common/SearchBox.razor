@@ -1,115 +1,32 @@
-@* ============================================================
-   SOURCE: packages/node_modules/@node-red/editor-client/src/js/ui/common/searchBox.js
-   ============================================================
-   TRANSLATION: JavaScript searchBox to Blazor component
-   ============================================================ *@
+@* Syncfusion Blazor TextBox Component Wrapper for Search *@
+@* Replaces custom searchBox with Syncfusion TextBox *@
 
-<div class="red-ui-searchBox @Class">
-    <i class="fa fa-search red-ui-searchBox-icon"></i>
-    <input type="text" 
-           class="red-ui-searchBox-input" 
-           placeholder="@Placeholder"
-           @bind-value="Value"
-           @bind-value:event="oninput"
-           @onkeydown="OnKeyDown" />
-    @if (!string.IsNullOrEmpty(Value))
-    {
-        <button class="red-ui-searchBox-clear" @onclick="Clear">
-            <i class="fa fa-times"></i>
-        </button>
-    }
-</div>
-
-<style>
-    .red-ui-searchBox {
-        display: flex;
-        align-items: center;
-        border: 1px solid #ccc;
-        border-radius: 3px;
-        background: white;
-        padding: 0 10px;
-    }
-    .red-ui-searchBox:focus-within {
-        border-color: #8e0000;
-    }
-    .red-ui-searchBox-icon {
-        color: #888;
-        margin-right: 8px;
-    }
-    .red-ui-searchBox-input {
-        flex: 1;
-        border: none;
-        padding: 8px 0;
-        font-size: 14px;
-        outline: none;
-        background: transparent;
-    }
-    .red-ui-searchBox-clear {
-        background: none;
-        border: none;
-        color: #888;
-        cursor: pointer;
-        padding: 4px;
-    }
-    .red-ui-searchBox-clear:hover {
-        color: #000;
-    }
-</style>
+<SfTextBox @bind-Value="@Value"
+           Placeholder="@Placeholder"
+           CssClass="@($"red-ui-searchBox {Class}")"
+           ShowClearButton="true"
+           Input="@OnValueChanged">
+    <TextBoxPrefixIcon>fa fa-search</TextBoxPrefixIcon>
+</SfTextBox>
 
 @code {
     [Parameter] public string Value { get; set; } = "";
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
     [Parameter] public string Placeholder { get; set; } = "Search...";
     [Parameter] public string? Class { get; set; }
-    [Parameter] public int Delay { get; set; } = 300;
     [Parameter] public EventCallback<string> OnSearch { get; set; }
-    [Parameter] public EventCallback OnClear { get; set; }
 
-    private System.Timers.Timer? _debounceTimer;
-
-    protected override void OnInitialized()
+    private async Task OnValueChanged(InputEventArgs args)
     {
-        _debounceTimer = new System.Timers.Timer(Delay);
-        _debounceTimer.AutoReset = false;
-        _debounceTimer.Elapsed += async (s, e) =>
-        {
-            await InvokeAsync(async () =>
-            {
-                await OnSearch.InvokeAsync(Value);
-            });
-        };
-    }
-
-    protected override async Task OnParametersSetAsync()
-    {
-        _debounceTimer?.Stop();
-        _debounceTimer?.Start();
+        Value = args.Value;
         await ValueChanged.InvokeAsync(Value);
-    }
-
-    private async Task Clear()
-    {
-        Value = "";
-        await ValueChanged.InvokeAsync(Value);
-        await OnClear.InvokeAsync();
         await OnSearch.InvokeAsync(Value);
     }
 
-    private async Task OnKeyDown(KeyboardEventArgs e)
+    public void Clear()
     {
-        if (e.Key == "Escape")
-        {
-            await Clear();
-        }
-        else if (e.Key == "Enter")
-        {
-            _debounceTimer?.Stop();
-            await OnSearch.InvokeAsync(Value);
-        }
-    }
-
-    public void Dispose()
-    {
-        _debounceTimer?.Dispose();
+        Value = "";
+        StateHasChanged();
     }
 }
+

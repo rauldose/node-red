@@ -1,7 +1,11 @@
 using NodeRed.Editor.Components;
 using NodeRed.Editor.Services;
+using Syncfusion.Blazor;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add Syncfusion Blazor services
+builder.Services.AddSyncfusionBlazor();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
