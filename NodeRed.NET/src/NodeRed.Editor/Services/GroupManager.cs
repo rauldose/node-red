@@ -34,13 +34,11 @@ public class GroupManager
             return null;
         }
 
-        // Calculate bounding box using default node dimensions (nodes don't store w/h)
-        var nodeWidth = 120;  // Default node width
-        var nodeHeight = 30;  // Default node height
-        var minX = nodesToGroup.Min(n => n.X - nodeWidth / 2.0);
-        var minY = nodesToGroup.Min(n => n.Y - nodeHeight / 2.0);
-        var maxX = nodesToGroup.Max(n => n.X + nodeWidth / 2.0);
-        var maxY = nodesToGroup.Max(n => n.Y + nodeHeight / 2.0);
+        // Calculate bounding box using actual node dimensions
+        var minX = nodesToGroup.Min(n => n.X - n.Width / 2.0);
+        var minY = nodesToGroup.Min(n => n.Y - n.Height / 2.0);
+        var maxX = nodesToGroup.Max(n => n.X + n.Width / 2.0);
+        var maxY = nodesToGroup.Max(n => n.Y + n.Height / 2.0);
 
         var padding = 20;
         var group = new NodeGroup
@@ -62,7 +60,8 @@ public class GroupManager
                 Label = true,
                 LabelPosition = "nw",
                 Color = "#a4a4a4"
-            }
+            },
+            Nodes = nodesToGroup.Select(n => n.Id).ToList()
         };
         
         // Add nodes to the group

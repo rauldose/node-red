@@ -940,8 +940,11 @@ public class FlowNode
     public string Z { get; set; } = "";
     public double X { get; set; }
     public double Y { get; set; }
+    public double Width { get; set; } = 120;
+    public double Height { get; set; } = 30;
     public int Inputs { get; set; }
     public int Outputs { get; set; }
+    public List<List<string>>? Wires { get; set; }
     public string? GroupId { get; set; }  // Group membership
     public NodeStatus? Status { get; set; }
     public bool DirtyStatus { get; set; }
@@ -965,6 +968,7 @@ public class Subflow
     public string Type { get; set; } = "subflow";
     public string Name { get; set; } = "";
     public string? Info { get; set; }
+    public string? Color { get; set; }
     public List<SubflowPort> In { get; set; } = new();
     public List<SubflowPort> Out { get; set; } = new();
     public SubflowPort? Status { get; set; }
