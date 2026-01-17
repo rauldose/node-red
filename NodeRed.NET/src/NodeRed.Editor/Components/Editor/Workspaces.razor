@@ -151,9 +151,14 @@
                 @* Selection lasso *@
                 @if (Lasso != null)
                 {
+                    var lassoX = Lasso.Width < 0 ? Lasso.X + Lasso.Width : Lasso.X;
+                    var lassoY = Lasso.Height < 0 ? Lasso.Y + Lasso.Height : Lasso.Y;
+                    var lassoWidth = Math.Abs(Lasso.Width);
+                    var lassoHeight = Math.Abs(Lasso.Height);
+                    
                     <rect class="red-ui-workspace-lasso"
-                          x="@Lasso.X" y="@Lasso.Y"
-                          width="@Lasso.Width" height="@Lasso.Height"
+                          x="@lassoX" y="@lassoY"
+                          width="@lassoWidth" height="@lassoHeight"
                           fill="rgba(100, 149, 237, 0.2)"
                           stroke="#6495ed"
                           stroke-width="1"
@@ -351,10 +356,26 @@
                 break;
 
             case MouseMode.Joining:
-                // Update drag line endpoint
+                // Update drag line endpoint to follow mouse
                 if (DragLines.Count > 0 && _mousePosition.HasValue)
                 {
-                    // Drag line will be rendered to mouse position
+                    // Update the drag line target position to mouse cursor
+                    var dragLine = DragLines[0];
+                    if (dragLine.Target == null)
+                    {
+                        // Create a temporary target node at mouse position for rendering
+                        dragLine.Target = new FlowNode
+                        {
+                            X = _mousePosition.Value.X,
+                            Y = _mousePosition.Value.Y
+                        };
+                    }
+                    else
+                    {
+                        dragLine.Target.X = _mousePosition.Value.X;
+                        dragLine.Target.Y = _mousePosition.Value.Y;
+                    }
+                    StateHasChanged();
                 }
                 break;
         }
@@ -566,6 +587,9 @@
                 State.Nodes.SelectNode(node);
             }
             _mouseMode = MouseMode.Moving;
+            
+            // Emit node selection event for sidebar update
+            State.Events.Emit("node:selected", node);
         }
 
         StateHasChanged();

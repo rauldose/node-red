@@ -290,6 +290,9 @@
             // Setup context menu handler
             SetupContextMenuHandler();
             
+            // Setup node edit handler
+            SetupNodeEditHandler();
+            
             // Complete loading immediately
             IsLoading = false;
             SidebarClosed = false;
@@ -1096,6 +1099,65 @@
 
                 contextMenuRef.Show(x, y, items);
                 InvokeAsync(StateHasChanged);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Setup node edit event handler
+    /// Called during initialization to wire up node editing
+    /// </summary>
+    private void SetupNodeEditHandler()
+    {
+        State.Events.On("node:edit", obj =>
+        {
+            if (obj is FlowNode node && editorTrayRef != null)
+            {
+                // Create a tray panel for node editing
+                var panel = new EditorTray.TrayPanel
+                {
+                    Title = $"Edit {node.Type} node",
+                    ShowDone = true,
+                    ShowCancel = true,
+                    ShowDelete = true,
+                    OnDone = () => {
+                        State.Nodes.SetDirty(true);
+                        editorTrayRef.Close();
+                        workspacesRef?.Redraw(true);
+                    },
+                    OnCancel = () => {
+                        editorTrayRef.Close();
+                    },
+                    OnDelete = () => {
+                        State.Nodes.Remove(node);
+                        editorTrayRef.Close();
+                        workspacesRef?.Redraw(true);
+                    },
+                    Tabs = new List<EditorTray.TrayTab>
+                    {
+                        new() { Id = "properties", Label = "Properties", Content = builder => {
+                            builder.OpenComponent<PropertiesPane>(0);
+                            builder.AddAttribute(1, "Node", node);
+                            builder.CloseComponent();
+                        }}
+                    }
+                };
+                
+                editorTrayRef.Show(panel);
+                InvokeAsync(StateHasChanged);
+            }
+        });
+        
+        // Also update sidebar info when node is selected
+        State.Events.On("node:selected", obj =>
+        {
+            if (sidebarRef != null && obj is FlowNode selectedNode)
+            {
+                InvokeAsync(() =>
+                {
+                    // Trigger sidebar to show node info - the sidebar will react to State.Nodes changes
+                    StateHasChanged();
+                });
             }
         });
     }
