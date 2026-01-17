@@ -1113,14 +1113,34 @@
         {
             if (obj is FlowNode node && editorTrayRef != null)
             {
+                // Store reference to PropertiesPane for saving
+                PropertiesPane? propertiesPaneRef = null;
+                
                 // Create a tray panel for node editing
                 var panel = new EditorTray.TrayPanel
                 {
                     Title = $"Edit {node.Type} node",
+                    NodeType = node.Type,
                     ShowDone = true,
                     ShowCancel = true,
                     ShowDelete = true,
                     OnDone = () => {
+                        // Save properties back to node from PropertiesPane
+                        if (propertiesPaneRef != null)
+                        {
+                            var updatedProps = propertiesPaneRef.GetProperties();
+                            node.Name = updatedProps.TryGetValue("name", out var name) ? name?.ToString() ?? "" : node.Name;
+                            
+                            // Update node properties dictionary
+                            foreach (var kvp in updatedProps)
+                            {
+                                if (kvp.Key != "name" && kvp.Key != "type")
+                                {
+                                    node.Properties[kvp.Key] = kvp.Value;
+                                }
+                            }
+                        }
+                        
                         State.Nodes.SetDirty(true);
                         editorTrayRef.Close();
                         workspacesRef?.Redraw(true);
@@ -1138,6 +1158,12 @@
                         new() { Id = "properties", Label = "Properties", Content = builder => {
                             builder.OpenComponent<PropertiesPane>(0);
                             builder.AddAttribute(1, "Node", node);
+                            builder.AddComponentReferenceCapture(2, compRef => {
+                                if (compRef is PropertiesPane pane)
+                                {
+                                    propertiesPaneRef = pane;
+                                }
+                            });
                             builder.CloseComponent();
                         }}
                     }

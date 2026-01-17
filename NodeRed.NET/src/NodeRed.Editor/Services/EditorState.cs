@@ -458,9 +458,34 @@ public class EditorNodes
     public List<FlowWorkspace> GetWorkspaces() => _workspaces.Values.ToList();
     public List<string> GetWorkspaceOrder() => _workspacesOrder.ToList();
     public List<NodeGroup> GetGroups() => _groups.ToList();
+    
+    public void AddGroup(NodeGroup group)
+    {
+        _groups.Add(group);
+        SetDirty(true);
+    }
+
+    public void RemoveGroup(NodeGroup group)
+    {
+        _groups.Remove(group);
+        SetDirty(true);
+    }
+    
     public List<Junction> GetJunctions() => _junctions.ToList();
     public List<Subflow> GetSubflows() => _subflows.Values.ToList();
     public Subflow? GetSubflow(string id) => _subflows.TryGetValue(id, out var sf) ? sf : null;
+    
+    public void AddSubflow(Subflow subflow)
+    {
+        _subflows[subflow.Id] = subflow;
+        SetDirty(true);
+    }
+    
+    public void RemoveSubflow(string id)
+    {
+        _subflows.Remove(id);
+        SetDirty(true);
+    }
 
     public bool IsDirty() => _dirty;
     public void SetDirty(bool dirty) => _dirty = dirty;
@@ -916,6 +941,7 @@ public class FlowNode
     public double Y { get; set; }
     public int Inputs { get; set; }
     public int Outputs { get; set; }
+    public string? GroupId { get; set; }  // Group membership
     public NodeStatus? Status { get; set; }
     public bool DirtyStatus { get; set; }
     public bool Dirty { get; set; }
@@ -945,6 +971,10 @@ public class NodeGroup
     public string Type { get; set; } = "group";
     public string Name { get; set; } = "";
     public string Z { get; set; } = "";
+    public double X { get; set; }
+    public double Y { get; set; }
+    public double Width { get; set; }
+    public double Height { get; set; }
 }
 
 public class Junction

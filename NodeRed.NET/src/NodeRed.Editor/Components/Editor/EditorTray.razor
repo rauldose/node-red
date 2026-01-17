@@ -158,7 +158,9 @@
     private string GetTrayStyle()
     {
         if (!IsOpen) return "display: none;";
-        return $"position: absolute; top: 0; right: 0; bottom: 0; width: 550px; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,0.3); z-index: 1000; display: flex; flex-direction: column;";
+        // Position tray to the left of the sidebar (sidebar is 325px wide, typically at right edge)
+        // Tray should appear between the canvas and the sidebar
+        return $"position: absolute; top: 0; right: 325px; bottom: 0; width: 550px; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,0.3); z-index: 1000; display: flex; flex-direction: column;";
     }
 
     public void Show(TrayPanel panel)

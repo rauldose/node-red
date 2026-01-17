@@ -36,6 +36,9 @@ public class SubflowManager
             Type = "subflow",
             Name = $"Subflow {subflowId[..8]}"  // Use first 8 chars of GUID for unique naming
         };
+        
+        // Add subflow to state
+        _state.Nodes.AddSubflow(subflow);
 
         // Record history
         _history.Push(new HistoryEvent

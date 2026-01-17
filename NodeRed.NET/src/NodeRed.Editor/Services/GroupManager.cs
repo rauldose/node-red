@@ -46,8 +46,21 @@ public class GroupManager
             Id = Guid.NewGuid().ToString(),
             Type = "group",
             Name = "",
-            Z = workspaceId ?? nodesToGroup.First().Z
+            Z = workspaceId ?? nodesToGroup.First().Z,
+            X = minX - padding,
+            Y = minY - padding,
+            Width = (maxX - minX) + (padding * 2),
+            Height = (maxY - minY) + (padding * 2)
         };
+        
+        // Add nodes to the group
+        foreach (var node in nodesToGroup)
+        {
+            node.GroupId = group.Id;
+        }
+        
+        // Add group to state
+        _state.Nodes.AddGroup(group);
 
         // Record history
         _history.Push(new HistoryEvent
