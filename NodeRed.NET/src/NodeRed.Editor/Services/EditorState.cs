@@ -473,6 +473,7 @@ public class EditorNodes
     
     public List<Junction> GetJunctions() => _junctions.ToList();
     public List<Subflow> GetSubflows() => _subflows.Values.ToList();
+    public List<Subflow> GetAllSubflows() => GetSubflows(); // Alias for consistency
     public Subflow? GetSubflow(string id) => _subflows.TryGetValue(id, out var sf) ? sf : null;
     
     public void AddSubflow(Subflow subflow)
@@ -963,6 +964,22 @@ public class Subflow
     public string Id { get; set; } = "";
     public string Type { get; set; } = "subflow";
     public string Name { get; set; } = "";
+    public string? Info { get; set; }
+    public List<SubflowPort> In { get; set; } = new();
+    public List<SubflowPort> Out { get; set; } = new();
+    public SubflowPort? Status { get; set; }
+}
+
+public class SubflowPort
+{
+    public string Id { get; set; } = "";
+    public string Type { get; set; } = "subflow";
+    public string Direction { get; set; } = ""; // "in", "out", or "status"
+    public string Z { get; set; } = ""; // parent subflow id
+    public int I { get; set; } // port index
+    public double X { get; set; }
+    public double Y { get; set; }
+    public List<object> Wires { get; set; } = new();
 }
 
 public class NodeGroup
@@ -975,6 +992,19 @@ public class NodeGroup
     public double Y { get; set; }
     public double Width { get; set; }
     public double Height { get; set; }
+    public GroupStyle? Style { get; set; }
+    public List<string> Nodes { get; set; } = new();
+}
+
+public class GroupStyle
+{
+    public string? Stroke { get; set; }
+    public double? StrokeOpacity { get; set; }
+    public string? Fill { get; set; }
+    public double? FillOpacity { get; set; }
+    public bool? Label { get; set; }
+    public string? LabelPosition { get; set; }
+    public string? Color { get; set; }
 }
 
 public class Junction

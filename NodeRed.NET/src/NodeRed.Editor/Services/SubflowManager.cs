@@ -27,25 +27,50 @@ public class SubflowManager
     /// </summary>
     public Subflow? CreateSubflow(List<FlowNode>? nodes = null)
     {
-        if (nodes == null || nodes.Count == 0) return null;
+        // Count existing subflows for naming
+        var existingSubflows = _state.Nodes.GetAllSubflows();
+        var lastIndex = 0;
+        foreach (var sf in existingSubflows)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(sf.Name ?? "", @"^Subflow (\d+)$");
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var index))
+            {
+                lastIndex = Math.Max(lastIndex, index);
+            }
+        }
         
         var subflowId = Guid.NewGuid().ToString();
         var subflow = new Subflow
         {
             Id = subflowId,
             Type = "subflow",
-            Name = $"Subflow {subflowId[..8]}"  // Use first 8 chars of GUID for unique naming
+            Name = $"Subflow {lastIndex + 1}",
+            In = new List<SubflowPort>(),
+            Out = new List<SubflowPort>(),
+            Info = ""
         };
         
         // Add subflow to state
         _state.Nodes.AddSubflow(subflow);
+        
+        // Create a workspace tab for the subflow
+        var workspace = new Workspace
+        {
+            Id = subflowId,
+            Type = "subflow",
+            Label = subflow.Name,
+            Disabled = false,
+            Info = ""
+        };
+        _state.Workspaces.Add(workspace);
+        _state.Workspaces.Show(subflowId);
 
         // Record history
         _history.Push(new HistoryEvent
         {
             Type = HistoryEventType.CreateSubflow,
             SubflowId = subflow.Id,
-            NodeIds = nodes.Select(n => n.Id).ToList()
+            NodeIds = nodes?.Select(n => n.Id).ToList() ?? new List<string>()
         });
 
         return subflow;

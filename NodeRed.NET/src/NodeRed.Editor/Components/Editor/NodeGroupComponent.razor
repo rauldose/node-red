@@ -1,17 +1,28 @@
 @* Node group component *@
 @using NodeRed.Editor.Services
 
-<g class="red-ui-flow-group" @onclick="OnClick">
+<g class="red-ui-flow-group" 
+   transform="translate(@Group.X, @Group.Y)"
+   @onclick="OnClick"
+   @onmousedown="OnMouseDown"
+   @onmouseup="OnMouseUp">
     <rect class="red-ui-flow-group-body"
           x="0" y="0"
-          width="200" height="150"
+          width="@Group.Width" 
+          height="@Group.Height"
           rx="5" ry="5"
-          fill="rgba(200, 200, 200, 0.5)"
-          stroke="#999"
-          stroke-width="1" />
-    @if (!string.IsNullOrEmpty(Group.Name))
+          fill="@(GetStyleValue("fill", "none"))"
+          fill-opacity="@(GetStyleValue("fill-opacity", "0.2"))"
+          stroke="@(GetStyleValue("stroke", "#a4a4a4"))"
+          stroke-opacity="@(GetStyleValue("stroke-opacity", "1"))"
+          stroke-width="2"
+          stroke-dasharray="10,5" />
+    @if (!string.IsNullOrEmpty(Group.Name) && (Group.Style?.Label ?? true))
     {
-        @((MarkupString)$"<text x=\"10\" y=\"20\" class=\"red-ui-flow-group-label\">{System.Net.WebUtility.HtmlEncode(Group.Name)}</text>")
+        var labelColor = GetStyleValue("color", "#a4a4a4");
+        var labelPosition = GetStyleValue("label-position", "nw");
+        var (labelX, labelY) = GetLabelPosition(labelPosition);
+        @((MarkupString)$"<text x=\"{labelX}\" y=\"{labelY}\" class=\"red-ui-flow-group-label\" fill=\"{System.Net.WebUtility.HtmlEncode(labelColor)}\" font-size=\"12\" font-family=\"Helvetica Neue, sans-serif\">{System.Net.WebUtility.HtmlEncode(Group.Name)}</text>")
     }
 </g>
 
@@ -21,4 +32,38 @@
 
     [Parameter]
     public EventCallback OnClick { get; set; }
+    
+    [Parameter]
+    public EventCallback<Microsoft.AspNetCore.Components.Web.MouseEventArgs> OnMouseDown { get; set; }
+    
+    [Parameter]
+    public EventCallback<Microsoft.AspNetCore.Components.Web.MouseEventArgs> OnMouseUp { get; set; }
+    
+    private string GetStyleValue(string property, string defaultValue)
+    {
+        if (Group.Style == null) return defaultValue;
+        
+        return property switch
+        {
+            "stroke" => Group.Style.Stroke ?? defaultValue,
+            "stroke-opacity" => Group.Style.StrokeOpacity?.ToString("F1") ?? defaultValue,
+            "fill" => Group.Style.Fill ?? defaultValue,
+            "fill-opacity" => Group.Style.FillOpacity?.ToString("F1") ?? defaultValue,
+            "color" => Group.Style.Color ?? defaultValue,
+            "label-position" => Group.Style.LabelPosition ?? defaultValue,
+            _ => defaultValue
+        };
+    }
+    
+    private (double x, double y) GetLabelPosition(string position)
+    {
+        // Label positions: nw (northwest), ne (northeast), sw (southwest), se (southeast)
+        return position switch
+        {
+            "ne" => (Group.Width - 10, 20),
+            "sw" => (10, Group.Height - 10),
+            "se" => (Group.Width - 10, Group.Height - 10),
+            _ => (10, 20) // default to nw
+        };
+    }
 }
