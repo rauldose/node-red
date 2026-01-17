@@ -112,8 +112,8 @@ public class SubflowManager
             _state.Events.Emit("registry:node-type-added", subflowId);
         }
         
-        // Show the subflow workspace
-        _state.Workspaces.Show(subflowId);
+        // Don't automatically switch to subflow workspace - matches original Node-RED behavior
+        // User can click "Edit Subflow Template" button to open it
 
         // Record history
         _history.Push(new HistoryEvent
