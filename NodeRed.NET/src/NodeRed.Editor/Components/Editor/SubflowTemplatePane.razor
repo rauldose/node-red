@@ -347,27 +347,39 @@
     private List<PortConfig> OutputPorts { get; set; } = new();
     private bool HasStatusOutput { get; set; }
     private List<EnvVarConfig> EnvVars { get; set; } = new();
+    
+    // Track status port ID to avoid regenerating it
+    private string? _statusPortId;
+    
+    // Track if already initialized to avoid reinitializing on every parameter set
+    private bool _initialized;
+    private string? _lastSubflowId;
 
     protected override void OnParametersSet()
     {
-        if (Subflow != null)
+        // Only initialize once per subflow (avoid resetting state on each render)
+        if (Subflow != null && (_lastSubflowId != Subflow.Id || !_initialized))
         {
+            _lastSubflowId = Subflow.Id;
+            _initialized = true;
+            
             // Initialize from subflow data
             InputPorts = Subflow.In?.Select((p, i) => new PortConfig
             {
-                Id = p.Id ?? Guid.NewGuid().ToString("N"),
+                Id = !string.IsNullOrEmpty(p.Id) ? p.Id : Guid.NewGuid().ToString("N"),
                 Index = i,
                 Label = ""
             }).ToList() ?? new List<PortConfig>();
 
             OutputPorts = Subflow.Out?.Select((p, i) => new PortConfig
             {
-                Id = p.Id ?? Guid.NewGuid().ToString("N"),
+                Id = !string.IsNullOrEmpty(p.Id) ? p.Id : Guid.NewGuid().ToString("N"),
                 Index = i,
                 Label = ""
             }).ToList() ?? new List<PortConfig>();
 
             HasStatusOutput = Subflow.Status != null;
+            _statusPortId = Subflow.Status?.Id;
         }
     }
 
@@ -493,15 +505,22 @@
             Wires = new List<object>()
         }).ToList();
 
-        SubflowPort? statusPort = HasStatusOutput ? new SubflowPort
+        // Reuse existing status port ID if available, otherwise generate a new one when first enabled
+        SubflowPort? statusPort = null;
+        if (HasStatusOutput)
         {
-            Id = Guid.NewGuid().ToString("N"),
-            Type = "subflow",
-            Direction = "status",
-            X = 200,
-            Y = 200,
-            Wires = new List<object>()
-        } : null;
+            // Generate ID only once when status is first enabled
+            _statusPortId ??= Guid.NewGuid().ToString("N");
+            statusPort = new SubflowPort
+            {
+                Id = _statusPortId,
+                Type = "subflow",
+                Direction = "status",
+                X = 200,
+                Y = 200,
+                Wires = new List<object>()
+            };
+        }
 
         return (inputPorts, outputPorts, statusPort);
     }

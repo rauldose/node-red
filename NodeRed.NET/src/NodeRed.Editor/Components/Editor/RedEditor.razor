@@ -1210,6 +1210,9 @@
                                 State.Workspaces.Show(nextWorkspace.Id);
                             }
                             
+                            // Remove the workspace from the collection
+                            State.Workspaces.Remove(workspace.Id);
+                            
                             State.Nodes.SetDirty(true);
                             workspacesRef?.Redraw(true);
                         }

@@ -767,6 +767,25 @@ public class EditorWorkspaces
         _activeWorkspace = "";
     }
 
+    /// <summary>
+    /// Remove a workspace from the collection.
+    /// </summary>
+    public void Remove(string id)
+    {
+        var workspace = _workspaces.FirstOrDefault(w => w.Id == id);
+        if (workspace != null)
+        {
+            _workspaces.Remove(workspace);
+            _workspaceOrder.Remove(id);
+            
+            // If we removed the active workspace, switch to another
+            if (_activeWorkspace == id)
+            {
+                _activeWorkspace = _workspaces.FirstOrDefault()?.Id ?? "";
+            }
+        }
+    }
+
     public Workspace? Get(string id) => _workspaces.FirstOrDefault(w => w.Id == id);
 }
 
