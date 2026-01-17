@@ -24,7 +24,6 @@
    ============================================================ *@
 
 @using NodeRed.Editor.Services
-@using NodeRed.Editor.Components.Common
 @inject EditorState State
 @inject IJSRuntime JS
 
@@ -51,36 +50,6 @@
         <span>+</span>
     </div>
 </div>
-
-@* Workspace tab context menu *@
-@if (_workspaceTabMenuItems != null)
-{
-    <Menu @ref="_workspaceTabMenu" 
-          Items="@_workspaceTabMenuItems"
-          OnSelect="@HandleWorkspaceTabMenuClick" />
-}
-
-@* Subflow template editor panel *@
-@if (IsSubflowWorkspace())
-{
-    <div class="red-ui-subflow-template-editor">
-        <div class="subflow-edit-row">
-            <label>Inputs:</label>
-            <select @bind="_subflowInputCount" class="red-ui-select">
-                <option value="0">None</option>
-                <option value="1">1</option>
-            </select>
-            
-            <label style="margin-left: 20px;">Outputs:</label>
-            <input type="number" min="0" max="10" @bind="_subflowOutputCount" 
-                   class="red-ui-text-input" style="width: 60px;" />
-            
-            <button @onclick="ApplySubflowTemplate" class="red-ui-button red-ui-button-small">
-                Apply
-            </button>
-        </div>
-    </div>
-}
 
 <div id="red-ui-workspace-chart" 
      class="red-ui-workspace-chart"
@@ -206,54 +175,6 @@
     <span>NodeRed.NET v1.0</span>
 </div>
 
-<style>
-.red-ui-subflow-template-editor {
-    background: #f3f3f3;
-    border-bottom: 1px solid #ddd;
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-}
-
-.subflow-edit-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.subflow-edit-row label {
-    font-size: 13px;
-    font-weight: 500;
-    color: #444;
-}
-
-.red-ui-select, .red-ui-text-input {
-    padding: 4px 8px;
-    border: 1px solid #ccc;
-    border-radius: 3px;
-    font-size: 13px;
-}
-
-.red-ui-button {
-    padding: 4px 12px;
-    background: #C02020;
-    color: white;
-    border: none;
-    border-radius: 3px;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.red-ui-button:hover {
-    background: #a01818;
-}
-
-.red-ui-button-small {
-    font-size: 12px;
-    padding: 3px 10px;
-}
-</style>
-
 @code {
     // ============================================================
     // MAPPING NOTES:
@@ -310,9 +231,6 @@
         // Subscribe to flow changes
         State.Events.On("flows:loaded", _ => RefreshView());
         State.Events.On("workspace:change", _ => RefreshView());
-        
-        // Initialize workspace tab menu
-        InitializeWorkspaceTabMenu();
     }
 
     /// <summary>
@@ -829,20 +747,10 @@
 
     private void ShowTabContextMenu(MouseEventArgs e, Workspace workspace)
     {
-        // Store the workspace for the context menu
-        _contextMenuWorkspace = workspace;
-        
-        // Ensure menu is initialized
-        InitializeWorkspaceTabMenu();
-        
-        // Show the menu at the click position
-        if (_workspaceTabMenu != null && _workspaceTabMenuItems != null)
-        {
-            _workspaceTabMenu.Open(e.ClientX, e.ClientY);
-        }
-        
-        StateHasChanged();
-    }
+        // Emit event for RedEditor to show tab context menu
+        State.Events.Emit("workspace:contextmenu", new {
+            X = e.ClientX,
+            Y = e.ClientY,
             Workspace = workspace
         });
     }
@@ -937,8 +845,8 @@
     /// </summary>
     private class NodeMovingSet
     {
-        private readonly HashSet<string> _ids = new HashSet<string>();
-        private readonly List<MovingSetItem> _items = new List<MovingSetItem>();
+        private readonly HashSet<string> _ids = new();
+        private readonly List<MovingSetItem> _items = new();
 
         public void Add(FlowNode node)
         {
@@ -966,10 +874,7 @@
 
         public bool Has(FlowNode node) => _ids.Contains(node.Id);
         public int Count => _items.Count;
-        public List<MovingSetItem> GetAll()
-        {
-            return _items.ToList();
-        }
+        public List<MovingSetItem> GetAll() => _items.ToList();
     }
 
     private class MovingSetItem
@@ -977,122 +882,5 @@
         public FlowNode Node { get; set; } = null!;
         public double Dx { get; set; }
         public double Dy { get; set; }
-    }
-    
-    // ============================================================
-    // Workspace tab context menu
-    // ============================================================
-    
-    private Menu? _workspaceTabMenu;
-    private Workspace? _contextMenuWorkspace;
-    private List<Menu.MenuItem>? _workspaceTabMenuItems;
-    
-    private void InitializeWorkspaceTabMenu()
-    {
-        if (_workspaceTabMenuItems == null)
-        {
-            _workspaceTabMenuItems = new List<Menu.MenuItem>();
-            var renameItem = new Menu.MenuItem();
-            renameItem.Id = "rename";
-            renameItem.Label = "Rename Flow";
-            renameItem.Icon = "fa fa-pencil";
-            _workspaceTabMenuItems.Add(renameItem);
-            
-            var deleteItem = new Menu.MenuItem();
-            deleteItem.Id = "delete";
-            deleteItem.Label = "Delete Flow";
-            deleteItem.Icon = "fa fa-trash";
-            _workspaceTabMenuItems.Add(deleteItem);
-            
-            _workspaceTabMenuItems.Add(Menu.MenuItem.Separator());
-            
-            var settingsItem = new Menu.MenuItem();
-            settingsItem.Id = "settings";
-            settingsItem.Label = "Flow Settings";
-            settingsItem.Icon = "fa fa-cog";
-            _workspaceTabMenuItems.Add(settingsItem);
-        }
-    }
-    
-    private async Task HandleWorkspaceTabMenuClick(Menu.MenuItem item)
-    {
-        if (_contextMenuWorkspace == null) return;
-        
-        switch (item.Id)
-        {
-            case "rename":
-                await EditWorkspaceTab(_contextMenuWorkspace);
-                break;
-            case "delete":
-                await DeleteWorkspace(_contextMenuWorkspace);
-                break;
-            case "settings":
-                // TODO: Open flow settings dialog
-                break;
-        }
-        
-        _contextMenuWorkspace = null;
-    }
-    
-    private async Task DeleteWorkspace(Workspace ws)
-    {
-        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to delete '{ws.Label}'?");
-        if (confirmed)
-        {
-            State.Workspaces.Remove(ws.Id);
-            RefreshView();
-        }
-    }
-    
-    // ============================================================
-    // Subflow template editor
-    // ============================================================
-    
-    private int _subflowInputCount = 0;
-    private int _subflowOutputCount = 0;
-    
-    private bool IsSubflowWorkspace()
-    {
-        var activeId = State.Workspaces.Active();
-        var workspace = State.Workspaces.GetAll().FirstOrDefault(w => w.Id == activeId);
-        return workspace?.Type == "subflow";
-    }
-    
-    private void ApplySubflowTemplate()
-    {
-        var activeId = State.Workspaces.Active();
-        var subflow = State.Nodes.GetSubflows().FirstOrDefault(sf => sf.Id == activeId);
-        
-        if (subflow != null)
-        {
-            // Update subflow input/output counts
-            if (_subflowInputCount == 0)
-            {
-                var emptyList = new List<SubflowPort>();
-                subflow.In = emptyList;
-            }
-            else if (_subflowInputCount == 1 && (subflow.In == null || subflow.In.Count == 0))
-            {
-                var portList = new List<SubflowPort>();
-                portList.Add(new SubflowPort { Direction = "in", X = 50, Y = 30 });
-                subflow.In = portList;
-            }
-            
-            // Update outputs
-            var outputList = new List<SubflowPort>();
-            for (int i = 0; i < _subflowOutputCount; i++)
-            {
-                var port = new SubflowPort();
-                port.Direction = "out";
-                port.I = i;
-                port.X = 350;
-                port.Y = 30 + (i * 40);
-                outputList.Add(port);
-            }
-            subflow.Out = outputList;
-            
-            State.Nodes.SetDirty(true);
-            StateHasChanged();
-        }
     }
 }
