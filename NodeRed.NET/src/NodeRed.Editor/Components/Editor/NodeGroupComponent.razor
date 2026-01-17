@@ -2,11 +2,12 @@
 @using NodeRed.Editor.Services
 
 <g class="red-ui-flow-group" 
-   transform="translate(@Group.X, @Group.Y)"
-   @onclick="OnClick"
-   @onmousedown="OnMouseDown"
-   @onmouseup="OnMouseUp">
+   transform="translate(@Group.X, @Group.Y)">
     <rect class="red-ui-flow-group-body"
+          @onclick="OnClick"
+          @onmousedown="OnMouseDown"
+          @onmousedown:stopPropagation="true"
+          @onmouseup="OnMouseUp"
           x="0" y="0"
           width="@Group.Width" 
           height="@Group.Height"

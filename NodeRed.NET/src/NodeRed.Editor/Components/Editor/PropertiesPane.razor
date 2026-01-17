@@ -385,9 +385,15 @@
             var subflow = subflows.FirstOrDefault(s => s.Id == subflowId);
             if (subflow != null)
             {
+                // Make sure workspace is visible and active
+                State.Workspaces.Show(subflow.Id);
                 State.Workspaces.SetActive(subflow.Id);
+                // Emit event to trigger workspace change
+                State.Events.Emit("workspace:change", subflow.Id);
                 // Emit event to close the tray
                 State.Events.Emit("editor:close-tray", null);
+                // Force UI update
+                StateHasChanged();
             }
         }
     }
