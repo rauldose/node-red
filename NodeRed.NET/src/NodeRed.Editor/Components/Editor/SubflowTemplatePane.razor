@@ -1,0 +1,531 @@
+@* Translated from: packages/node_modules/@node-red/editor-client/src/js/ui/subflow.js *@
+@* Subflow template editing pane for input/output port configuration *@
+
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+<div class="red-ui-editor-pane-subflow-template">
+    <div class="ports-section">
+        <h3><i class="fa fa-sign-in"></i> Inputs</h3>
+        <div class="ports-info">
+            <span class="port-count">@InputPorts.Count input(s)</span>
+            <div class="port-actions">
+                <button class="red-ui-button red-ui-button-small" @onclick="AddInput" 
+                        disabled="@(InputPorts.Count >= 1)" title="Add input port">
+                    <i class="fa fa-plus"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="ports-list">
+            @foreach (var port in InputPorts)
+            {
+                <div class="port-row input-port">
+                    <div class="port-icon">
+                        <div class="port-node-connector input"></div>
+                    </div>
+                    <div class="port-details">
+                        <input type="text" @bind="port.Label" @bind:event="oninput" 
+                               placeholder="input" class="port-label-input" />
+                    </div>
+                    <div class="port-actions">
+                        <button class="red-ui-button red-ui-button-small" @onclick="@(() => RemoveInput(port.Id))" 
+                                title="Remove input port">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            }
+            @if (InputPorts.Count == 0)
+            {
+                <div class="no-ports-message">
+                    <i class="fa fa-info-circle"></i>
+                    No input ports defined. Click + to add one.
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="ports-section">
+        <h3><i class="fa fa-sign-out"></i> Outputs</h3>
+        <div class="ports-info">
+            <span class="port-count">@OutputPorts.Count output(s)</span>
+            <div class="port-actions">
+                <button class="red-ui-button red-ui-button-small" @onclick="AddOutput" title="Add output port">
+                    <i class="fa fa-plus"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="ports-list">
+            @foreach (var port in OutputPorts)
+            {
+                <div class="port-row output-port">
+                    <div class="port-icon">
+                        <div class="port-node-connector output"></div>
+                    </div>
+                    <div class="port-details">
+                        <input type="text" @bind="port.Label" @bind:event="oninput" 
+                               placeholder="output @(OutputPorts.IndexOf(port) + 1)" class="port-label-input" />
+                    </div>
+                    <div class="port-actions">
+                        <button class="red-ui-button red-ui-button-small" @onclick="@(() => MoveOutputUp(port.Id))"
+                                disabled="@(OutputPorts.IndexOf(port) == 0)" title="Move up">
+                            <i class="fa fa-arrow-up"></i>
+                        </button>
+                        <button class="red-ui-button red-ui-button-small" @onclick="@(() => MoveOutputDown(port.Id))"
+                                disabled="@(OutputPorts.IndexOf(port) == OutputPorts.Count - 1)" title="Move down">
+                            <i class="fa fa-arrow-down"></i>
+                        </button>
+                        <button class="red-ui-button red-ui-button-small" @onclick="@(() => RemoveOutput(port.Id))" 
+                                title="Remove output port">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            }
+            @if (OutputPorts.Count == 0)
+            {
+                <div class="no-ports-message">
+                    <i class="fa fa-info-circle"></i>
+                    No output ports defined. Click + to add one.
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="ports-section status-section">
+        <h3><i class="fa fa-circle-o"></i> Status</h3>
+        <div class="status-config">
+            <label class="status-option">
+                <input type="checkbox" @bind="HasStatusOutput" />
+                <span>Include status output</span>
+            </label>
+            <span class="field-help">Allows the subflow to display status messages</span>
+        </div>
+    </div>
+
+    <div class="ports-section env-section">
+        <h3><i class="fa fa-cube"></i> Environment Variables</h3>
+        <div class="env-info">
+            <span class="env-count">@EnvVars.Count variable(s)</span>
+            <div class="env-actions">
+                <button class="red-ui-button red-ui-button-small" @onclick="AddEnvVar" title="Add environment variable">
+                    <i class="fa fa-plus"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="env-list">
+            @foreach (var env in EnvVars)
+            {
+                <div class="env-row">
+                    <input type="text" @bind="env.Name" @bind:event="oninput" 
+                           placeholder="Name" class="env-name-input" />
+                    <select @bind="env.Type" class="env-type-select">
+                        <option value="str">string</option>
+                        <option value="num">number</option>
+                        <option value="bool">boolean</option>
+                        <option value="json">JSON</option>
+                        <option value="env">env var</option>
+                        <option value="cred">credential</option>
+                    </select>
+                    <input type="text" @bind="env.DefaultValue" @bind:event="oninput" 
+                           placeholder="Default value" class="env-value-input" />
+                    <button class="red-ui-button red-ui-button-small" @onclick="@(() => RemoveEnvVar(env.Id))" 
+                            title="Remove variable">
+                        <i class="fa fa-times"></i>
+                    </button>
+                </div>
+            }
+            @if (EnvVars.Count == 0)
+            {
+                <div class="no-env-message">
+                    <i class="fa fa-info-circle"></i>
+                    No environment variables defined. These allow users to configure the subflow when creating instances.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+.red-ui-editor-pane-subflow-template {
+    padding: 10px;
+    font-size: 13px;
+}
+
+.ports-section {
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.ports-section h3 {
+    font-size: 13px;
+    font-weight: 500;
+    margin: 0;
+    padding: 10px 12px;
+    background: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+    border-radius: 4px 4px 0 0;
+}
+
+.ports-section h3 i {
+    margin-right: 8px;
+    color: #666;
+}
+
+.ports-info, .env-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #fafafa;
+    border-bottom: 1px solid #eee;
+}
+
+.port-count, .env-count {
+    font-size: 12px;
+    color: #666;
+}
+
+.ports-list, .env-list {
+    padding: 8px;
+}
+
+.port-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    background: #fff;
+}
+
+.port-row:hover {
+    border-color: #bbb;
+}
+
+.port-icon {
+    width: 30px;
+    display: flex;
+    justify-content: center;
+}
+
+.port-node-connector {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #666;
+}
+
+.port-node-connector.input {
+    background: #a6bbcf;
+    border-color: #8aa6c0;
+}
+
+.port-node-connector.output {
+    background: #d7a5a5;
+    border-color: #c08a8a;
+}
+
+.port-details {
+    flex: 1;
+}
+
+.port-label-input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.port-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.no-ports-message, .no-env-message {
+    padding: 16px;
+    text-align: center;
+    color: #888;
+    font-style: italic;
+}
+
+.no-ports-message i, .no-env-message i {
+    margin-right: 6px;
+}
+
+.status-config {
+    padding: 12px;
+}
+
+.status-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.status-option input {
+    cursor: pointer;
+}
+
+.field-help {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    margin-top: 4px;
+    margin-left: 22px;
+}
+
+.env-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    background: #fff;
+}
+
+.env-name-input {
+    width: 120px;
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.env-type-select {
+    width: 90px;
+    padding: 4px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+    background: #fff;
+}
+
+.env-value-input {
+    flex: 1;
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.red-ui-button-small {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #f5f5f5;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.red-ui-button-small:hover:not(:disabled) {
+    background: #e8e8e8;
+}
+
+.red-ui-button-small:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+</style>
+
+@code {
+    [Parameter] public Subflow? Subflow { get; set; }
+    [Parameter] public EventCallback<Subflow> SubflowChanged { get; set; }
+
+    private List<PortConfig> InputPorts { get; set; } = new();
+    private List<PortConfig> OutputPorts { get; set; } = new();
+    private bool HasStatusOutput { get; set; }
+    private List<EnvVarConfig> EnvVars { get; set; } = new();
+
+    protected override void OnParametersSet()
+    {
+        if (Subflow != null)
+        {
+            // Initialize from subflow data
+            InputPorts = Subflow.In?.Select((p, i) => new PortConfig
+            {
+                Id = p.Id ?? Guid.NewGuid().ToString("N"),
+                Index = i,
+                Label = ""
+            }).ToList() ?? new List<PortConfig>();
+
+            OutputPorts = Subflow.Out?.Select((p, i) => new PortConfig
+            {
+                Id = p.Id ?? Guid.NewGuid().ToString("N"),
+                Index = i,
+                Label = ""
+            }).ToList() ?? new List<PortConfig>();
+
+            HasStatusOutput = Subflow.Status != null;
+        }
+    }
+
+    private void AddInput()
+    {
+        if (InputPorts.Count >= 1) return; // Subflows typically have 0 or 1 input
+        
+        InputPorts.Add(new PortConfig
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Index = InputPorts.Count,
+            Label = "input"
+        });
+        NotifyChanged();
+    }
+
+    private void RemoveInput(string id)
+    {
+        InputPorts.RemoveAll(p => p.Id == id);
+        ReindexPorts(InputPorts);
+        NotifyChanged();
+    }
+
+    private void AddOutput()
+    {
+        OutputPorts.Add(new PortConfig
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Index = OutputPorts.Count,
+            Label = $"output {OutputPorts.Count + 1}"
+        });
+        NotifyChanged();
+    }
+
+    private void RemoveOutput(string id)
+    {
+        OutputPorts.RemoveAll(p => p.Id == id);
+        ReindexPorts(OutputPorts);
+        NotifyChanged();
+    }
+
+    private void MoveOutputUp(string id)
+    {
+        var index = OutputPorts.FindIndex(p => p.Id == id);
+        if (index > 0)
+        {
+            var port = OutputPorts[index];
+            OutputPorts.RemoveAt(index);
+            OutputPorts.Insert(index - 1, port);
+            ReindexPorts(OutputPorts);
+            NotifyChanged();
+        }
+    }
+
+    private void MoveOutputDown(string id)
+    {
+        var index = OutputPorts.FindIndex(p => p.Id == id);
+        if (index >= 0 && index < OutputPorts.Count - 1)
+        {
+            var port = OutputPorts[index];
+            OutputPorts.RemoveAt(index);
+            OutputPorts.Insert(index + 1, port);
+            ReindexPorts(OutputPorts);
+            NotifyChanged();
+        }
+    }
+
+    private void ReindexPorts(List<PortConfig> ports)
+    {
+        for (int i = 0; i < ports.Count; i++)
+        {
+            ports[i].Index = i;
+        }
+    }
+
+    private void AddEnvVar()
+    {
+        EnvVars.Add(new EnvVarConfig
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = "",
+            Type = "str",
+            DefaultValue = ""
+        });
+        NotifyChanged();
+    }
+
+    private void RemoveEnvVar(string id)
+    {
+        EnvVars.RemoveAll(e => e.Id == id);
+        NotifyChanged();
+    }
+
+    private void NotifyChanged()
+    {
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Get the configured port data to save back to the subflow
+    /// </summary>
+    public (List<SubflowPort> In, List<SubflowPort> Out, SubflowPort? Status) GetPortConfiguration()
+    {
+        var inputPorts = InputPorts.Select((p, i) => new SubflowPort
+        {
+            Id = p.Id,
+            Type = "subflow",
+            Direction = "in",
+            I = i,
+            X = 50,
+            Y = 50 + (i * 40),
+            Wires = new List<object>()
+        }).ToList();
+
+        var outputPorts = OutputPorts.Select((p, i) => new SubflowPort
+        {
+            Id = p.Id,
+            Type = "subflow",
+            Direction = "out",
+            I = i,
+            X = 350,
+            Y = 50 + (i * 40),
+            Wires = new List<object>()
+        }).ToList();
+
+        SubflowPort? statusPort = HasStatusOutput ? new SubflowPort
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Type = "subflow",
+            Direction = "status",
+            X = 200,
+            Y = 200,
+            Wires = new List<object>()
+        } : null;
+
+        return (inputPorts, outputPorts, statusPort);
+    }
+
+    /// <summary>
+    /// Get environment variable configuration
+    /// </summary>
+    public List<EnvVarConfig> GetEnvVarConfiguration()
+    {
+        return EnvVars.ToList();
+    }
+
+    public class PortConfig
+    {
+        public string Id { get; set; } = "";
+        public int Index { get; set; }
+        public string Label { get; set; } = "";
+    }
+
+    public class EnvVarConfig
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Type { get; set; } = "str";
+        public string DefaultValue { get; set; } = "";
+    }
+}
