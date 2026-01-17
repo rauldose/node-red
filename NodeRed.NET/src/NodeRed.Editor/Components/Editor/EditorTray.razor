@@ -112,14 +112,27 @@
                 else if (CurrentPanel.Node != null)
                 {
                     @* Default pane content based on active tab *@
-                    <div style="display: @(ActiveTabId == "properties" ? "block" : "none"); height: 100%;">
-                        <PropertiesPane Node="@CurrentPanel.Node" />
-                    </div>
+                    @if (CurrentPanel.Node is NodeRed.Editor.Services.FlowNode flowNode)
+                    {
+                        <div style="display: @(ActiveTabId == "properties" ? "block" : "none"); height: 100%;">
+                            <PropertiesPane Node="@flowNode" />
+                        </div>
+                    }
+                    else if (CurrentPanel.Node is Dictionary<string, object> nodeDict)
+                    {
+                        @* Legacy Dictionary-based approach - convert to FlowNode if needed *@
+                        <div style="display: @(ActiveTabId == "properties" ? "block" : "none"); height: 100%;">
+                            @* Cannot use PropertiesPane with Dictionary anymore *@
+                            <div style="padding: 12px;">
+                                <p style="color: #888;">Legacy node format - please use FlowNode</p>
+                            </div>
+                        </div>
+                        <div style="display: @(ActiveTabId == "appearance" ? "block" : "none"); height: 100%;">
+                            <AppearancePane Node="@nodeDict" />
+                        </div>
+                    }
                     <div style="display: @(ActiveTabId == "description" ? "block" : "none"); height: 100%;">
                         <DescriptionPane InitialDescription="@GetNodeDescription()" />
-                    </div>
-                    <div style="display: @(ActiveTabId == "appearance" ? "block" : "none"); height: 100%;">
-                        <AppearancePane Node="@CurrentPanel.Node" />
                     </div>
                 }
                 else
@@ -223,9 +236,15 @@
 
     private string GetNodeDescription()
     {
-        if (CurrentPanel?.Node != null && CurrentPanel.Node.TryGetValue("info", out var info))
+        if (CurrentPanel?.Node is Dictionary<string, object> nodeDict && 
+            nodeDict.TryGetValue("info", out var info))
         {
             return info?.ToString() ?? "";
+        }
+        else if (CurrentPanel?.Node is NodeRed.Editor.Services.FlowNode flowNode && 
+                 flowNode.Properties.TryGetValue("info", out var flowInfo))
+        {
+            return flowInfo?.ToString() ?? "";
         }
         return "";
     }
@@ -234,7 +253,7 @@
     {
         public string Title { get; set; } = "";
         public string? NodeType { get; set; }
-        public Dictionary<string, object>? Node { get; set; }
+        public object? Node { get; set; }  // Can be Dictionary<string, object> or FlowNode
         public RenderFragment? Content { get; set; }
         public List<TrayTab> Tabs { get; set; } = new();
         public bool ShowDone { get; set; } = true;

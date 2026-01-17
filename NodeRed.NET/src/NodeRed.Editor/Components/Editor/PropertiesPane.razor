@@ -239,9 +239,11 @@
     </form>
 </div>
 
+@using NodeRed.Editor.Services
+
 @code {
-    [Parameter] public Dictionary<string, object>? Node { get; set; }
-    [Parameter] public EventCallback<Dictionary<string, object>> OnPropertiesChanged { get; set; }
+    [Parameter] public FlowNode? Node { get; set; }
+    [Parameter] public EventCallback<FlowNode> OnPropertiesChanged { get; set; }
 
     // Common properties
     private string NodeName = "";
@@ -279,34 +281,34 @@
     {
         if (Node != null)
         {
-            NodeType = Node.TryGetValue("type", out var t) ? t?.ToString() ?? "" : "";
-            NodeName = Node.TryGetValue("name", out var n) ? n?.ToString() ?? "" : "";
+            NodeType = Node.Type;
+            NodeName = Node.Name;
 
-            // Load node-specific properties
+            // Load node-specific properties from Node.Properties dictionary
             switch (NodeType)
             {
                 case "inject":
-                    PayloadType = Node.TryGetValue("payloadType", out var pt) ? pt?.ToString() ?? "date" : "date";
-                    PayloadValue = Node.TryGetValue("payload", out var pv) ? pv?.ToString() ?? "" : "";
-                    Topic = Node.TryGetValue("topic", out var topic) ? topic?.ToString() ?? "" : "";
-                    RepeatType = Node.TryGetValue("repeat", out var r) && r != null ? "interval" : "none";
-                    InjectOnStart = Node.TryGetValue("once", out var once) && once is bool b && b;
+                    PayloadType = Node.Properties.TryGetValue("payloadType", out var pt) ? pt?.ToString() ?? "date" : "date";
+                    PayloadValue = Node.Properties.TryGetValue("payload", out var pv) ? pv?.ToString() ?? "" : "";
+                    Topic = Node.Properties.TryGetValue("topic", out var topic) ? topic?.ToString() ?? "" : "";
+                    RepeatType = Node.Properties.TryGetValue("repeat", out var r) && r != null ? "interval" : "none";
+                    InjectOnStart = Node.Properties.TryGetValue("once", out var once) && once is bool b && b;
                     break;
 
                 case "debug":
-                    DebugOutput = Node.TryGetValue("complete", out var dc) ? dc?.ToString() ?? "msg" : "msg";
-                    DebugTo = Node.TryGetValue("tosidebar", out var ts) && ts is bool tsb && tsb ? "debug" : "console";
+                    DebugOutput = Node.Properties.TryGetValue("complete", out var dc) ? dc?.ToString() ?? "msg" : "msg";
+                    DebugTo = Node.Properties.TryGetValue("tosidebar", out var ts) && ts is bool tsb && tsb ? "debug" : "console";
                     break;
 
                 case "function":
-                    FunctionCode = Node.TryGetValue("func", out var fc) ? fc?.ToString() ?? "return msg;" : "return msg;";
-                    FunctionOutputs = Node.TryGetValue("outputs", out var fo) && fo is int foInt ? foInt : 1;
+                    FunctionCode = Node.Properties.TryGetValue("func", out var fc) ? fc?.ToString() ?? "return msg;" : "return msg;";
+                    FunctionOutputs = Node.Properties.TryGetValue("outputs", out var fo) && fo is int foInt ? foInt : 1;
                     break;
 
                 case "http request":
-                    HttpMethod = Node.TryGetValue("method", out var hm) ? hm?.ToString() ?? "GET" : "GET";
-                    HttpUrl = Node.TryGetValue("url", out var hu) ? hu?.ToString() ?? "" : "";
-                    HttpReturn = Node.TryGetValue("ret", out var hr) ? hr?.ToString() ?? "txt" : "txt";
+                    HttpMethod = Node.Properties.TryGetValue("method", out var hm) ? hm?.ToString() ?? "GET" : "GET";
+                    HttpUrl = Node.Properties.TryGetValue("url", out var hu) ? hu?.ToString() ?? "" : "";
+                    HttpReturn = Node.Properties.TryGetValue("ret", out var hr) ? hr?.ToString() ?? "txt" : "txt";
                     break;
             }
         }
