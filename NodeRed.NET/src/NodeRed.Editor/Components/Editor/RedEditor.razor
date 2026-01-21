@@ -883,6 +883,57 @@
         workspacesRef?.Redraw(true);
     }
 
+    /// <summary>
+    /// Delete selected nodes and reconnect wires
+    /// Translated from core:delete-selection-and-reconnect in view.js
+    /// </summary>
+    private void DeleteSelectionAndReconnect()
+    {
+        var selectedNodes = State.Nodes.GetSelectedNodes().ToList();
+        if (!selectedNodes.Any()) return;
+        
+        // For each selected node, find incoming and outgoing links and reconnect them
+        foreach (var node in selectedNodes)
+        {
+            // Find all links where this node is the target (incoming)
+            var incomingLinks = State.Nodes.GetLinks()
+                .Where(l => l.Target?.Id == node.Id)
+                .ToList();
+            
+            // Find all links where this node is the source (outgoing)
+            var outgoingLinks = State.Nodes.GetLinks()
+                .Where(l => l.Source?.Id == node.Id)
+                .ToList();
+            
+            // If node has both incoming and outgoing connections, reconnect them
+            if (incomingLinks.Any() && outgoingLinks.Any())
+            {
+                foreach (var incoming in incomingLinks)
+                {
+                    foreach (var outgoing in outgoingLinks)
+                    {
+                        // Create a new link from incoming source to outgoing target
+                        if (incoming.Source != null && outgoing.Target != null)
+                        {
+                            var newLink = new NodeLink
+                            {
+                                Source = incoming.Source,
+                                SourcePort = incoming.SourcePort,
+                                Target = outgoing.Target
+                            };
+                            State.Nodes.AddLink(newLink);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Now delete the selected nodes
+        State.Nodes.DeleteSelection();
+        State.Nodes.SetDirty(true);
+        workspacesRef?.Redraw(true);
+    }
+
     // ============================================================
     // Panel resize handlers - translated from setupSidebarSeparator()
     // ============================================================
@@ -1279,6 +1330,9 @@
                     new() { Label = "Delete", Icon = "fa-trash", Shortcut = "Delete", Disabled = !hasSelection, OnClick = () => {
                         State.Nodes.DeleteSelection();
                         workspacesRef?.Redraw(true);
+                    }},
+                    new() { Label = "Delete and reconnect", Icon = "fa-trash-o", Shortcut = "Ctrl+Backspace", Disabled = !hasSelection, OnClick = () => {
+                        DeleteSelectionAndReconnect();
                     }},
                     new() { IsSeparator = true },
                     new() { Label = "Select all", Icon = "fa-check-square-o", Shortcut = "Ctrl+A", OnClick = () => {
