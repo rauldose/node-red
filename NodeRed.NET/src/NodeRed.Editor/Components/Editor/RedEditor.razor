@@ -1169,6 +1169,43 @@
             workspacesRef?.Redraw(true);
         });
         
+        KeyboardService.AddHandler("core:delete-selection-and-reconnect", () =>
+        {
+            DeleteSelectionAndReconnect();
+        });
+        
+        KeyboardService.AddHandler("core:select-all-nodes", () =>
+        {
+            State.Nodes.SelectAll(State.Workspaces.Active());
+            workspacesRef?.Redraw(true);
+        });
+        
+        KeyboardService.AddHandler("core:group-selection", () =>
+        {
+            var selectedNodes = State.Nodes.GetSelectedNodes().ToList();
+            if (selectedNodes.Count >= 2)
+            {
+                State.GroupManager.CreateGroup(selectedNodes, State.Workspaces.Active());
+                workspacesRef?.Redraw(true);
+            }
+        });
+        
+        KeyboardService.AddHandler("core:ungroup-selection", () =>
+        {
+            State.GroupManager.UngroupSelection(State.Nodes.GetSelectedNodes().ToList());
+            workspacesRef?.Redraw(true);
+        });
+        
+        KeyboardService.AddHandler("core:create-subflow", () =>
+        {
+            var selectedNodes = State.Nodes.GetSelectedNodes().ToList();
+            if (selectedNodes.Any())
+            {
+                State.SubflowManager.CreateSubflow(selectedNodes);
+                workspacesRef?.Redraw(true);
+            }
+        });
+        
         KeyboardService.AddHandler("core:search", () => searchRef?.Show());
         KeyboardService.AddHandler("core:show-action-list", () => actionListRef?.Show());
         

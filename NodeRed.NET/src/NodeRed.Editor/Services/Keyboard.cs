@@ -55,6 +55,7 @@ public class Keyboard
         AddBinding("ctrl+a", "core:select-all-nodes");
         AddBinding("delete", "core:delete-selection");
         AddBinding("backspace", "core:delete-selection");
+        AddBinding("ctrl+backspace", "core:delete-selection-and-reconnect");
 
         // Navigation
         AddBinding("ctrl+f", "core:search");
@@ -70,6 +71,9 @@ public class Keyboard
         // Groups
         AddBinding("ctrl+shift+g", "core:group-selection");
         AddBinding("ctrl+shift+u", "core:ungroup-selection");
+        
+        // Subflows
+        AddBinding("ctrl+shift+s", "core:create-subflow");
 
         // Quick add
         AddBinding("ctrl+shift+p", "core:show-action-list");
