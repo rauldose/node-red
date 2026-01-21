@@ -4,7 +4,8 @@
 <div class="red-ui-editor-pane-flow-properties">
     <div class="form-row">
         <label for="flow-name"><i class="fa fa-tag"></i> Name</label>
-        <input type="text" id="flow-name" @bind="Name" @bind:event="oninput" 
+        <input type="text" id="flow-name" value="@Name" 
+               @oninput="OnNameInput"
                placeholder="Flow name" class="red-ui-text-input" />
     </div>
 
@@ -26,7 +27,7 @@
 
     <div class="form-row">
         <label><i class="fa fa-info-circle"></i> Info</label>
-        <textarea @bind="Info" @bind:event="oninput" rows="5" 
+        <textarea value="@Info" @oninput="OnInfoInput" rows="5" 
                   placeholder="Optional description for this flow"
                   class="red-ui-text-input"></textarea>
     </div>
@@ -176,6 +177,18 @@ textarea.red-ui-text-input {
     [Parameter] public bool ShowEnvVars { get; set; } = true;
     [Parameter] public List<FlowEnvVar> EnvVars { get; set; } = new();
     [Parameter] public EventCallback<List<FlowEnvVar>> EnvVarsChanged { get; set; }
+
+    private async Task OnNameInput(Microsoft.AspNetCore.Components.ChangeEventArgs e)
+    {
+        Name = e.Value?.ToString() ?? "";
+        await NameChanged.InvokeAsync(Name);
+    }
+
+    private async Task OnInfoInput(Microsoft.AspNetCore.Components.ChangeEventArgs e)
+    {
+        Info = e.Value?.ToString() ?? "";
+        await InfoChanged.InvokeAsync(Info);
+    }
 
     private async Task SetDisabled(bool value)
     {
