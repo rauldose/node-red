@@ -1026,6 +1026,127 @@
         _mouseMode = MouseMode.None;
         StateHasChanged();
     }
+    
+    // ============================================================
+    // Wire reconnection - translated from view.js DETACHED_DRAGGING mode
+    // ============================================================
+    
+    private NodeLink? _reconnectingLink;
+    private bool _reconnectingFromSource;  // true = dragging from source end, false = from target end
+    
+    /// <summary>
+    /// Start wire reconnection by detaching from source or target.
+    /// Translated from view.js DETACHED_DRAGGING mode
+    /// </summary>
+    public void StartWireReconnect(NodeLink link, bool fromSource)
+    {
+        _reconnectingLink = link;
+        _reconnectingFromSource = fromSource;
+        _mouseMode = MouseMode.Reconnecting;
+        
+        if (fromSource)
+        {
+            // Detach from source, keep target
+            _wireSourceNode = null;
+            // Create drag line from target back to mouse
+            DragLines.Clear();
+            DragLines.Add(new NodeLink
+            {
+                Source = null,
+                Target = link.Target,
+                SourcePort = 0
+            });
+        }
+        else
+        {
+            // Detach from target, keep source
+            _wireSourceNode = link.Source;
+            _wireSourcePortIndex = link.SourcePort;
+            // Create drag line from source to mouse
+            DragLines.Clear();
+            DragLines.Add(new NodeLink
+            {
+                Source = link.Source,
+                Target = null,
+                SourcePort = link.SourcePort
+            });
+        }
+        
+        // Remove the original link
+        State.Nodes.RemoveLink(link);
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Complete wire reconnection to new node.
+    /// </summary>
+    public void CompleteWireReconnect(FlowNode targetNode, bool toInput)
+    {
+        if (_mouseMode != MouseMode.Reconnecting || _reconnectingLink == null) return;
+        
+        NodeLink newLink;
+        if (_reconnectingFromSource)
+        {
+            // Reconnecting source side - we had the target, now we have new source
+            if (toInput)
+            {
+                // Can't connect input to input - cancel
+                CancelWireReconnect();
+                return;
+            }
+            newLink = new NodeLink
+            {
+                Source = targetNode,
+                Target = _reconnectingLink.Target,
+                SourcePort = 0  // Default to first output
+            };
+        }
+        else
+        {
+            // Reconnecting target side - we had the source, now we have new target
+            if (!toInput)
+            {
+                // Can't connect output to output - cancel
+                CancelWireReconnect();
+                return;
+            }
+            newLink = new NodeLink
+            {
+                Source = _reconnectingLink.Source,
+                Target = targetNode,
+                SourcePort = _reconnectingLink.SourcePort
+            };
+        }
+        
+        // Add the new link
+        State.Nodes.AddLink(newLink);
+        State.Nodes.SetDirty(true);
+        
+        // Clear reconnect state
+        _reconnectingLink = null;
+        _reconnectingFromSource = false;
+        ClearWireState();
+        _mouseMode = MouseMode.None;
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Cancel wire reconnection, restore original link.
+    /// </summary>
+    public void CancelWireReconnect()
+    {
+        if (_reconnectingLink != null)
+        {
+            // Restore the original link
+            State.Nodes.AddLink(_reconnectingLink);
+        }
+        
+        _reconnectingLink = null;
+        _reconnectingFromSource = false;
+        ClearWireState();
+        _mouseMode = MouseMode.None;
+        StateHasChanged();
+    }
 
     // ============================================================
     // Supporting types
@@ -1037,7 +1158,8 @@
         Moving,
         Joining,
         Lasso,
-        Slicing
+        Slicing,
+        Reconnecting  // Added for wire reconnection - translated from DETACHED_DRAGGING in view.js
     }
 
     private class LassoRect
