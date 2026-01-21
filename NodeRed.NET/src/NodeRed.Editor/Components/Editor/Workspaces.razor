@@ -221,6 +221,18 @@
                           stroke-width="1"
                           stroke-dasharray="5,5" />
                 }
+                
+                @* Wire slicing path - translated from slicePath in view.js *@
+                @if (_slicePath != null && _slicePath.Count >= 2)
+                {
+                    var pathD = "M" + string.Join(" L", _slicePath.Select(p => $"{p.X} {p.Y}"));
+                    <path class="nr-ui-view-slice"
+                          d="@pathD"
+                          stroke="#ff4040"
+                          stroke-width="2"
+                          fill="none"
+                          stroke-dasharray="5,5" />
+                }
             </g>
         </g>
     </svg>
@@ -286,6 +298,9 @@
     // Group dragging state
     private NodeGroup? _mousedownGroup;
     private (double X, double Y)? _groupDragStart;
+    
+    // Wire slicing state - translated from slicePath in view.js
+    private List<(double X, double Y)>? _slicePath;
     
     // Mouse state - translated from mouse_mode, mousedown_*, etc.
     private MouseMode _mouseMode = MouseMode.None;
@@ -364,16 +379,31 @@
             
             if (clickedNode == null)
             {
-                // Only start lasso when clicking on empty space
-                _mouseMode = MouseMode.Lasso;
-                Lasso = new LassoRect { X = e.OffsetX, Y = e.OffsetY, Width = 0, Height = 0 };
-                
-                if (!e.ShiftKey && !e.CtrlKey)
+                // Alt held - Begin wire slicing - translated from view.js line 1298-1306
+                if (e.AltKey)
                 {
-                    // Clear selection when clicking on empty space
+                    // Clear selection when starting slice
                     MovingSet.Clear();
                     SelectedLinks.Clear();
                     State.Nodes.ClearSelection();
+                    
+                    _mouseMode = MouseMode.Slicing;
+                    var point = (X: e.OffsetX / ScaleFactor, Y: e.OffsetY / ScaleFactor);
+                    _slicePath = new List<(double X, double Y)> { point };
+                }
+                else
+                {
+                    // Only start lasso when clicking on empty space
+                    _mouseMode = MouseMode.Lasso;
+                    Lasso = new LassoRect { X = e.OffsetX, Y = e.OffsetY, Width = 0, Height = 0 };
+                    
+                    if (!e.ShiftKey && !e.CtrlKey)
+                    {
+                        // Clear selection when clicking on empty space
+                        MovingSet.Clear();
+                        SelectedLinks.Clear();
+                        State.Nodes.ClearSelection();
+                    }
                 }
             }
         }
@@ -479,6 +509,21 @@
                     StateHasChanged();
                 }
                 break;
+            
+            case MouseMode.Slicing:
+                // Add points to slice path - translated from view.js line 1847-1853
+                if (_slicePath != null && _mousePosition.HasValue)
+                {
+                    var lastPoint = _slicePath.LastOrDefault();
+                    var delta = Math.Max(1, Math.Abs(lastPoint.X - _mousePosition.Value.X)) * 
+                                Math.Max(1, Math.Abs(lastPoint.Y - _mousePosition.Value.Y));
+                    if (delta > 20) // Only add point if moved enough
+                    {
+                        _slicePath.Add(_mousePosition.Value);
+                    }
+                    StateHasChanged();
+                }
+                break;
         }
     }
 
@@ -503,6 +548,15 @@
             case MouseMode.Joining:
                 // Wire creation cancelled (didn't land on a port)
                 ClearWireState();
+                break;
+            
+            case MouseMode.Slicing:
+                // Delete all wires intersected by slice path - translated from view.js line 2275-2283
+                if (_slicePath != null && _slicePath.Count >= 2)
+                {
+                    DeleteWiresIntersectedBySlicePath();
+                }
+                _slicePath = null;
                 break;
         }
 
@@ -722,6 +776,71 @@
         SelectedLinks.Clear();
         SelectedLinks.Add(link);
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Delete all wires that intersect with the slice path.
+    /// Translated from slicing logic in view.js deleteSelection called after SLICING mode
+    /// </summary>
+    private void DeleteWiresIntersectedBySlicePath()
+    {
+        if (_slicePath == null || _slicePath.Count < 2) return;
+        
+        var linksToRemove = new List<NodeLink>();
+        
+        foreach (var link in ActiveLinks)
+        {
+            if (link.Source == null || link.Target == null) continue;
+            
+            // Get wire endpoints
+            var sourceX = link.Source.X + NodeWidth; // Output port on right side
+            var sourceY = link.Source.Y + NodeHeight / 2;
+            var targetX = link.Target.X; // Input port on left side
+            var targetY = link.Target.Y + NodeHeight / 2;
+            
+            // Check if slice path intersects this wire
+            for (int i = 0; i < _slicePath.Count - 1; i++)
+            {
+                var p1 = _slicePath[i];
+                var p2 = _slicePath[i + 1];
+                
+                // Simple line segment intersection test with wire line
+                if (LinesIntersect(p1.X, p1.Y, p2.X, p2.Y, sourceX, sourceY, targetX, targetY))
+                {
+                    linksToRemove.Add(link);
+                    break;
+                }
+            }
+        }
+        
+        // Remove all intersected links
+        foreach (var link in linksToRemove)
+        {
+            State.Nodes.RemoveLink(link);
+            ActiveLinks.Remove(link);
+        }
+        
+        if (linksToRemove.Count > 0)
+        {
+            State.Nodes.SetDirty(true);
+            StateHasChanged();
+        }
+    }
+    
+    /// <summary>
+    /// Check if two line segments intersect.
+    /// Uses standard line intersection algorithm.
+    /// </summary>
+    private bool LinesIntersect(double x1, double y1, double x2, double y2, 
+                                 double x3, double y3, double x4, double y4)
+    {
+        var d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+        if (Math.Abs(d) < 0.0001) return false; // Parallel lines
+        
+        var t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / d;
+        var u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / d;
+        
+        return t >= 0 && t <= 1 && u >= 0 && u <= 1;
     }
 
     private void SelectGroup(NodeGroup group)
