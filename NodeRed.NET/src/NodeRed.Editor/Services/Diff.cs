@@ -15,10 +15,36 @@ namespace NodeRed.Editor.Services;
 public class Diff
 {
     private readonly EditorState _state;
+    private List<Dictionary<string, object>> _lastDeployedState = new();
+    private DateTime _lastDeployTime = DateTime.MinValue;
 
     public Diff(EditorState state)
     {
         _state = state;
+    }
+
+    /// <summary>
+    /// Track last deployed state for comparison.
+    /// </summary>
+    public DateTime LastDeployTime => _lastDeployTime;
+
+    /// <summary>
+    /// Mark current state as deployed.
+    /// </summary>
+    public void MarkAsDeployed(List<Dictionary<string, object>> flows)
+    {
+        _lastDeployedState = flows.Select(f => new Dictionary<string, object>(f)).ToList();
+        _lastDeployTime = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Check if there are changes since last deploy.
+    /// </summary>
+    public bool HasChanges()
+    {
+        if (_lastDeployedState.Count == 0) return true;
+        var result = CompareCurrentWithDeployed();
+        return result.HasChanges;
     }
 
     /// <summary>
@@ -85,13 +111,136 @@ public class Diff
     /// <summary>
     /// Compare current flow with deployed flow.
     /// Translated from compareCurrentWithDeployed() in diff.js
-    /// Note: Full implementation requires tracking of last deployed state.
     /// </summary>
     public DiffResult CompareCurrentWithDeployed()
     {
-        // TODO: Full implementation would compare current editor state with last deployed state
-        // For now, return empty diff (no changes)
-        return new DiffResult();
+        if (_lastDeployedState.Count == 0)
+        {
+            // No previous deploy - all nodes are "new"
+            var result = new DiffResult();
+            var currentNodes = _state.Nodes.GetNodes();
+            foreach (var node in currentNodes)
+            {
+                result.Added.Add(node.Id);
+                result.Changes.Add(new DiffChange
+                {
+                    Id = node.Id,
+                    Type = DiffChangeType.Added,
+                    NodeType = node.Type,
+                    Name = node.Name
+                });
+            }
+            return result;
+        }
+        
+        // Get current state as dictionaries
+        var currentState = GetCurrentStateAsDictionaries();
+        return Compare(_lastDeployedState, currentState);
+    }
+
+    /// <summary>
+    /// Get current editor state as list of dictionaries for comparison.
+    /// </summary>
+    private List<Dictionary<string, object>> GetCurrentStateAsDictionaries()
+    {
+        var result = new List<Dictionary<string, object>>();
+        
+        // Add workspaces/tabs
+        foreach (var workspace in _state.Workspaces.GetAll())
+        {
+            result.Add(new Dictionary<string, object>
+            {
+                { "id", workspace.Id },
+                { "type", workspace.Type },
+                { "label", workspace.Label ?? "" },
+                { "disabled", workspace.Disabled },
+                { "info", workspace.Info ?? "" }
+            });
+        }
+        
+        // Add nodes
+        foreach (var node in _state.Nodes.GetNodes())
+        {
+            var dict = new Dictionary<string, object>
+            {
+                { "id", node.Id },
+                { "type", node.Type },
+                { "name", node.Name ?? "" },
+                { "x", node.X },
+                { "y", node.Y },
+                { "z", node.Z },
+                { "wires", node.Wires ?? new List<List<string>>() }
+            };
+            
+            if (!string.IsNullOrEmpty(node.GroupId))
+            {
+                dict["g"] = node.GroupId;
+            }
+            
+            result.Add(dict);
+        }
+        
+        // Add groups
+        foreach (var group in _state.Nodes.GetGroups())
+        {
+            result.Add(new Dictionary<string, object>
+            {
+                { "id", group.Id },
+                { "type", "group" },
+                { "name", group.Name ?? "" },
+                { "x", group.X },
+                { "y", group.Y },
+                { "w", group.Width },
+                { "h", group.Height },
+                { "z", group.Z },
+                { "nodes", group.Nodes ?? new List<string>() }
+            });
+        }
+        
+        // Add subflows
+        foreach (var subflow in _state.Nodes.GetAllSubflows())
+        {
+            result.Add(new Dictionary<string, object>
+            {
+                { "id", subflow.Id },
+                { "type", "subflow" },
+                { "name", subflow.Name ?? "" },
+                { "info", subflow.Info ?? "" },
+                { "color", subflow.Color ?? "" }
+            });
+        }
+        
+        return result;
+    }
+
+    /// <summary>
+    /// Get only modified nodes since last deploy.
+    /// </summary>
+    public List<string> GetModifiedNodeIds()
+    {
+        var diff = CompareCurrentWithDeployed();
+        return diff.Changed.Concat(diff.Added).ToList();
+    }
+
+    /// <summary>
+    /// Get only modified flows (workspaces) since last deploy.
+    /// </summary>
+    public List<string> GetModifiedFlowIds()
+    {
+        var diff = CompareCurrentWithDeployed();
+        var modifiedNodeIds = diff.Changed.Concat(diff.Added).Concat(diff.Removed).ToHashSet();
+        var modifiedFlowIds = new HashSet<string>();
+        
+        // Find flows that contain modified nodes
+        foreach (var node in _state.Nodes.GetNodes())
+        {
+            if (modifiedNodeIds.Contains(node.Id))
+            {
+                modifiedFlowIds.Add(node.Z);
+            }
+        }
+        
+        return modifiedFlowIds.ToList();
     }
 
     /// <summary>

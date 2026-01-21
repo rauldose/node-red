@@ -89,39 +89,72 @@ public class GroupManager
     /// </summary>
     public void UngroupSelection(List<FlowNode> nodes)
     {
-        // TODO: Full implementation would remove group membership from selected nodes
-        // For now, just record that an ungroup happened
-        if (nodes.Count > 0)
+        // Find all groups that contain any of the selected nodes
+        var groupIds = nodes
+            .Where(n => !string.IsNullOrEmpty(n.GroupId))
+            .Select(n => n.GroupId)
+            .Distinct()
+            .ToList();
+        
+        foreach (var groupId in groupIds)
         {
-            _history.Push(new HistoryEvent
+            var group = _state.Nodes.GetGroups().FirstOrDefault(g => g.Id == groupId);
+            if (group != null)
             {
-                Type = HistoryEventType.DeleteGroup,
-                NodeIds = nodes.Select(n => n.Id).ToList()
-            });
+                // Remove group membership from all nodes in the group
+                var nodesInGroup = _state.Nodes.GetNodes()
+                    .Where(n => n.GroupId == groupId)
+                    .ToList();
+                
+                foreach (var node in nodesInGroup)
+                {
+                    node.GroupId = null;
+                    node.Dirty = true;
+                }
+                
+                // Remove the group from state
+                _state.Nodes.RemoveGroup(group);
+                
+                _history.Push(new HistoryEvent
+                {
+                    Type = HistoryEventType.DeleteGroup,
+                    Group = group,
+                    NodeIds = nodesInGroup.Select(n => n.Id).ToList()
+                });
+            }
         }
     }
 
     /// <summary>
     /// Ungroup nodes.
     /// Translated from ungroup() in group.js
-    /// Note: Full implementation requires EditorNodes access to get nodes in group.
     /// </summary>
     public List<FlowNode> Ungroup(NodeGroup group)
     {
-        // TODO: Full implementation would:
-        // 1. Get all nodes in the group
-        // 2. Remove group from state
-        // 3. Return the ungrouped nodes
-        var nodes = new List<FlowNode>();
+        // Get all nodes in the group
+        var nodesInGroup = _state.Nodes.GetNodes()
+            .Where(n => n.GroupId == group.Id)
+            .ToList();
+        
+        // Remove group membership
+        foreach (var node in nodesInGroup)
+        {
+            node.GroupId = null;
+            node.Dirty = true;
+        }
+        
+        // Remove the group from state
+        _state.Nodes.RemoveGroup(group);
 
         // Record history
         _history.Push(new HistoryEvent
         {
             Type = HistoryEventType.DeleteGroup,
-            Group = group
+            Group = group,
+            NodeIds = nodesInGroup.Select(n => n.Id).ToList()
         });
 
-        return nodes;
+        return nodesInGroup;
     }
 
     /// <summary>
