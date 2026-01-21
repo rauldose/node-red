@@ -472,6 +472,17 @@ public class EditorNodes
     }
     
     public List<Junction> GetJunctions() => _junctions.ToList();
+    
+    /// <summary>
+    /// Add a junction to the canvas.
+    /// Translated from RED.nodes.addJunction() in nodes.js
+    /// </summary>
+    public void AddJunction(Junction junction)
+    {
+        _junctions.Add(junction);
+        SetDirty(true);
+    }
+    
     public List<Subflow> GetSubflows() => _subflows.Values.ToList();
     public List<Subflow> GetAllSubflows() => GetSubflows(); // Alias for consistency
     public Subflow? GetSubflow(string id) => _subflows.TryGetValue(id, out var sf) ? sf : null;
@@ -974,6 +985,7 @@ public class FlowNode
     public bool DirtyStatus { get; set; }
     public bool Dirty { get; set; }
     public bool Selected { get; set; }
+    public bool Disabled { get; set; }  // Node disabled state - translated from node.d in Node-RED
     public Dictionary<string, object?> Properties { get; set; } = new();
 }
 
@@ -1042,6 +1054,8 @@ public class Junction
     public string Z { get; set; } = "";
     public double X { get; set; }
     public double Y { get; set; }
+    public int Inputs { get; set; } = 1;
+    public int Outputs { get; set; } = 1;
 }
 
 public class NodeLink

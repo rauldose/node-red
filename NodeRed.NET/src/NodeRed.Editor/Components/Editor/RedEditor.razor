@@ -1032,13 +1032,53 @@
         {
             if (obj is { } data && contextMenuRef != null)
             {
-                // Build context menu items
-                var selectedNodes = State.Nodes.GetSelectedNodes();
+                // Build context menu items - translated from contextMenu.js
+                var selectedNodes = State.Nodes.GetSelectedNodes().ToList();
                 var hasSelection = selectedNodes.Any();
+                var hasMultipleSelection = selectedNodes.Count > 1;
+                
+                // Check for disabled/enabled nodes in selection
+                var hasDisabledNode = selectedNodes.Any(n => n.Disabled);
+                var hasEnabledNode = selectedNodes.Any(n => !n.Disabled);
+                
+                // Get position for inserting new nodes
+                double addX = 100, addY = 100;
+                var dataType = data.GetType();
+                var offsetXProp = dataType.GetProperty("OffsetX");
+                var offsetYProp = dataType.GetProperty("OffsetY");
+                if (offsetXProp != null) addX = Convert.ToDouble(offsetXProp.GetValue(data));
+                if (offsetYProp != null) addY = Convert.ToDouble(offsetYProp.GetValue(data));
                 
                 var items = new List<ContextMenu.ContextMenuItem>
                 {
+                    // Insert node - translated from contextMenu.js
                     new() { Label = "Add node...", Icon = "fa-plus", OnClick = () => typeSearchRef?.Show() },
+                    new() { Label = "Add junction", Icon = "fa-circle-o", OnClick = () => {
+                        // Create junction at mouse position - translated from contextMenu.js junction creation
+                        var junction = new Junction
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            Type = "junction",
+                            X = addX,
+                            Y = addY,
+                            Z = State.Workspaces.Active(),
+                            Inputs = 1,
+                            Outputs = 1
+                        };
+                        State.Nodes.AddJunction(junction);
+                        State.Nodes.SetDirty(true);
+                        workspacesRef?.Redraw(true);
+                    }},
+                    new() { IsSeparator = true },
+                    // Undo/Redo - translated from contextMenu.js
+                    new() { Label = "Undo", Icon = "fa-undo", Shortcut = "Ctrl+Z", Disabled = !HistoryService.CanUndo, OnClick = () => {
+                        HistoryService.Undo();
+                        workspacesRef?.Redraw(true);
+                    }},
+                    new() { Label = "Redo", Icon = "fa-repeat", Shortcut = "Ctrl+Y", Disabled = !HistoryService.CanRedo, OnClick = () => {
+                        HistoryService.Redo();
+                        workspacesRef?.Redraw(true);
+                    }},
                     new() { IsSeparator = true },
                     new() { Label = "Cut", Icon = "fa-cut", Shortcut = "Ctrl+X", Disabled = !hasSelection, OnClick = () => {
                         ClipboardService.CopySelection(State.Nodes.GetSelectedNodes());
@@ -1057,7 +1097,27 @@
                         workspacesRef?.Redraw(true);
                     }},
                     new() { IsSeparator = true },
-                    new() { Label = "Group selection", Icon = "fa-object-group", Shortcut = "Ctrl+Shift+G", Disabled = selectedNodes.Count() < 2, OnClick = () => {
+                    // Node enable/disable - translated from contextMenu.js nodeOptions
+                    new() { Label = "Enable selected nodes", Icon = "fa-check-circle", Disabled = !hasDisabledNode, OnClick = () => {
+                        foreach (var node in selectedNodes.Where(n => n.Disabled))
+                        {
+                            node.Disabled = false;
+                            node.Dirty = true;
+                        }
+                        State.Nodes.SetDirty(true);
+                        workspacesRef?.Redraw(true);
+                    }},
+                    new() { Label = "Disable selected nodes", Icon = "fa-ban", Disabled = !hasEnabledNode, OnClick = () => {
+                        foreach (var node in selectedNodes.Where(n => !n.Disabled))
+                        {
+                            node.Disabled = true;
+                            node.Dirty = true;
+                        }
+                        State.Nodes.SetDirty(true);
+                        workspacesRef?.Redraw(true);
+                    }},
+                    new() { IsSeparator = true },
+                    new() { Label = "Group selection", Icon = "fa-object-group", Shortcut = "Ctrl+Shift+G", Disabled = selectedNodes.Count < 2, OnClick = () => {
                         State.GroupManager.CreateGroup(State.Nodes.GetSelectedNodes().ToList(), State.Workspaces.Active());
                         workspacesRef?.Redraw(true);
                     }},
@@ -1070,7 +1130,7 @@
                         State.SubflowManager.CreateSubflow(State.Nodes.GetSelectedNodes().ToList());
                         workspacesRef?.Redraw(true);
                     }},
-                    new() { Label = "Convert to subflow", Icon = "fa-cubes", Disabled = selectedNodes.Count() != 1, OnClick = () => {
+                    new() { Label = "Convert to subflow", Icon = "fa-cubes", Disabled = selectedNodes.Count != 1, OnClick = () => {
                         var node = selectedNodes.FirstOrDefault();
                         if (node != null)
                         {
