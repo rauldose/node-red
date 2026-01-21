@@ -35,11 +35,19 @@
     }
     @foreach (var ws in visibleWorkspaces)
     {
-        <div class="red-ui-tab @(State.Workspaces.Active() == ws.Id ? "active" : "") @(ws.Disabled ? "red-ui-tab-disabled" : "") @(ws.Locked ? "red-ui-workspace-locked" : "")"
+        var index = visibleWorkspaces.IndexOf(ws);
+        <div class="red-ui-tab @(State.Workspaces.Active() == ws.Id ? "active" : "") @(ws.Disabled ? "red-ui-tab-disabled" : "") @(ws.Locked ? "red-ui-workspace-locked" : "") @(_dragOverTabId == ws.Id ? "red-ui-tab-drag-over" : "")"
              @onclick="() => SelectWorkspaceTab(ws.Id)"
              @ondblclick="() => EditWorkspaceTab(ws)"
              @oncontextmenu="(e) => ShowTabContextMenu(e, ws)"
              @oncontextmenu:preventDefault="true"
+             draggable="true"
+             @ondragstart="(e) => HandleTabDragStart(e, ws, index)"
+             @ondragover="(e) => HandleTabDragOver(e, ws)"
+             @ondragover:preventDefault="true"
+             @ondrop="(e) => HandleTabDrop(e, ws, index)"
+             @ondragleave="HandleTabDragLeave"
+             @ondragend="HandleTabDragEnd"
              title="@(ws.Locked ? "Flow is locked" : "")">
             @if (ws.Locked)
             {
@@ -236,6 +244,11 @@
     
     // Hidden flows dropdown state
     private bool _showHiddenFlowsDropdown = false;
+    
+    // Tab drag reordering state - translated from tabs.js draggable
+    private Workspace? _draggingTab;
+    private int _dragStartIndex;
+    private string? _dragOverTabId;
 
     // Active elements for current flow
     private List<FlowNode> ActiveNodes = new();
@@ -808,6 +821,72 @@
         _showHiddenFlowsDropdown = false;
         State.Workspaces.Show(workspace.Id);
         RefreshView();
+    }
+
+    // ============================================================
+    // Tab drag reordering - translated from tabs.js draggable
+    // ============================================================
+    
+    /// <summary>
+    /// Handle tab drag start
+    /// Translated from tabs.js li.draggable start
+    /// </summary>
+    private void HandleTabDragStart(Microsoft.AspNetCore.Components.Web.DragEventArgs e, Workspace workspace, int index)
+    {
+        _draggingTab = workspace;
+        _dragStartIndex = index;
+        e.DataTransfer.EffectAllowed = "move";
+    }
+    
+    /// <summary>
+    /// Handle tab drag over
+    /// Translated from tabs.js drag handler
+    /// </summary>
+    private void HandleTabDragOver(Microsoft.AspNetCore.Components.Web.DragEventArgs e, Workspace workspace)
+    {
+        if (_draggingTab != null && _draggingTab.Id != workspace.Id)
+        {
+            _dragOverTabId = workspace.Id;
+            e.DataTransfer.DropEffect = "move";
+        }
+    }
+    
+    /// <summary>
+    /// Handle tab drag leave
+    /// </summary>
+    private void HandleTabDragLeave()
+    {
+        _dragOverTabId = null;
+    }
+    
+    /// <summary>
+    /// Handle tab drop - reorder tabs
+    /// Translated from tabs.js draggable stop with onreorder callback
+    /// </summary>
+    private void HandleTabDrop(Microsoft.AspNetCore.Components.Web.DragEventArgs e, Workspace targetWorkspace, int targetIndex)
+    {
+        if (_draggingTab == null || _draggingTab.Id == targetWorkspace.Id)
+        {
+            _dragOverTabId = null;
+            return;
+        }
+        
+        // Reorder workspaces
+        State.Workspaces.ReorderWorkspace(_draggingTab.Id, targetIndex);
+        
+        _dragOverTabId = null;
+        _draggingTab = null;
+        State.Nodes.SetDirty(true);
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Handle tab drag end
+    /// </summary>
+    private void HandleTabDragEnd()
+    {
+        _dragOverTabId = null;
+        _draggingTab = null;
     }
 
     // ============================================================

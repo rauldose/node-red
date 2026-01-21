@@ -452,6 +452,57 @@ public class EditorNodes
 
         return _configNodes.TryGetValue(id, out var configNode) ? configNode : null;
     }
+    
+    /// <summary>
+    /// Flash/highlight a node for visual feedback.
+    /// Translated from flashNode() in view.js
+    /// </summary>
+    private string? _flashingNodeId;
+    private System.Timers.Timer? _flashTimer;
+    
+    public void FlashNode(string nodeId)
+    {
+        var node = GetNode(nodeId);
+        if (node == null) return;
+        
+        // Cancel any existing flash
+        if (_flashingNodeId != null)
+        {
+            var existingNode = GetNode(_flashingNodeId);
+            if (existingNode != null)
+            {
+                existingNode.Highlighted = false;
+                existingNode.Dirty = true;
+            }
+            _flashTimer?.Stop();
+            _flashTimer?.Dispose();
+        }
+        
+        // Start new flash
+        _flashingNodeId = nodeId;
+        node.Highlighted = true;
+        node.Dirty = true;
+        
+        var flashEndTime = DateTime.Now.AddMilliseconds(2200);
+        _flashTimer = new System.Timers.Timer(100);
+        _flashTimer.Elapsed += (s, e) =>
+        {
+            if (DateTime.Now < flashEndTime)
+            {
+                node.Highlighted = !node.Highlighted;
+                node.Dirty = true;
+            }
+            else
+            {
+                node.Highlighted = false;
+                node.Dirty = true;
+                _flashTimer?.Stop();
+                _flashTimer?.Dispose();
+                _flashingNodeId = null;
+            }
+        };
+        _flashTimer.Start();
+    }
 
     public List<FlowNode> GetNodes() => _nodes.ToList();
     public List<NodeLink> GetLinks() => _links.ToList();
@@ -797,6 +848,38 @@ public class EditorWorkspaces
         }
     }
 
+    /// <summary>
+    /// Reorder a workspace to a new position.
+    /// Translated from tabs.js onreorder callback
+    /// </summary>
+    public void ReorderWorkspace(string workspaceId, int newIndex)
+    {
+        var currentIndex = _workspaceOrder.IndexOf(workspaceId);
+        if (currentIndex == -1 || currentIndex == newIndex) return;
+        
+        // Remove from current position
+        _workspaceOrder.RemoveAt(currentIndex);
+        
+        // Insert at new position (adjust for removal)
+        if (newIndex > currentIndex)
+        {
+            newIndex--;
+        }
+        if (newIndex < 0) newIndex = 0;
+        if (newIndex > _workspaceOrder.Count) newIndex = _workspaceOrder.Count;
+        
+        _workspaceOrder.Insert(newIndex, workspaceId);
+        
+        // Also reorder the actual workspace list to match
+        var workspace = _workspaces.FirstOrDefault(w => w.Id == workspaceId);
+        if (workspace != null)
+        {
+            _workspaces.Remove(workspace);
+            if (newIndex > _workspaces.Count) newIndex = _workspaces.Count;
+            _workspaces.Insert(newIndex, workspace);
+        }
+    }
+
     public Workspace? Get(string id) => _workspaces.FirstOrDefault(w => w.Id == id);
 }
 
@@ -988,6 +1071,7 @@ public class FlowNode
     public bool Dirty { get; set; }
     public bool Selected { get; set; }
     public bool Disabled { get; set; }  // Node disabled state - translated from node.d in Node-RED
+    public bool Highlighted { get; set; }  // Node highlight state for flash animation - translated from view.js flashNode
     public Dictionary<string, object?> Properties { get; set; } = new();
 }
 
