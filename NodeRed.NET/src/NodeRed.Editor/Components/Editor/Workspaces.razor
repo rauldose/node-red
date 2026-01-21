@@ -28,40 +28,57 @@
 @inject IJSRuntime JS
 
 @* Workspace tabs - translated from workspaceTabs *@
-<div id="red-ui-workspace-tabs">
+<div id="red-ui-workspace-tabs" class="red-ui-tabs red-ui-tabs-scrollable">
     @{
         var visibleWorkspaces = State.Workspaces.GetAll().Where(w => !w.Hidden).ToList();
         var hiddenWorkspaces = State.Workspaces.GetAll().Where(w => w.Hidden).ToList();
     }
-    @foreach (var ws in visibleWorkspaces)
-    {
-        var index = visibleWorkspaces.IndexOf(ws);
-        <div class="red-ui-tab @(State.Workspaces.Active() == ws.Id ? "active" : "") @(ws.Disabled ? "red-ui-tab-disabled" : "") @(ws.Locked ? "red-ui-workspace-locked" : "") @(_dragOverTabId == ws.Id ? "red-ui-tab-drag-over" : "")"
-             @onclick="() => SelectWorkspaceTab(ws.Id)"
-             @ondblclick="() => EditWorkspaceTab(ws)"
-             @oncontextmenu="(e) => ShowTabContextMenu(e, ws)"
-             @oncontextmenu:preventDefault="true"
-             draggable="true"
-             @ondragstart="(e) => HandleTabDragStart(e, ws, index)"
-             @ondragover="(e) => HandleTabDragOver(e, ws)"
-             @ondragover:preventDefault="true"
-             @ondrop="(e) => HandleTabDrop(e, ws, index)"
-             @ondragleave="HandleTabDragLeave"
-             @ondragend="HandleTabDragEnd"
-             title="@(ws.Locked ? "Flow is locked" : "")">
-            @if (ws.Locked)
-            {
-                <span class="red-ui-workspace-locked-icon"><i class="fa fa-lock"></i> </span>
-            }
-            <span>@(string.IsNullOrEmpty(ws.Label) ? "Flow" : ws.Label)</span>
-        </div>
-    }
-    @if (!visibleWorkspaces.Any())
-    {
-        <div class="red-ui-tab active">
-            <span>Flow 1</span>
-        </div>
-    }
+    @* Scroll left button - translated from tabs.js scrollLeft *@
+    <div class="red-ui-tab-button red-ui-tab-scroll red-ui-tab-scroll-left" 
+         style="@(_tabScrollPosition > 0 ? "" : "display: none;")"
+         @onclick="ScrollTabsLeft">
+        <a href="#" @onclick:preventDefault="true"><i class="fa fa-caret-left"></i></a>
+    </div>
+    
+    <div class="red-ui-tabs-scroll-container" @ref="_tabScrollContainer" style="overflow-x: auto; display: flex; flex: 1;">
+        @foreach (var ws in visibleWorkspaces)
+        {
+            var index = visibleWorkspaces.IndexOf(ws);
+            <div class="red-ui-tab @(State.Workspaces.Active() == ws.Id ? "active" : "") @(ws.Disabled ? "red-ui-tab-disabled" : "") @(ws.Locked ? "red-ui-workspace-locked" : "") @(_dragOverTabId == ws.Id ? "red-ui-tab-drag-over" : "")"
+                 @onclick="() => SelectWorkspaceTab(ws.Id)"
+                 @ondblclick="() => EditWorkspaceTab(ws)"
+                 @oncontextmenu="(e) => ShowTabContextMenu(e, ws)"
+                 @oncontextmenu:preventDefault="true"
+                 draggable="true"
+                 @ondragstart="(e) => HandleTabDragStart(e, ws, index)"
+                 @ondragover="(e) => HandleTabDragOver(e, ws)"
+                 @ondragover:preventDefault="true"
+                 @ondrop="(e) => HandleTabDrop(e, ws, index)"
+                 @ondragleave="HandleTabDragLeave"
+                 @ondragend="HandleTabDragEnd"
+                 title="@(ws.Locked ? "Flow is locked" : "")">
+                @if (ws.Locked)
+                {
+                    <span class="red-ui-workspace-locked-icon"><i class="fa fa-lock"></i> </span>
+                }
+                <span>@(string.IsNullOrEmpty(ws.Label) ? "Flow" : ws.Label)</span>
+            </div>
+        }
+        @if (!visibleWorkspaces.Any())
+        {
+            <div class="red-ui-tab active">
+                <span>Flow 1</span>
+            </div>
+        }
+    </div>
+    
+    @* Scroll right button - translated from tabs.js scrollRight *@
+    <div class="red-ui-tab-button red-ui-tab-scroll red-ui-tab-scroll-right"
+         style="@(_showScrollRight ? "" : "display: none;")"
+         @onclick="ScrollTabsRight">
+        <a href="#" @onclick:preventDefault="true"><i class="fa fa-caret-right"></i></a>
+    </div>
+    
     <div class="red-ui-tab" style="opacity: 0.6; cursor: pointer;" title="Add new flow"
          @onclick="AddNewWorkspace">
         <span>+</span>
@@ -249,6 +266,11 @@
     private Workspace? _draggingTab;
     private int _dragStartIndex;
     private string? _dragOverTabId;
+    
+    // Tab scrolling state - translated from tabs.js scroll functionality
+    private ElementReference _tabScrollContainer;
+    private double _tabScrollPosition = 0;
+    private bool _showScrollRight = false;
 
     // Active elements for current flow
     private List<FlowNode> ActiveNodes = new();
@@ -887,6 +909,58 @@
     {
         _dragOverTabId = null;
         _draggingTab = null;
+    }
+
+    // ============================================================
+    // Tab scroll handlers - translated from tabs.js scroll functionality
+    // ============================================================
+    
+    /// <summary>
+    /// Scroll tabs to the left
+    /// Translated from tabs.js scrollLeft handler
+    /// </summary>
+    private async Task ScrollTabsLeft()
+    {
+        _tabScrollPosition = Math.Max(0, _tabScrollPosition - 150);
+        await JS.InvokeVoidAsync("eval", $"document.querySelector('.red-ui-tabs-scroll-container').scrollLeft = {_tabScrollPosition}");
+        await UpdateScrollState();
+    }
+    
+    /// <summary>
+    /// Scroll tabs to the right
+    /// Translated from tabs.js scrollRight handler
+    /// </summary>
+    private async Task ScrollTabsRight()
+    {
+        _tabScrollPosition += 150;
+        await JS.InvokeVoidAsync("eval", $"document.querySelector('.red-ui-tabs-scroll-container').scrollLeft = {_tabScrollPosition}");
+        await UpdateScrollState();
+    }
+    
+    /// <summary>
+    /// Update scroll button visibility based on scroll position
+    /// Translated from tabs.js updateScroll
+    /// </summary>
+    private async Task UpdateScrollState()
+    {
+        try
+        {
+            var scrollInfo = await JS.InvokeAsync<double[]>("eval", 
+                "[document.querySelector('.red-ui-tabs-scroll-container')?.scrollLeft || 0, " +
+                "document.querySelector('.red-ui-tabs-scroll-container')?.scrollWidth || 0, " +
+                "document.querySelector('.red-ui-tabs-scroll-container')?.clientWidth || 0]");
+            
+            if (scrollInfo != null && scrollInfo.Length >= 3)
+            {
+                _tabScrollPosition = scrollInfo[0];
+                _showScrollRight = scrollInfo[0] < (scrollInfo[1] - scrollInfo[2] - 5);
+            }
+        }
+        catch
+        {
+            // Ignore JS errors during scroll state update
+        }
+        StateHasChanged();
     }
 
     // ============================================================
