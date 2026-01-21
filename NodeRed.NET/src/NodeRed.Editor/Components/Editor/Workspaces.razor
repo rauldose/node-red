@@ -29,17 +29,26 @@
 
 @* Workspace tabs - translated from workspaceTabs *@
 <div id="red-ui-workspace-tabs">
-    @foreach (var ws in State.Workspaces.GetAll())
+    @{
+        var visibleWorkspaces = State.Workspaces.GetAll().Where(w => !w.Hidden).ToList();
+        var hiddenWorkspaces = State.Workspaces.GetAll().Where(w => w.Hidden).ToList();
+    }
+    @foreach (var ws in visibleWorkspaces)
     {
-        <div class="red-ui-tab @(State.Workspaces.Active() == ws.Id ? "active" : "")"
+        <div class="red-ui-tab @(State.Workspaces.Active() == ws.Id ? "active" : "") @(ws.Disabled ? "red-ui-tab-disabled" : "") @(ws.Locked ? "red-ui-workspace-locked" : "")"
              @onclick="() => SelectWorkspaceTab(ws.Id)"
              @ondblclick="() => EditWorkspaceTab(ws)"
              @oncontextmenu="(e) => ShowTabContextMenu(e, ws)"
-             @oncontextmenu:preventDefault="true">
+             @oncontextmenu:preventDefault="true"
+             title="@(ws.Locked ? "Flow is locked" : "")">
+            @if (ws.Locked)
+            {
+                <span class="red-ui-workspace-locked-icon"><i class="fa fa-lock"></i> </span>
+            }
             <span>@(string.IsNullOrEmpty(ws.Label) ? "Flow" : ws.Label)</span>
         </div>
     }
-    @if (!State.Workspaces.GetAll().Any())
+    @if (!visibleWorkspaces.Any())
     {
         <div class="red-ui-tab active">
             <span>Flow 1</span>
@@ -49,6 +58,27 @@
          @onclick="AddNewWorkspace">
         <span>+</span>
     </div>
+    @if (hiddenWorkspaces.Any())
+    {
+        <div class="red-ui-tab red-ui-tabs-select" style="opacity: 0.6; cursor: pointer;" 
+             title="Show hidden flows (@hiddenWorkspaces.Count)"
+             @onclick="ToggleHiddenFlowsDropdown"
+             @onclick:stopPropagation="true">
+            <span><i class="fa fa-caret-down"></i> (@hiddenWorkspaces.Count)</span>
+        </div>
+        @if (_showHiddenFlowsDropdown)
+        {
+            <div class="red-ui-hidden-flows-dropdown" style="position: absolute; top: 100%; right: 0; background: #fff; border: 1px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 100;">
+                @foreach (var hiddenWs in hiddenWorkspaces)
+                {
+                    <div class="red-ui-hidden-flow-item" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee;"
+                         @onclick="() => ShowHiddenFlow(hiddenWs)">
+                        <i class="fa fa-eye"></i> @(string.IsNullOrEmpty(hiddenWs.Label) ? "Flow" : hiddenWs.Label)
+                    </div>
+                }
+            </div>
+        }
+    }
 </div>
 
 <div id="red-ui-workspace-chart" 
@@ -203,6 +233,9 @@
     private int GridSize = 20;
     private bool SnapGrid = false;
     private bool ShowGrid = true;
+    
+    // Hidden flows dropdown state
+    private bool _showHiddenFlowsDropdown = false;
 
     // Active elements for current flow
     private List<FlowNode> ActiveNodes = new();
@@ -753,6 +786,28 @@
             Y = e.ClientY,
             Workspace = workspace
         });
+    }
+
+    /// <summary>
+    /// Toggle the hidden flows dropdown visibility
+    /// Translated from workspaces.js hidden tabs functionality
+    /// </summary>
+    private void ToggleHiddenFlowsDropdown()
+    {
+        _showHiddenFlowsDropdown = !_showHiddenFlowsDropdown;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Show a hidden flow (unhide it)
+    /// Translated from workspaces.js onshow functionality
+    /// </summary>
+    private void ShowHiddenFlow(Workspace workspace)
+    {
+        workspace.Hidden = false;
+        _showHiddenFlowsDropdown = false;
+        State.Workspaces.Show(workspace.Id);
+        RefreshView();
     }
 
     // ============================================================

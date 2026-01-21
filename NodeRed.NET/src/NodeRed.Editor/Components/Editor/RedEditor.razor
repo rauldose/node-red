@@ -775,6 +775,75 @@
     }
 
     // ============================================================
+    // Node alignment - translated from view-tools.js align functions
+    // ============================================================
+    
+    /// <summary>
+    /// Align selected nodes
+    /// Translated from core:align-selection-to-* in view-tools.js
+    /// </summary>
+    private void AlignSelection(string alignment)
+    {
+        var selectedNodes = State.Nodes.GetSelectedNodes().ToList();
+        if (selectedNodes.Count < 2) return;
+        
+        switch (alignment)
+        {
+            case "left":
+                var minX = selectedNodes.Min(n => n.X);
+                foreach (var node in selectedNodes)
+                {
+                    node.X = minX;
+                    node.Dirty = true;
+                }
+                break;
+            case "center":
+                var centerX = selectedNodes.Average(n => n.X + n.Width / 2);
+                foreach (var node in selectedNodes)
+                {
+                    node.X = centerX - node.Width / 2;
+                    node.Dirty = true;
+                }
+                break;
+            case "right":
+                var maxX = selectedNodes.Max(n => n.X + n.Width);
+                foreach (var node in selectedNodes)
+                {
+                    node.X = maxX - node.Width;
+                    node.Dirty = true;
+                }
+                break;
+            case "top":
+                var minY = selectedNodes.Min(n => n.Y);
+                foreach (var node in selectedNodes)
+                {
+                    node.Y = minY;
+                    node.Dirty = true;
+                }
+                break;
+            case "middle":
+                var centerY = selectedNodes.Average(n => n.Y + n.Height / 2);
+                foreach (var node in selectedNodes)
+                {
+                    node.Y = centerY - node.Height / 2;
+                    node.Dirty = true;
+                }
+                break;
+            case "bottom":
+                var maxY = selectedNodes.Max(n => n.Y + n.Height);
+                foreach (var node in selectedNodes)
+                {
+                    node.Y = maxY - node.Height;
+                    node.Dirty = true;
+                }
+                break;
+        }
+        
+        State.Nodes.SetDirty(true);
+        workspacesRef?.Redraw(true);
+    }
+
+    // ============================================================
     // Panel resize handlers - translated from setupSidebarSeparator()
     // ============================================================
     
@@ -1139,6 +1208,26 @@
                         }
                     }},
                     new() { IsSeparator = true },
+                    // Alignment options - translated from contextMenu.js arrange submenu
+                    new() { Label = "Align left", Icon = "fa-align-left", Disabled = !hasMultipleSelection, OnClick = () => {
+                        AlignSelection("left");
+                    }},
+                    new() { Label = "Align center", Icon = "fa-align-center", Disabled = !hasMultipleSelection, OnClick = () => {
+                        AlignSelection("center");
+                    }},
+                    new() { Label = "Align right", Icon = "fa-align-right", Disabled = !hasMultipleSelection, OnClick = () => {
+                        AlignSelection("right");
+                    }},
+                    new() { Label = "Align top", Icon = "fa-long-arrow-up", Disabled = !hasMultipleSelection, OnClick = () => {
+                        AlignSelection("top");
+                    }},
+                    new() { Label = "Align middle", Icon = "fa-arrows-v", Disabled = !hasMultipleSelection, OnClick = () => {
+                        AlignSelection("middle");
+                    }},
+                    new() { Label = "Align bottom", Icon = "fa-long-arrow-down", Disabled = !hasMultipleSelection, OnClick = () => {
+                        AlignSelection("bottom");
+                    }},
+                    new() { IsSeparator = true },
                     new() { Label = "Delete", Icon = "fa-trash", Shortcut = "Delete", Disabled = !hasSelection, OnClick = () => {
                         State.Nodes.DeleteSelection();
                         workspacesRef?.Redraw(true);
@@ -1203,10 +1292,35 @@
                     new() { 
                         Label = workspace.Disabled ? "Enable flow" : "Disable flow", 
                         Icon = workspace.Disabled ? "fa-toggle-on" : "fa-toggle-off",
-                        Disabled = isSubflow, // Subflows can't be disabled directly
+                        Disabled = isSubflow || workspace.Locked, // Subflows can't be disabled directly, locked flows can't be disabled
                         OnClick = () => {
                             workspace.Disabled = !workspace.Disabled;
                             State.Nodes.SetDirty(true);
+                            workspacesRef?.Redraw(true);
+                        }
+                    },
+                    new() { 
+                        Label = workspace.Locked ? "Unlock flow" : "Lock flow", 
+                        Icon = workspace.Locked ? "fa-unlock" : "fa-lock",
+                        Disabled = isSubflow, // Subflows can't be locked
+                        OnClick = () => {
+                            workspace.Locked = !workspace.Locked;
+                            State.Nodes.SetDirty(true);
+                            workspacesRef?.Redraw(true);
+                        }
+                    },
+                    new() { 
+                        Label = "Hide flow", 
+                        Icon = "fa-eye-slash",
+                        Disabled = workspaceCount <= 1, // Don't allow hiding the last visible workspace
+                        OnClick = () => {
+                            workspace.Hidden = true;
+                            // Switch to another workspace
+                            var nextWorkspace = State.Workspaces.GetAll().FirstOrDefault(w => w.Id != workspace.Id && !w.Hidden);
+                            if (nextWorkspace != null)
+                            {
+                                State.Workspaces.Show(nextWorkspace.Id);
+                            }
                             workspacesRef?.Redraw(true);
                         }
                     },

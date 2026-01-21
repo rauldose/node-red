@@ -809,6 +809,8 @@ public class Workspace
     public string Type { get; set; } = "tab";
     public string Label { get; set; } = "";
     public bool Disabled { get; set; }
+    public bool Locked { get; set; }  // Locked state - prevents editing - translated from Node-RED
+    public bool Hidden { get; set; }   // Hidden state - tab is hidden - translated from Node-RED
     public string Info { get; set; } = "";
     public string Env { get; set; } = "";
 }
