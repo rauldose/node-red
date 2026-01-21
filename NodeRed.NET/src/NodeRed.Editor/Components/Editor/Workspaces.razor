@@ -156,9 +156,12 @@
                     @foreach (var group in ActiveGroups)
                     {
                         <NodeGroupComponent Group="@group" 
+                                           Selected="@(_selectedGroup?.Id == group.Id)"
                                            OnClick="@(() => SelectGroup(group))"
+                                           OnDoubleClick="@(() => EditGroup(group))"
                                            OnMouseDown="@((e) => HandleGroupMouseDown(group, e))"
-                                           OnMouseUp="@((e) => HandleGroupMouseUp(group, e))" />
+                                           OnMouseUp="@((e) => HandleGroupMouseUp(group, e))"
+                                           OnResizeStart="@HandleGroupResizeStart" />
                     }
                 </g>
                 
@@ -297,7 +300,12 @@
     
     // Group dragging state
     private NodeGroup? _mousedownGroup;
+    private NodeGroup? _selectedGroup;  // Currently selected group for resize handles
     private (double X, double Y)? _groupDragStart;
+    
+    // Group resize state - translated from Node-RED group resize handling
+    private NodeGroupComponent.ResizeEventArgs? _groupResizeArgs;
+    private (double X, double Y, double W, double H)? _groupResizeOriginal;
     
     // Wire slicing state - translated from slicePath in view.js
     private List<(double X, double Y)>? _slicePath;
@@ -442,8 +450,56 @@
                 break;
 
             case MouseMode.Moving:
+                // Handle group resize - translated from Node-RED group resize
+                if (_groupResizeArgs != null && _groupResizeOriginal.HasValue)
+                {
+                    var deltaX = (e.OffsetX - _groupResizeArgs.StartX) / ScaleFactor;
+                    var deltaY = (e.OffsetY - _groupResizeArgs.StartY) / ScaleFactor;
+                    var orig = _groupResizeOriginal.Value;
+                    var group = _groupResizeArgs.Group;
+                    
+                    // Apply resize based on direction
+                    switch (_groupResizeArgs.Direction)
+                    {
+                        case NodeGroupComponent.ResizeDirection.SouthEast:
+                            group.Width = Math.Max(50, orig.W + deltaX);
+                            group.Height = Math.Max(30, orig.H + deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.SouthWest:
+                            group.X = orig.X + deltaX;
+                            group.Width = Math.Max(50, orig.W - deltaX);
+                            group.Height = Math.Max(30, orig.H + deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.NorthEast:
+                            group.Y = orig.Y + deltaY;
+                            group.Width = Math.Max(50, orig.W + deltaX);
+                            group.Height = Math.Max(30, orig.H - deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.NorthWest:
+                            group.X = orig.X + deltaX;
+                            group.Y = orig.Y + deltaY;
+                            group.Width = Math.Max(50, orig.W - deltaX);
+                            group.Height = Math.Max(30, orig.H - deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.North:
+                            group.Y = orig.Y + deltaY;
+                            group.Height = Math.Max(30, orig.H - deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.South:
+                            group.Height = Math.Max(30, orig.H + deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.West:
+                            group.X = orig.X + deltaX;
+                            group.Width = Math.Max(50, orig.W - deltaX);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.East:
+                            group.Width = Math.Max(50, orig.W + deltaX);
+                            break;
+                    }
+                    StateHasChanged();
+                }
                 // Handle group dragging
-                if (_mousedownGroup != null && _groupDragStart.HasValue)
+                else if (_mousedownGroup != null && _groupDragStart.HasValue)
                 {
                     var deltaX = (e.OffsetX - _groupDragStart.Value.X) / ScaleFactor;
                     var deltaY = (e.OffsetY - _groupDragStart.Value.Y) / ScaleFactor;
@@ -541,6 +597,12 @@
                 break;
 
             case MouseMode.Moving:
+                // Clear group resize state if resizing
+                if (_groupResizeArgs != null)
+                {
+                    _groupResizeArgs = null;
+                    _groupResizeOriginal = null;
+                }
                 // Finalize node positions
                 State.Nodes.SetDirty(true);
                 break;
@@ -845,9 +907,27 @@
 
     private void SelectGroup(NodeGroup group)
     {
-        // Select all nodes in group
+        // Select this group and show resize handles
+        _selectedGroup = group;
+        // Clear node selection when selecting a group
+        State.Nodes.ClearSelection();
         MovingSet.Clear();
-        // TODO: Get nodes in group
+        StateHasChanged();
+    }
+    
+    // Edit group properties in tray - translated from Node-RED group editing
+    private void EditGroup(NodeGroup group)
+    {
+        // Emit event to open group editor
+        State.Events.Emit("group:edit", new { Group = group });
+    }
+    
+    // Handle group resize start - translated from Node-RED group resize handling
+    private void HandleGroupResizeStart(NodeGroupComponent.ResizeEventArgs args)
+    {
+        _groupResizeArgs = args;
+        _groupResizeOriginal = (args.Group.X, args.Group.Y, args.Group.Width, args.Group.Height);
+        _mouseMode = MouseMode.Moving; // Reuse moving mode for resize
         StateHasChanged();
     }
     
