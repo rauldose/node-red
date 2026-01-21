@@ -843,6 +843,46 @@
         workspacesRef?.Redraw(true);
     }
 
+    /// <summary>
+    /// Distribute selected nodes evenly
+    /// Translated from core:distribute-selection-* in view-tools.js
+    /// </summary>
+    private void DistributeSelection(string direction)
+    {
+        var selectedNodes = State.Nodes.GetSelectedNodes().OrderBy(n => direction == "horizontal" ? n.X : n.Y).ToList();
+        if (selectedNodes.Count < 3) return;
+        
+        if (direction == "horizontal")
+        {
+            var minX = selectedNodes.First().X;
+            var maxX = selectedNodes.Last().X;
+            var totalSpacing = maxX - minX;
+            var spacing = totalSpacing / (selectedNodes.Count - 1);
+            
+            for (int i = 1; i < selectedNodes.Count - 1; i++)
+            {
+                selectedNodes[i].X = minX + (spacing * i);
+                selectedNodes[i].Dirty = true;
+            }
+        }
+        else // vertical
+        {
+            var minY = selectedNodes.First().Y;
+            var maxY = selectedNodes.Last().Y;
+            var totalSpacing = maxY - minY;
+            var spacing = totalSpacing / (selectedNodes.Count - 1);
+            
+            for (int i = 1; i < selectedNodes.Count - 1; i++)
+            {
+                selectedNodes[i].Y = minY + (spacing * i);
+                selectedNodes[i].Dirty = true;
+            }
+        }
+        
+        State.Nodes.SetDirty(true);
+        workspacesRef?.Redraw(true);
+    }
+
     // ============================================================
     // Panel resize handlers - translated from setupSidebarSeparator()
     // ============================================================
@@ -1226,6 +1266,14 @@
                     }},
                     new() { Label = "Align bottom", Icon = "fa-long-arrow-down", Disabled = !hasMultipleSelection, OnClick = () => {
                         AlignSelection("bottom");
+                    }},
+                    new() { IsSeparator = true },
+                    // Distribution options - translated from view-tools.js
+                    new() { Label = "Distribute horizontally", Icon = "fa-arrows-h", Disabled = selectedNodes.Count < 3, OnClick = () => {
+                        DistributeSelection("horizontal");
+                    }},
+                    new() { Label = "Distribute vertically", Icon = "fa-arrows-v", Disabled = selectedNodes.Count < 3, OnClick = () => {
+                        DistributeSelection("vertical");
                     }},
                     new() { IsSeparator = true },
                     new() { Label = "Delete", Icon = "fa-trash", Shortcut = "Delete", Disabled = !hasSelection, OnClick = () => {
