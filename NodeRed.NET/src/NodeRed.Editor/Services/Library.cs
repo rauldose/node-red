@@ -25,6 +25,42 @@ public class Library
     }
 
     /// <summary>
+    /// Save content to library by type and name.
+    /// </summary>
+    public void Save(string type, string name, string content)
+    {
+        var key = $"{type}/{name}";
+        _localLibrary[key] = new LibraryEntry
+        {
+            Id = Guid.NewGuid().ToString(),
+            Path = type,
+            Name = name,
+            Type = type,
+            Data = content,
+            CreatedAt = _localLibrary.TryGetValue(key, out var existing) ? existing.CreatedAt : DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        
+        LibraryChanged?.Invoke(this, new LibraryChangedEventArgs { Action = "save", Path = key });
+    }
+
+    /// <summary>
+    /// Get all library entries by type.
+    /// </summary>
+    public IEnumerable<SimpleLibraryEntry> GetAll(string type)
+    {
+        return _localLibrary.Values
+            .Where(e => e.Type == type)
+            .OrderBy(e => e.Name)
+            .Select(e => new SimpleLibraryEntry
+            {
+                Name = e.Name,
+                Content = e.Data,
+                Created = e.CreatedAt
+            });
+    }
+
+    /// <summary>
     /// Save flows to library.
     /// Translated from saveToLibrary() in library.js
     /// </summary>
@@ -214,6 +250,16 @@ public class Library
             Z = item.TryGetValue("z", out var z) ? z.GetString() ?? "" : ""
         }).ToList();
     }
+}
+
+/// <summary>
+/// Simple library entry for external use
+/// </summary>
+public class SimpleLibraryEntry
+{
+    public string Name { get; set; } = "";
+    public string Content { get; set; } = "";
+    public DateTime Created { get; set; }
 }
 
 /// <summary>

@@ -55,6 +55,7 @@ public class Keyboard
         AddBinding("ctrl+a", "core:select-all-nodes");
         AddBinding("delete", "core:delete-selection");
         AddBinding("backspace", "core:delete-selection");
+        AddBinding("ctrl+backspace", "core:delete-selection-and-reconnect");
 
         // Navigation
         AddBinding("ctrl+f", "core:search");
@@ -70,9 +71,20 @@ public class Keyboard
         // Groups
         AddBinding("ctrl+shift+g", "core:group-selection");
         AddBinding("ctrl+shift+u", "core:ungroup-selection");
+        
+        // Subflows
+        AddBinding("ctrl+shift+s", "core:create-subflow");
 
         // Quick add
         AddBinding("ctrl+shift+p", "core:show-action-list");
+        
+        // Tab navigation - translated from workspaces.js core:show-next-tab / core:show-previous-tab
+        AddBinding("ctrl+pagedown", "core:show-next-tab");
+        AddBinding("ctrl+pageup", "core:show-previous-tab");
+        
+        // View history navigation - translated from core:go-to-previous-location / core:go-to-next-location
+        AddBinding("alt+left", "core:go-to-previous-location");
+        AddBinding("alt+right", "core:go-to-next-location");
 
         // Arrow key navigation
         AddBinding("left", "core:move-selection-left");

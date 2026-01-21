@@ -249,6 +249,14 @@
                     </tbody>
                 </table>
 
+                @if (!string.IsNullOrEmpty(GetNodeInfo(SelectedNode)))
+                {
+                    <div class="red-ui-info-section" style="margin-top: 12px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
+                        <h4 style="font-size: 12px; margin: 0 0 6px 0; color: #666;"><i class="fa fa-info-circle"></i> Description</h4>
+                        <div style="font-size: 12px; color: #444; white-space: pre-wrap;">@GetNodeInfo(SelectedNode)</div>
+                    </div>
+                }
+
                 @if (SelectedNode.Type != "comment" && SelectedNode.Type != "junction")
                 {
                     <div style="margin-top: 8px;">
@@ -273,6 +281,13 @@
                         </tr>
                     </tbody>
                 </table>
+                @if (!string.IsNullOrEmpty(GetSubflowInfo(SelectedSubflow)))
+                {
+                    <div class="red-ui-info-section" style="margin-top: 12px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
+                        <h4 style="font-size: 12px; margin: 0 0 6px 0; color: #666;"><i class="fa fa-info-circle"></i> Description</h4>
+                        <div style="font-size: 12px; color: #444; white-space: pre-wrap;">@GetSubflowInfo(SelectedSubflow)</div>
+                    </div>
+                }
             }
             else if (SelectedWorkspace != null)
             {
@@ -288,6 +303,13 @@
                         </tr>
                     </tbody>
                 </table>
+                @if (!string.IsNullOrEmpty(GetWorkspaceInfo(SelectedWorkspace)))
+                {
+                    <div class="red-ui-info-section" style="margin-top: 12px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
+                        <h4 style="font-size: 12px; margin: 0 0 6px 0; color: #666;"><i class="fa fa-info-circle"></i> Description</h4>
+                        <div style="font-size: 12px; color: #444; white-space: pre-wrap;">@GetWorkspaceInfo(SelectedWorkspace)</div>
+                    </div>
+                }
             }
             else
             {
@@ -528,6 +550,59 @@
             "comment" => "#fff",
             _ => "#ddd"
         };
+    }
+
+    /// <summary>
+    /// Get a property value from an object using reflection.
+    /// </summary>
+    private string? GetPropertyByReflection(object? obj, string propertyName)
+    {
+        if (obj == null) return null;
+        
+        var type = obj.GetType();
+        var property = type.GetProperty(propertyName);
+        if (property != null)
+        {
+            var value = property.GetValue(obj);
+            return value?.ToString();
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Get the Info property from a node using reflection and properties dictionary.
+    /// </summary>
+    private string? GetNodeInfo(FlowNode? node)
+    {
+        if (node == null) return null;
+        
+        // First try reflection
+        var info = GetPropertyByReflection(node, "Info");
+        if (!string.IsNullOrEmpty(info)) return info;
+        
+        // Then try the Properties dictionary
+        if (node.Properties.TryGetValue("info", out var infoVal))
+        {
+            return infoVal?.ToString();
+        }
+        
+        return null;
+    }
+
+    /// <summary>
+    /// Get the Info property from a subflow using reflection.
+    /// </summary>
+    private string? GetSubflowInfo(Subflow? subflow)
+    {
+        return GetPropertyByReflection(subflow, "Info");
+    }
+
+    /// <summary>
+    /// Get the Info property from a workspace using reflection.
+    /// </summary>
+    private string? GetWorkspaceInfo(Workspace? workspace)
+    {
+        return GetPropertyByReflection(workspace, "Info");
     }
 
     public void Refresh()

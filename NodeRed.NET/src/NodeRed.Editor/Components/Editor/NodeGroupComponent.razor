@@ -1,10 +1,13 @@
 @* Node group component *@
+@* Translated from Node-RED group rendering in view.js with resize handles *@
 @using NodeRed.Editor.Services
 
-<g class="red-ui-flow-group" 
+<g class="red-ui-flow-group @(Selected ? "selected" : "")" 
    transform="translate(@Group.X, @Group.Y)">
+    @* Main group body rectangle *@
     <rect class="red-ui-flow-group-body"
           @onclick="OnClick"
+          @ondblclick="HandleDoubleClick"
           @onmousedown="HandleMouseDown"
           @onmousedown:stopPropagation="true"
           @onmouseup="HandleMouseUp"
@@ -15,17 +18,75 @@
           rx="5" ry="5"
           fill="@(GetStyleValue("fill", "none"))"
           fill-opacity="@(GetStyleValue("fill-opacity", "0.2"))"
-          stroke="@(GetStyleValue("stroke", "#a4a4a4"))"
+          stroke="@(Selected ? "#ff7f0e" : GetStyleValue("stroke", "#a4a4a4"))"
           stroke-opacity="@(GetStyleValue("stroke-opacity", "1"))"
-          stroke-width="2"
+          stroke-width="@(Selected ? 3 : 2)"
           stroke-dasharray="10,5"
           style="cursor: move;" />
+    
+    @* Group label - translated from Node-RED group label rendering *@
     @if (!string.IsNullOrEmpty(Group.Name) && (Group.Style?.Label ?? true))
     {
         var labelColor = GetStyleValue("color", "#a4a4a4");
         var labelPosition = GetStyleValue("label-position", "nw");
         var (labelX, labelY) = GetLabelPosition(labelPosition);
         @((MarkupString)$"<text x=\"{labelX}\" y=\"{labelY}\" class=\"red-ui-flow-group-label\" fill=\"{System.Net.WebUtility.HtmlEncode(labelColor)}\" font-size=\"12\" font-family=\"Helvetica Neue, sans-serif\">{System.Net.WebUtility.HtmlEncode(Group.Name)}</text>")
+    }
+    
+    @* Resize handles - only visible when group is selected *@
+    @* Translated from Node-RED group resize handles in view.js *@
+    @if (Selected)
+    {
+        @* Corner resize handles *@
+        <rect class="red-ui-flow-group-resize-handle" 
+              x="-5" y="-5" width="10" height="10" 
+              fill="#ff7f0e" stroke="#ff7f0e"
+              style="cursor: nwse-resize;"
+              @onmousedown="e => HandleResizeStart(e, ResizeDirection.NorthWest)"
+              @onmousedown:stopPropagation="true" />
+        <rect class="red-ui-flow-group-resize-handle" 
+              x="@(Group.Width - 5)" y="-5" width="10" height="10" 
+              fill="#ff7f0e" stroke="#ff7f0e"
+              style="cursor: nesw-resize;"
+              @onmousedown="e => HandleResizeStart(e, ResizeDirection.NorthEast)"
+              @onmousedown:stopPropagation="true" />
+        <rect class="red-ui-flow-group-resize-handle" 
+              x="-5" y="@(Group.Height - 5)" width="10" height="10" 
+              fill="#ff7f0e" stroke="#ff7f0e"
+              style="cursor: nesw-resize;"
+              @onmousedown="e => HandleResizeStart(e, ResizeDirection.SouthWest)"
+              @onmousedown:stopPropagation="true" />
+        <rect class="red-ui-flow-group-resize-handle" 
+              x="@(Group.Width - 5)" y="@(Group.Height - 5)" width="10" height="10" 
+              fill="#ff7f0e" stroke="#ff7f0e"
+              style="cursor: nwse-resize;"
+              @onmousedown="e => HandleResizeStart(e, ResizeDirection.SouthEast)"
+              @onmousedown:stopPropagation="true" />
+        @* Edge resize handles *@
+        <rect class="red-ui-flow-group-resize-handle" 
+              x="@(Group.Width / 2 - 5)" y="-5" width="10" height="10" 
+              fill="#ff7f0e" stroke="#ff7f0e"
+              style="cursor: ns-resize;"
+              @onmousedown="e => HandleResizeStart(e, ResizeDirection.North)"
+              @onmousedown:stopPropagation="true" />
+        <rect class="red-ui-flow-group-resize-handle" 
+              x="@(Group.Width / 2 - 5)" y="@(Group.Height - 5)" width="10" height="10" 
+              fill="#ff7f0e" stroke="#ff7f0e"
+              style="cursor: ns-resize;"
+              @onmousedown="e => HandleResizeStart(e, ResizeDirection.South)"
+              @onmousedown:stopPropagation="true" />
+        <rect class="red-ui-flow-group-resize-handle" 
+              x="-5" y="@(Group.Height / 2 - 5)" width="10" height="10" 
+              fill="#ff7f0e" stroke="#ff7f0e"
+              style="cursor: ew-resize;"
+              @onmousedown="e => HandleResizeStart(e, ResizeDirection.West)"
+              @onmousedown:stopPropagation="true" />
+        <rect class="red-ui-flow-group-resize-handle" 
+              x="@(Group.Width - 5)" y="@(Group.Height / 2 - 5)" width="10" height="10" 
+              fill="#ff7f0e" stroke="#ff7f0e"
+              style="cursor: ew-resize;"
+              @onmousedown="e => HandleResizeStart(e, ResizeDirection.East)"
+              @onmousedown:stopPropagation="true" />
     }
 </g>
 
@@ -34,13 +95,38 @@
     public NodeGroup Group { get; set; } = null!;
 
     [Parameter]
+    public bool Selected { get; set; }
+    
+    [Parameter]
     public EventCallback OnClick { get; set; }
+    
+    [Parameter]
+    public EventCallback OnDoubleClick { get; set; }
     
     [Parameter]
     public EventCallback<Microsoft.AspNetCore.Components.Web.MouseEventArgs> OnMouseDown { get; set; }
     
     [Parameter]
     public EventCallback<Microsoft.AspNetCore.Components.Web.MouseEventArgs> OnMouseUp { get; set; }
+    
+    [Parameter]
+    public EventCallback<ResizeEventArgs> OnResizeStart { get; set; }
+    
+    // Resize direction enum - translated from Node-RED group resize handling
+    public enum ResizeDirection
+    {
+        North, South, East, West,
+        NorthWest, NorthEast, SouthWest, SouthEast
+    }
+    
+    // Resize event arguments
+    public class ResizeEventArgs
+    {
+        public NodeGroup Group { get; set; } = null!;
+        public ResizeDirection Direction { get; set; }
+        public double StartX { get; set; }
+        public double StartY { get; set; }
+    }
     
     private async Task HandleMouseDown(Microsoft.AspNetCore.Components.Web.MouseEventArgs e)
     {
@@ -50,6 +136,22 @@
     private async Task HandleMouseUp(Microsoft.AspNetCore.Components.Web.MouseEventArgs e)
     {
         await OnMouseUp.InvokeAsync(e);
+    }
+    
+    private async Task HandleDoubleClick(Microsoft.AspNetCore.Components.Web.MouseEventArgs e)
+    {
+        await OnDoubleClick.InvokeAsync();
+    }
+    
+    private async Task HandleResizeStart(Microsoft.AspNetCore.Components.Web.MouseEventArgs e, ResizeDirection direction)
+    {
+        await OnResizeStart.InvokeAsync(new ResizeEventArgs
+        {
+            Group = Group,
+            Direction = direction,
+            StartX = e.ClientX,
+            StartY = e.ClientY
+        });
     }
     
     private string GetStyleValue(string property, string defaultValue)
@@ -71,11 +173,14 @@
     private (double x, double y) GetLabelPosition(string position)
     {
         // Label positions: nw (northwest), ne (northeast), sw (southwest), se (southeast)
+        // Translated from Node-RED group label position handling
         return position switch
         {
             "ne" => (Group.Width - 10, 20),
             "sw" => (10, Group.Height - 10),
             "se" => (Group.Width - 10, Group.Height - 10),
+            "n" => (Group.Width / 2, 20),
+            "s" => (Group.Width / 2, Group.Height - 10),
             _ => (10, 20) // default to nw
         };
     }

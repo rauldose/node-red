@@ -87,7 +87,19 @@ public class ViewTools
     /// </summary>
     public void AlignSelectionToGrid()
     {
-        // TODO: Implement when selection API is available
+        var selection = _state.Nodes.GetSelectedNodes();
+        foreach (var node in selection)
+        {
+            var (snappedX, snappedY) = SnapToGridPosition(node.X, node.Y);
+            node.X = snappedX;
+            node.Y = snappedY;
+            node.Dirty = true;
+        }
+        
+        if (selection.Any())
+        {
+            _state.Events.Emit("nodes:move", null);
+        }
     }
     
     /// <summary>
@@ -96,7 +108,23 @@ public class ViewTools
     /// </summary>
     public void DistributeSelectionHorizontally()
     {
-        // TODO: Implement when selection API is available
+        var selection = _state.Nodes.GetSelectedNodes().OrderBy(n => n.X).ToList();
+        if (selection.Count < 3)
+        {
+            return; // Need at least 3 nodes to distribute
+        }
+        
+        var minX = selection.First().X;
+        var maxX = selection.Last().X;
+        var spacing = (maxX - minX) / (selection.Count - 1);
+        
+        for (int i = 1; i < selection.Count - 1; i++)
+        {
+            selection[i].X = minX + (spacing * i);
+            selection[i].Dirty = true;
+        }
+        
+        _state.Events.Emit("nodes:move", null);
     }
     
     /// <summary>
@@ -104,7 +132,23 @@ public class ViewTools
     /// </summary>
     public void DistributeSelectionVertically()
     {
-        // TODO: Implement when selection API is available
+        var selection = _state.Nodes.GetSelectedNodes().OrderBy(n => n.Y).ToList();
+        if (selection.Count < 3)
+        {
+            return; // Need at least 3 nodes to distribute
+        }
+        
+        var minY = selection.First().Y;
+        var maxY = selection.Last().Y;
+        var spacing = (maxY - minY) / (selection.Count - 1);
+        
+        for (int i = 1; i < selection.Count - 1; i++)
+        {
+            selection[i].Y = minY + (spacing * i);
+            selection[i].Dirty = true;
+        }
+        
+        _state.Events.Emit("nodes:move", null);
     }
 }
 

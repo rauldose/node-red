@@ -452,6 +452,57 @@ public class EditorNodes
 
         return _configNodes.TryGetValue(id, out var configNode) ? configNode : null;
     }
+    
+    /// <summary>
+    /// Flash/highlight a node for visual feedback.
+    /// Translated from flashNode() in view.js
+    /// </summary>
+    private string? _flashingNodeId;
+    private System.Timers.Timer? _flashTimer;
+    
+    public void FlashNode(string nodeId)
+    {
+        var node = GetNode(nodeId);
+        if (node == null) return;
+        
+        // Cancel any existing flash
+        if (_flashingNodeId != null)
+        {
+            var existingNode = GetNode(_flashingNodeId);
+            if (existingNode != null)
+            {
+                existingNode.Highlighted = false;
+                existingNode.Dirty = true;
+            }
+            _flashTimer?.Stop();
+            _flashTimer?.Dispose();
+        }
+        
+        // Start new flash
+        _flashingNodeId = nodeId;
+        node.Highlighted = true;
+        node.Dirty = true;
+        
+        var flashEndTime = DateTime.Now.AddMilliseconds(2200);
+        _flashTimer = new System.Timers.Timer(100);
+        _flashTimer.Elapsed += (s, e) =>
+        {
+            if (DateTime.Now < flashEndTime)
+            {
+                node.Highlighted = !node.Highlighted;
+                node.Dirty = true;
+            }
+            else
+            {
+                node.Highlighted = false;
+                node.Dirty = true;
+                _flashTimer?.Stop();
+                _flashTimer?.Dispose();
+                _flashingNodeId = null;
+            }
+        };
+        _flashTimer.Start();
+    }
 
     public List<FlowNode> GetNodes() => _nodes.ToList();
     public List<NodeLink> GetLinks() => _links.ToList();
@@ -472,6 +523,17 @@ public class EditorNodes
     }
     
     public List<Junction> GetJunctions() => _junctions.ToList();
+    
+    /// <summary>
+    /// Add a junction to the canvas.
+    /// Translated from RED.nodes.addJunction() in nodes.js
+    /// </summary>
+    public void AddJunction(Junction junction)
+    {
+        _junctions.Add(junction);
+        SetDirty(true);
+    }
+    
     public List<Subflow> GetSubflows() => _subflows.Values.ToList();
     public List<Subflow> GetAllSubflows() => GetSubflows(); // Alias for consistency
     public Subflow? GetSubflow(string id) => _subflows.TryGetValue(id, out var sf) ? sf : null;
@@ -725,6 +787,10 @@ public class EditorWorkspaces
     private int _workspaceIndex = 0;
     private readonly List<Workspace> _workspaces = new();
     private readonly List<string> _workspaceOrder = new();
+    
+    // View navigation history - translated from workspaces.js line 25-37
+    private readonly List<string> _viewStack = new();
+    private int _viewStackPos = 0;
 
     public int Count => _workspaces.Count;
 
@@ -736,6 +802,109 @@ public class EditorWorkspaces
     public void SetActive(string id)
     {
         _activeWorkspace = id;
+    }
+    
+    /// <summary>
+    /// Add current workspace to view history stack before navigating.
+    /// Translated from workspaces.js addToViewStack()
+    /// </summary>
+    public void AddToViewStack(string id)
+    {
+        if (_viewStackPos != _viewStack.Count)
+        {
+            // If we're not at the end of the stack, truncate
+            _viewStack.RemoveRange(_viewStackPos, _viewStack.Count - _viewStackPos);
+        }
+        _viewStack.Add(id);
+        _viewStackPos = _viewStack.Count;
+    }
+    
+    /// <summary>
+    /// Navigate to previous location in history.
+    /// Translated from core:go-to-previous-location action
+    /// </summary>
+    public bool GoToPreviousLocation()
+    {
+        if (_viewStackPos > 0)
+        {
+            if (_viewStackPos == _viewStack.Count)
+            {
+                // We're at the end of the stack. Remember the activeWorkspace
+                // so we can come back to it.
+                _viewStack.Add(_activeWorkspace);
+            }
+            _viewStackPos--;
+            _activeWorkspace = _viewStack[_viewStackPos];
+            return true;
+        }
+        return false;
+    }
+    
+    /// <summary>
+    /// Navigate to next location in history.
+    /// Translated from core:go-to-next-location action
+    /// </summary>
+    public bool GoToNextLocation()
+    {
+        if (_viewStackPos < _viewStack.Count - 1)
+        {
+            _viewStackPos++;
+            _activeWorkspace = _viewStack[_viewStackPos];
+            return true;
+        }
+        return false;
+    }
+    
+    /// <summary>
+    /// Check if can go to previous location.
+    /// </summary>
+    public bool CanGoToPreviousLocation() => _viewStackPos > 0;
+    
+    /// <summary>
+    /// Check if can go to next location.
+    /// </summary>
+    public bool CanGoToNextLocation() => _viewStackPos < _viewStack.Count - 1;
+    
+    /// <summary>
+    /// Navigate to next workspace tab.
+    /// Translated from tabs.js nextTab()
+    /// </summary>
+    public bool NextTab()
+    {
+        var currentIndex = _workspaceOrder.IndexOf(_activeWorkspace);
+        if (currentIndex < 0 || _workspaceOrder.Count < 2) return false;
+        
+        var nextIndex = (currentIndex + 1) % _workspaceOrder.Count;
+        var oldActive = _activeWorkspace;
+        _activeWorkspace = _workspaceOrder[nextIndex];
+        
+        if (oldActive != _activeWorkspace)
+        {
+            AddToViewStack(oldActive);
+            return true;
+        }
+        return false;
+    }
+    
+    /// <summary>
+    /// Navigate to previous workspace tab.
+    /// Translated from tabs.js previousTab()
+    /// </summary>
+    public bool PreviousTab()
+    {
+        var currentIndex = _workspaceOrder.IndexOf(_activeWorkspace);
+        if (currentIndex < 0 || _workspaceOrder.Count < 2) return false;
+        
+        var prevIndex = currentIndex == 0 ? _workspaceOrder.Count - 1 : currentIndex - 1;
+        var oldActive = _activeWorkspace;
+        _activeWorkspace = _workspaceOrder[prevIndex];
+        
+        if (oldActive != _activeWorkspace)
+        {
+            AddToViewStack(oldActive);
+            return true;
+        }
+        return false;
     }
 
     public string Active() => _activeWorkspace;
@@ -767,6 +936,57 @@ public class EditorWorkspaces
         _activeWorkspace = "";
     }
 
+    /// <summary>
+    /// Remove a workspace from the collection.
+    /// </summary>
+    public void Remove(string id)
+    {
+        var workspace = _workspaces.FirstOrDefault(w => w.Id == id);
+        if (workspace != null)
+        {
+            _workspaces.Remove(workspace);
+            _workspaceOrder.Remove(id);
+            
+            // If we removed the active workspace, switch to another
+            if (_activeWorkspace == id)
+            {
+                _activeWorkspace = _workspaces.FirstOrDefault()?.Id ?? "";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reorder a workspace to a new position.
+    /// Translated from tabs.js onreorder callback
+    /// </summary>
+    public void ReorderWorkspace(string workspaceId, int newIndex)
+    {
+        var currentIndex = _workspaceOrder.IndexOf(workspaceId);
+        if (currentIndex == -1 || currentIndex == newIndex) return;
+        
+        // Remove from current position
+        _workspaceOrder.RemoveAt(currentIndex);
+        
+        // Insert at new position (adjust for removal)
+        if (newIndex > currentIndex)
+        {
+            newIndex--;
+        }
+        if (newIndex < 0) newIndex = 0;
+        if (newIndex > _workspaceOrder.Count) newIndex = _workspaceOrder.Count;
+        
+        _workspaceOrder.Insert(newIndex, workspaceId);
+        
+        // Also reorder the actual workspace list to match
+        var workspace = _workspaces.FirstOrDefault(w => w.Id == workspaceId);
+        if (workspace != null)
+        {
+            _workspaces.Remove(workspace);
+            if (newIndex > _workspaces.Count) newIndex = _workspaces.Count;
+            _workspaces.Insert(newIndex, workspace);
+        }
+    }
+
     public Workspace? Get(string id) => _workspaces.FirstOrDefault(w => w.Id == id);
 }
 
@@ -779,6 +999,8 @@ public class Workspace
     public string Type { get; set; } = "tab";
     public string Label { get; set; } = "";
     public bool Disabled { get; set; }
+    public bool Locked { get; set; }  // Locked state - prevents editing - translated from Node-RED
+    public bool Hidden { get; set; }   // Hidden state - tab is hidden - translated from Node-RED
     public string Info { get; set; } = "";
     public string Env { get; set; } = "";
 }
@@ -955,6 +1177,8 @@ public class FlowNode
     public bool DirtyStatus { get; set; }
     public bool Dirty { get; set; }
     public bool Selected { get; set; }
+    public bool Disabled { get; set; }  // Node disabled state - translated from node.d in Node-RED
+    public bool Highlighted { get; set; }  // Node highlight state for flash animation - translated from view.js flashNode
     public Dictionary<string, object?> Properties { get; set; } = new();
 }
 
@@ -1023,6 +1247,8 @@ public class Junction
     public string Z { get; set; } = "";
     public double X { get; set; }
     public double Y { get; set; }
+    public int Inputs { get; set; } = 1;
+    public int Outputs { get; set; } = 1;
 }
 
 public class NodeLink

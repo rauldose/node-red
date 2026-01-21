@@ -112,36 +112,116 @@ public class Actions
         GroupManager groupManager,
         SubflowManager subflowManager)
     {
-        // Edit actions - all placeholders
+        // Edit actions
         Add("core:undo", () => history.Undo());
         Add("core:redo", () => history.Redo());
-        Add("core:copy-selection-to-internal-clipboard", () => { /* TODO: clipboard copy */ });
-        Add("core:cut-selection-to-internal-clipboard", () => { /* TODO: clipboard cut */ });
-        Add("core:paste-from-internal-clipboard", () => { /* TODO: clipboard paste */ });
+        Add("core:copy-selection-to-internal-clipboard", () => 
+        {
+            var selection = _state.Nodes.GetSelectedNodes().ToList();
+            if (selection.Any())
+            {
+                clipboard.CopySelection(selection);
+            }
+        });
+        Add("core:cut-selection-to-internal-clipboard", () => 
+        {
+            var selection = _state.Nodes.GetSelectedNodes().ToList();
+            if (selection.Any())
+            {
+                clipboard.CopySelection(selection);
+                foreach (var node in selection)
+                {
+                    _state.Nodes.Remove(node);
+                }
+            }
+        });
+        Add("core:paste-from-internal-clipboard", () => 
+        {
+            // Paste uses Import() which is already implemented in Clipboard
+            _state.Events.Emit("editor:paste", null);
+        });
         
         // Selection actions
-        Add("core:select-all-nodes", () => { /* TODO: Select all nodes */ });
-        Add("core:select-none", () => { /* TODO: Clear selection */ });
-        Add("core:delete-selection", () => { /* TODO: Delete selection */ });
+        Add("core:select-all-nodes", () => 
+        {
+            var activeWorkspace = _state.Workspaces.Active();
+            _state.Nodes.SelectAll(activeWorkspace);
+            _state.Events.Emit("view:selection-changed", null);
+        });
+        Add("core:select-none", () => 
+        {
+            _state.Nodes.ClearSelection();
+            _state.Events.Emit("view:selection-changed", null);
+        });
+        Add("core:delete-selection", () => 
+        {
+            var selection = _state.Nodes.GetSelectedNodes().ToList();
+            if (selection.Any())
+            {
+                _state.Nodes.DeleteSelection();
+                history.Push(new HistoryEvent
+                {
+                    Type = HistoryEventType.Delete,
+                    NodeIds = selection.Select(n => n.Id).ToList()
+                });
+                _state.Events.Emit("nodes:delete", null);
+            }
+        });
         
         // Flow actions
-        Add("core:show-import-dialog", () => { /* Opens import dialog */ });
-        Add("core:show-export-dialog", () => { /* Opens export dialog */ });
+        Add("core:show-import-dialog", () => 
+        {
+            _state.Events.Emit("editor:open-import-dialog", null);
+        });
+        Add("core:show-export-dialog", () => 
+        {
+            _state.Events.Emit("editor:open-export-dialog", null);
+        });
         
         // Group actions
-        Add("core:group-selection", () => { /* TODO: Create group */ });
-        Add("core:ungroup-selection", () => { /* TODO: Ungroup */ });
+        Add("core:group-selection", () => 
+        {
+            var selection = _state.Nodes.GetSelectedNodes().ToList();
+            if (selection.Count >= 2)
+            {
+                groupManager.CreateGroup(selection);
+                _state.Events.Emit("groups:add", null);
+            }
+        });
+        Add("core:ungroup-selection", () => 
+        {
+            var selection = _state.Nodes.GetSelectedNodes().ToList();
+            groupManager.UngroupSelection(selection);
+            _state.Events.Emit("groups:remove", null);
+        });
         
         // Subflow actions
-        Add("core:create-subflow", () => { /* TODO: Create subflow */ });
+        Add("core:create-subflow", () => 
+        {
+            var selection = _state.Nodes.GetSelectedNodes().ToList();
+            subflowManager.CreateSubflow(selection);
+            _state.Events.Emit("subflows:add", null);
+        });
         
-        // View actions
-        Add("core:zoom-in", () => { /* TODO: Zoom in */ });
-        Add("core:zoom-out", () => { /* TODO: Zoom out */ });
-        Add("core:zoom-reset", () => { /* TODO: Zoom reset */ });
+        // View actions - use simple zoom approach
+        Add("core:zoom-in", () => 
+        {
+            _state.Events.Emit("view:zoom-in", null);
+        });
+        Add("core:zoom-out", () => 
+        {
+            _state.Events.Emit("view:zoom-out", null);
+        });
+        Add("core:zoom-reset", () => 
+        {
+            _state.Events.Emit("view:zoom-reset", null);
+        });
         
         // Deploy action
-        Add("core:deploy-flows", () => { /* Triggers deploy */ });
+        Add("core:deploy-flows", () => 
+        {
+            _state.Events.Emit("deploy:start", null);
+        });
     }
 }
 

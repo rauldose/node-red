@@ -28,27 +28,82 @@
 @inject IJSRuntime JS
 
 @* Workspace tabs - translated from workspaceTabs *@
-<div id="red-ui-workspace-tabs">
-    @foreach (var ws in State.Workspaces.GetAll())
-    {
-        <div class="red-ui-tab @(State.Workspaces.Active() == ws.Id ? "active" : "")"
-             @onclick="() => SelectWorkspaceTab(ws.Id)"
-             @ondblclick="() => EditWorkspaceTab(ws)"
-             @oncontextmenu="(e) => ShowTabContextMenu(e, ws)"
-             @oncontextmenu:preventDefault="true">
-            <span>@(string.IsNullOrEmpty(ws.Label) ? "Flow" : ws.Label)</span>
-        </div>
+<div id="red-ui-workspace-tabs" class="red-ui-tabs red-ui-tabs-scrollable">
+    @{
+        var visibleWorkspaces = State.Workspaces.GetAll().Where(w => !w.Hidden).ToList();
+        var hiddenWorkspaces = State.Workspaces.GetAll().Where(w => w.Hidden).ToList();
     }
-    @if (!State.Workspaces.GetAll().Any())
-    {
-        <div class="red-ui-tab active">
-            <span>Flow 1</span>
-        </div>
-    }
+    @* Scroll left button - translated from tabs.js scrollLeft *@
+    <div class="red-ui-tab-button red-ui-tab-scroll red-ui-tab-scroll-left" 
+         style="@(_tabScrollPosition > 0 ? "" : "display: none;")"
+         @onclick="ScrollTabsLeft">
+        <a href="#" @onclick:preventDefault="true"><i class="fa fa-caret-left"></i></a>
+    </div>
+    
+    <div class="red-ui-tabs-scroll-container" @ref="_tabScrollContainer" style="overflow-x: auto; display: flex; flex: 1;">
+        @foreach (var ws in visibleWorkspaces)
+        {
+            var index = visibleWorkspaces.IndexOf(ws);
+            <div class="red-ui-tab @(State.Workspaces.Active() == ws.Id ? "active" : "") @(ws.Disabled ? "red-ui-tab-disabled" : "") @(ws.Locked ? "red-ui-workspace-locked" : "") @(_dragOverTabId == ws.Id ? "red-ui-tab-drag-over" : "")"
+                 @onclick="() => SelectWorkspaceTab(ws.Id)"
+                 @ondblclick="() => EditWorkspaceTab(ws)"
+                 @oncontextmenu="(e) => ShowTabContextMenu(e, ws)"
+                 @oncontextmenu:preventDefault="true"
+                 draggable="true"
+                 @ondragstart="(e) => HandleTabDragStart(e, ws, index)"
+                 @ondragover="(e) => HandleTabDragOver(e, ws)"
+                 @ondragover:preventDefault="true"
+                 @ondrop="(e) => HandleTabDrop(e, ws, index)"
+                 @ondragleave="HandleTabDragLeave"
+                 @ondragend="HandleTabDragEnd"
+                 title="@(ws.Locked ? "Flow is locked" : "")">
+                @if (ws.Locked)
+                {
+                    <span class="red-ui-workspace-locked-icon"><i class="fa fa-lock"></i> </span>
+                }
+                <span>@(string.IsNullOrEmpty(ws.Label) ? "Flow" : ws.Label)</span>
+            </div>
+        }
+        @if (!visibleWorkspaces.Any())
+        {
+            <div class="red-ui-tab active">
+                <span>Flow 1</span>
+            </div>
+        }
+    </div>
+    
+    @* Scroll right button - translated from tabs.js scrollRight *@
+    <div class="red-ui-tab-button red-ui-tab-scroll red-ui-tab-scroll-right"
+         style="@(_showScrollRight ? "" : "display: none;")"
+         @onclick="ScrollTabsRight">
+        <a href="#" @onclick:preventDefault="true"><i class="fa fa-caret-right"></i></a>
+    </div>
+    
     <div class="red-ui-tab" style="opacity: 0.6; cursor: pointer;" title="Add new flow"
          @onclick="AddNewWorkspace">
         <span>+</span>
     </div>
+    @if (hiddenWorkspaces.Any())
+    {
+        <div class="red-ui-tab red-ui-tabs-select" style="opacity: 0.6; cursor: pointer;" 
+             title="Show hidden flows (@hiddenWorkspaces.Count)"
+             @onclick="ToggleHiddenFlowsDropdown"
+             @onclick:stopPropagation="true">
+            <span><i class="fa fa-caret-down"></i> (@hiddenWorkspaces.Count)</span>
+        </div>
+        @if (_showHiddenFlowsDropdown)
+        {
+            <div class="red-ui-hidden-flows-dropdown" style="position: absolute; top: 100%; right: 0; background: #fff; border: 1px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 100;">
+                @foreach (var hiddenWs in hiddenWorkspaces)
+                {
+                    <div class="red-ui-hidden-flow-item" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee;"
+                         @onclick="() => ShowHiddenFlow(hiddenWs)">
+                        <i class="fa fa-eye"></i> @(string.IsNullOrEmpty(hiddenWs.Label) ? "Flow" : hiddenWs.Label)
+                    </div>
+                }
+            </div>
+        }
+    }
 </div>
 
 <div id="red-ui-workspace-chart" 
@@ -101,9 +156,12 @@
                     @foreach (var group in ActiveGroups)
                     {
                         <NodeGroupComponent Group="@group" 
+                                           Selected="@(_selectedGroup?.Id == group.Id)"
                                            OnClick="@(() => SelectGroup(group))"
+                                           OnDoubleClick="@(() => EditGroup(group))"
                                            OnMouseDown="@((e) => HandleGroupMouseDown(group, e))"
-                                           OnMouseUp="@((e) => HandleGroupMouseUp(group, e))" />
+                                           OnMouseUp="@((e) => HandleGroupMouseUp(group, e))"
+                                           OnResizeStart="@HandleGroupResizeStart" />
                     }
                 </g>
                 
@@ -166,6 +224,18 @@
                           stroke-width="1"
                           stroke-dasharray="5,5" />
                 }
+                
+                @* Wire slicing path - translated from slicePath in view.js *@
+                @if (_slicePath != null && _slicePath.Count >= 2)
+                {
+                    var pathD = "M" + string.Join(" L", _slicePath.Select(p => $"{p.X} {p.Y}"));
+                    <path class="nr-ui-view-slice"
+                          d="@pathD"
+                          stroke="#ff4040"
+                          stroke-width="2"
+                          fill="none"
+                          stroke-dasharray="5,5" />
+                }
             </g>
         </g>
     </svg>
@@ -203,6 +273,19 @@
     private int GridSize = 20;
     private bool SnapGrid = false;
     private bool ShowGrid = true;
+    
+    // Hidden flows dropdown state
+    private bool _showHiddenFlowsDropdown = false;
+    
+    // Tab drag reordering state - translated from tabs.js draggable
+    private Workspace? _draggingTab;
+    private int _dragStartIndex;
+    private string? _dragOverTabId;
+    
+    // Tab scrolling state - translated from tabs.js scroll functionality
+    private ElementReference _tabScrollContainer;
+    private double _tabScrollPosition = 0;
+    private bool _showScrollRight = false;
 
     // Active elements for current flow
     private List<FlowNode> ActiveNodes = new();
@@ -217,7 +300,15 @@
     
     // Group dragging state
     private NodeGroup? _mousedownGroup;
+    private NodeGroup? _selectedGroup;  // Currently selected group for resize handles
     private (double X, double Y)? _groupDragStart;
+    
+    // Group resize state - translated from Node-RED group resize handling
+    private NodeGroupComponent.ResizeEventArgs? _groupResizeArgs;
+    private (double X, double Y, double W, double H)? _groupResizeOriginal;
+    
+    // Wire slicing state - translated from slicePath in view.js
+    private List<(double X, double Y)>? _slicePath;
     
     // Mouse state - translated from mouse_mode, mousedown_*, etc.
     private MouseMode _mouseMode = MouseMode.None;
@@ -296,16 +387,31 @@
             
             if (clickedNode == null)
             {
-                // Only start lasso when clicking on empty space
-                _mouseMode = MouseMode.Lasso;
-                Lasso = new LassoRect { X = e.OffsetX, Y = e.OffsetY, Width = 0, Height = 0 };
-                
-                if (!e.ShiftKey && !e.CtrlKey)
+                // Alt held - Begin wire slicing - translated from view.js line 1298-1306
+                if (e.AltKey)
                 {
-                    // Clear selection when clicking on empty space
+                    // Clear selection when starting slice
                     MovingSet.Clear();
                     SelectedLinks.Clear();
                     State.Nodes.ClearSelection();
+                    
+                    _mouseMode = MouseMode.Slicing;
+                    var point = (X: e.OffsetX / ScaleFactor, Y: e.OffsetY / ScaleFactor);
+                    _slicePath = new List<(double X, double Y)> { point };
+                }
+                else
+                {
+                    // Only start lasso when clicking on empty space
+                    _mouseMode = MouseMode.Lasso;
+                    Lasso = new LassoRect { X = e.OffsetX, Y = e.OffsetY, Width = 0, Height = 0 };
+                    
+                    if (!e.ShiftKey && !e.CtrlKey)
+                    {
+                        // Clear selection when clicking on empty space
+                        MovingSet.Clear();
+                        SelectedLinks.Clear();
+                        State.Nodes.ClearSelection();
+                    }
                 }
             }
         }
@@ -344,8 +450,56 @@
                 break;
 
             case MouseMode.Moving:
+                // Handle group resize - translated from Node-RED group resize
+                if (_groupResizeArgs != null && _groupResizeOriginal.HasValue)
+                {
+                    var deltaX = (e.OffsetX - _groupResizeArgs.StartX) / ScaleFactor;
+                    var deltaY = (e.OffsetY - _groupResizeArgs.StartY) / ScaleFactor;
+                    var orig = _groupResizeOriginal.Value;
+                    var group = _groupResizeArgs.Group;
+                    
+                    // Apply resize based on direction
+                    switch (_groupResizeArgs.Direction)
+                    {
+                        case NodeGroupComponent.ResizeDirection.SouthEast:
+                            group.Width = Math.Max(50, orig.W + deltaX);
+                            group.Height = Math.Max(30, orig.H + deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.SouthWest:
+                            group.X = orig.X + deltaX;
+                            group.Width = Math.Max(50, orig.W - deltaX);
+                            group.Height = Math.Max(30, orig.H + deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.NorthEast:
+                            group.Y = orig.Y + deltaY;
+                            group.Width = Math.Max(50, orig.W + deltaX);
+                            group.Height = Math.Max(30, orig.H - deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.NorthWest:
+                            group.X = orig.X + deltaX;
+                            group.Y = orig.Y + deltaY;
+                            group.Width = Math.Max(50, orig.W - deltaX);
+                            group.Height = Math.Max(30, orig.H - deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.North:
+                            group.Y = orig.Y + deltaY;
+                            group.Height = Math.Max(30, orig.H - deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.South:
+                            group.Height = Math.Max(30, orig.H + deltaY);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.West:
+                            group.X = orig.X + deltaX;
+                            group.Width = Math.Max(50, orig.W - deltaX);
+                            break;
+                        case NodeGroupComponent.ResizeDirection.East:
+                            group.Width = Math.Max(50, orig.W + deltaX);
+                            break;
+                    }
+                    StateHasChanged();
+                }
                 // Handle group dragging
-                if (_mousedownGroup != null && _groupDragStart.HasValue)
+                else if (_mousedownGroup != null && _groupDragStart.HasValue)
                 {
                     var deltaX = (e.OffsetX - _groupDragStart.Value.X) / ScaleFactor;
                     var deltaY = (e.OffsetY - _groupDragStart.Value.Y) / ScaleFactor;
@@ -411,6 +565,21 @@
                     StateHasChanged();
                 }
                 break;
+            
+            case MouseMode.Slicing:
+                // Add points to slice path - translated from view.js line 1847-1853
+                if (_slicePath != null && _mousePosition.HasValue)
+                {
+                    var lastPoint = _slicePath.LastOrDefault();
+                    var delta = Math.Max(1, Math.Abs(lastPoint.X - _mousePosition.Value.X)) * 
+                                Math.Max(1, Math.Abs(lastPoint.Y - _mousePosition.Value.Y));
+                    if (delta > 20) // Only add point if moved enough
+                    {
+                        _slicePath.Add(_mousePosition.Value);
+                    }
+                    StateHasChanged();
+                }
+                break;
         }
     }
 
@@ -428,6 +597,12 @@
                 break;
 
             case MouseMode.Moving:
+                // Clear group resize state if resizing
+                if (_groupResizeArgs != null)
+                {
+                    _groupResizeArgs = null;
+                    _groupResizeOriginal = null;
+                }
                 // Finalize node positions
                 State.Nodes.SetDirty(true);
                 break;
@@ -435,6 +610,15 @@
             case MouseMode.Joining:
                 // Wire creation cancelled (didn't land on a port)
                 ClearWireState();
+                break;
+            
+            case MouseMode.Slicing:
+                // Delete all wires intersected by slice path - translated from view.js line 2275-2283
+                if (_slicePath != null && _slicePath.Count >= 2)
+                {
+                    DeleteWiresIntersectedBySlicePath();
+                }
+                _slicePath = null;
                 break;
         }
 
@@ -656,11 +840,94 @@
         StateHasChanged();
     }
 
+    /// <summary>
+    /// Delete all wires that intersect with the slice path.
+    /// Translated from slicing logic in view.js deleteSelection called after SLICING mode
+    /// </summary>
+    private void DeleteWiresIntersectedBySlicePath()
+    {
+        if (_slicePath == null || _slicePath.Count < 2) return;
+        
+        var linksToRemove = new List<NodeLink>();
+        
+        foreach (var link in ActiveLinks)
+        {
+            if (link.Source == null || link.Target == null) continue;
+            
+            // Get wire endpoints
+            var sourceX = link.Source.X + NodeWidth; // Output port on right side
+            var sourceY = link.Source.Y + NodeHeight / 2;
+            var targetX = link.Target.X; // Input port on left side
+            var targetY = link.Target.Y + NodeHeight / 2;
+            
+            // Check if slice path intersects this wire
+            for (int i = 0; i < _slicePath.Count - 1; i++)
+            {
+                var p1 = _slicePath[i];
+                var p2 = _slicePath[i + 1];
+                
+                // Simple line segment intersection test with wire line
+                if (LinesIntersect(p1.X, p1.Y, p2.X, p2.Y, sourceX, sourceY, targetX, targetY))
+                {
+                    linksToRemove.Add(link);
+                    break;
+                }
+            }
+        }
+        
+        // Remove all intersected links
+        foreach (var link in linksToRemove)
+        {
+            State.Nodes.RemoveLink(link);
+            ActiveLinks.Remove(link);
+        }
+        
+        if (linksToRemove.Count > 0)
+        {
+            State.Nodes.SetDirty(true);
+            StateHasChanged();
+        }
+    }
+    
+    /// <summary>
+    /// Check if two line segments intersect.
+    /// Uses standard line intersection algorithm.
+    /// </summary>
+    private bool LinesIntersect(double x1, double y1, double x2, double y2, 
+                                 double x3, double y3, double x4, double y4)
+    {
+        var d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+        if (Math.Abs(d) < 0.0001) return false; // Parallel lines
+        
+        var t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / d;
+        var u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / d;
+        
+        return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+    }
+
     private void SelectGroup(NodeGroup group)
     {
-        // Select all nodes in group
+        // Select this group and show resize handles
+        _selectedGroup = group;
+        // Clear node selection when selecting a group
+        State.Nodes.ClearSelection();
         MovingSet.Clear();
-        // TODO: Get nodes in group
+        StateHasChanged();
+    }
+    
+    // Edit group properties in tray - translated from Node-RED group editing
+    private void EditGroup(NodeGroup group)
+    {
+        // Emit event to open group editor
+        State.Events.Emit("group:edit", new { Group = group });
+    }
+    
+    // Handle group resize start - translated from Node-RED group resize handling
+    private void HandleGroupResizeStart(NodeGroupComponent.ResizeEventArgs args)
+    {
+        _groupResizeArgs = args;
+        _groupResizeOriginal = (args.Group.X, args.Group.Y, args.Group.Width, args.Group.Height);
+        _mouseMode = MouseMode.Moving; // Reuse moving mode for resize
         StateHasChanged();
     }
     
@@ -755,6 +1022,146 @@
         });
     }
 
+    /// <summary>
+    /// Toggle the hidden flows dropdown visibility
+    /// Translated from workspaces.js hidden tabs functionality
+    /// </summary>
+    private void ToggleHiddenFlowsDropdown()
+    {
+        _showHiddenFlowsDropdown = !_showHiddenFlowsDropdown;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Show a hidden flow (unhide it)
+    /// Translated from workspaces.js onshow functionality
+    /// </summary>
+    private void ShowHiddenFlow(Workspace workspace)
+    {
+        workspace.Hidden = false;
+        _showHiddenFlowsDropdown = false;
+        State.Workspaces.Show(workspace.Id);
+        RefreshView();
+    }
+
+    // ============================================================
+    // Tab drag reordering - translated from tabs.js draggable
+    // ============================================================
+    
+    /// <summary>
+    /// Handle tab drag start
+    /// Translated from tabs.js li.draggable start
+    /// </summary>
+    private void HandleTabDragStart(Microsoft.AspNetCore.Components.Web.DragEventArgs e, Workspace workspace, int index)
+    {
+        _draggingTab = workspace;
+        _dragStartIndex = index;
+        e.DataTransfer.EffectAllowed = "move";
+    }
+    
+    /// <summary>
+    /// Handle tab drag over
+    /// Translated from tabs.js drag handler
+    /// </summary>
+    private void HandleTabDragOver(Microsoft.AspNetCore.Components.Web.DragEventArgs e, Workspace workspace)
+    {
+        if (_draggingTab != null && _draggingTab.Id != workspace.Id)
+        {
+            _dragOverTabId = workspace.Id;
+            e.DataTransfer.DropEffect = "move";
+        }
+    }
+    
+    /// <summary>
+    /// Handle tab drag leave
+    /// </summary>
+    private void HandleTabDragLeave()
+    {
+        _dragOverTabId = null;
+    }
+    
+    /// <summary>
+    /// Handle tab drop - reorder tabs
+    /// Translated from tabs.js draggable stop with onreorder callback
+    /// </summary>
+    private void HandleTabDrop(Microsoft.AspNetCore.Components.Web.DragEventArgs e, Workspace targetWorkspace, int targetIndex)
+    {
+        if (_draggingTab == null || _draggingTab.Id == targetWorkspace.Id)
+        {
+            _dragOverTabId = null;
+            return;
+        }
+        
+        // Reorder workspaces
+        State.Workspaces.ReorderWorkspace(_draggingTab.Id, targetIndex);
+        
+        _dragOverTabId = null;
+        _draggingTab = null;
+        State.Nodes.SetDirty(true);
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Handle tab drag end
+    /// </summary>
+    private void HandleTabDragEnd()
+    {
+        _dragOverTabId = null;
+        _draggingTab = null;
+    }
+
+    // ============================================================
+    // Tab scroll handlers - translated from tabs.js scroll functionality
+    // ============================================================
+    
+    /// <summary>
+    /// Scroll tabs to the left
+    /// Translated from tabs.js scrollLeft handler
+    /// </summary>
+    private async Task ScrollTabsLeft()
+    {
+        _tabScrollPosition = Math.Max(0, _tabScrollPosition - 150);
+        await JS.InvokeVoidAsync("eval", $"document.querySelector('.red-ui-tabs-scroll-container').scrollLeft = {_tabScrollPosition}");
+        await UpdateScrollState();
+    }
+    
+    /// <summary>
+    /// Scroll tabs to the right
+    /// Translated from tabs.js scrollRight handler
+    /// </summary>
+    private async Task ScrollTabsRight()
+    {
+        _tabScrollPosition += 150;
+        await JS.InvokeVoidAsync("eval", $"document.querySelector('.red-ui-tabs-scroll-container').scrollLeft = {_tabScrollPosition}");
+        await UpdateScrollState();
+    }
+    
+    /// <summary>
+    /// Update scroll button visibility based on scroll position
+    /// Translated from tabs.js updateScroll
+    /// </summary>
+    private async Task UpdateScrollState()
+    {
+        try
+        {
+            var scrollInfo = await JS.InvokeAsync<double[]>("eval", 
+                "[document.querySelector('.red-ui-tabs-scroll-container')?.scrollLeft || 0, " +
+                "document.querySelector('.red-ui-tabs-scroll-container')?.scrollWidth || 0, " +
+                "document.querySelector('.red-ui-tabs-scroll-container')?.clientWidth || 0]");
+            
+            if (scrollInfo != null && scrollInfo.Length >= 3)
+            {
+                _tabScrollPosition = scrollInfo[0];
+                _showScrollRight = scrollInfo[0] < (scrollInfo[1] - scrollInfo[2] - 5);
+            }
+        }
+        catch
+        {
+            // Ignore JS errors during scroll state update
+        }
+        StateHasChanged();
+    }
+
     // ============================================================
     // Wiring handlers - translated from port interactions in view.js
     // ============================================================
@@ -818,6 +1225,127 @@
         _mouseMode = MouseMode.None;
         StateHasChanged();
     }
+    
+    // ============================================================
+    // Wire reconnection - translated from view.js DETACHED_DRAGGING mode
+    // ============================================================
+    
+    private NodeLink? _reconnectingLink;
+    private bool _reconnectingFromSource;  // true = dragging from source end, false = from target end
+    
+    /// <summary>
+    /// Start wire reconnection by detaching from source or target.
+    /// Translated from view.js DETACHED_DRAGGING mode
+    /// </summary>
+    public void StartWireReconnect(NodeLink link, bool fromSource)
+    {
+        _reconnectingLink = link;
+        _reconnectingFromSource = fromSource;
+        _mouseMode = MouseMode.Reconnecting;
+        
+        if (fromSource)
+        {
+            // Detach from source, keep target
+            _wireSourceNode = null;
+            // Create drag line from target back to mouse
+            DragLines.Clear();
+            DragLines.Add(new NodeLink
+            {
+                Source = null,
+                Target = link.Target,
+                SourcePort = 0
+            });
+        }
+        else
+        {
+            // Detach from target, keep source
+            _wireSourceNode = link.Source;
+            _wireSourcePortIndex = link.SourcePort;
+            // Create drag line from source to mouse
+            DragLines.Clear();
+            DragLines.Add(new NodeLink
+            {
+                Source = link.Source,
+                Target = null,
+                SourcePort = link.SourcePort
+            });
+        }
+        
+        // Remove the original link
+        State.Nodes.RemoveLink(link);
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Complete wire reconnection to new node.
+    /// </summary>
+    public void CompleteWireReconnect(FlowNode targetNode, bool toInput)
+    {
+        if (_mouseMode != MouseMode.Reconnecting || _reconnectingLink == null) return;
+        
+        NodeLink newLink;
+        if (_reconnectingFromSource)
+        {
+            // Reconnecting source side - we had the target, now we have new source
+            if (toInput)
+            {
+                // Can't connect input to input - cancel
+                CancelWireReconnect();
+                return;
+            }
+            newLink = new NodeLink
+            {
+                Source = targetNode,
+                Target = _reconnectingLink.Target,
+                SourcePort = 0  // Default to first output
+            };
+        }
+        else
+        {
+            // Reconnecting target side - we had the source, now we have new target
+            if (!toInput)
+            {
+                // Can't connect output to output - cancel
+                CancelWireReconnect();
+                return;
+            }
+            newLink = new NodeLink
+            {
+                Source = _reconnectingLink.Source,
+                Target = targetNode,
+                SourcePort = _reconnectingLink.SourcePort
+            };
+        }
+        
+        // Add the new link
+        State.Nodes.AddLink(newLink);
+        State.Nodes.SetDirty(true);
+        
+        // Clear reconnect state
+        _reconnectingLink = null;
+        _reconnectingFromSource = false;
+        ClearWireState();
+        _mouseMode = MouseMode.None;
+        StateHasChanged();
+    }
+    
+    /// <summary>
+    /// Cancel wire reconnection, restore original link.
+    /// </summary>
+    public void CancelWireReconnect()
+    {
+        if (_reconnectingLink != null)
+        {
+            // Restore the original link
+            State.Nodes.AddLink(_reconnectingLink);
+        }
+        
+        _reconnectingLink = null;
+        _reconnectingFromSource = false;
+        ClearWireState();
+        _mouseMode = MouseMode.None;
+        StateHasChanged();
+    }
 
     // ============================================================
     // Supporting types
@@ -829,7 +1357,8 @@
         Moving,
         Joining,
         Lasso,
-        Slicing
+        Slicing,
+        Reconnecting  // Added for wire reconnection - translated from DETACHED_DRAGGING in view.js
     }
 
     private class LassoRect

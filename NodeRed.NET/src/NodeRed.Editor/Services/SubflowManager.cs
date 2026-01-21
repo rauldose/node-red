@@ -276,16 +276,85 @@ public class SubflowManager
     /// </summary>
     public Subflow? CreateSubflow(string name, IEnumerable<FlowNode>? nodes = null)
     {
-        // TODO: Full implementation would:
-        // 1. Calculate input/output ports from external connections
-        // 2. Create subflow workspace
-        // 3. Move nodes into subflow workspace
+        var nodesToConvert = nodes?.ToList() ?? new List<FlowNode>();
+        
+        var subflowId = Guid.NewGuid().ToString();
         var subflow = new Subflow
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = subflowId,
             Type = "subflow",
-            Name = name
+            Name = name,
+            In = new List<SubflowPort>(),
+            Out = new List<SubflowPort>(),
+            Info = "",
+            Color = "#DDAA99"
         };
+        
+        // Add subflow to state
+        _state.Nodes.AddSubflow(subflow);
+        
+        // Create a workspace tab for the subflow
+        var workspace = new Workspace
+        {
+            Id = subflowId,
+            Type = "subflow",
+            Label = subflow.Name,
+            Disabled = false,
+            Info = ""
+        };
+        _state.Workspaces.Add(workspace);
+        
+        // If we have nodes to convert, move them into the subflow workspace
+        if (nodesToConvert.Count > 0)
+        {
+            var originalWorkspaceId = nodesToConvert.First().Z;
+            
+            // Calculate center point of selected nodes for positioning the instance node
+            var centerX = nodesToConvert.Average(n => n.X);
+            var centerY = nodesToConvert.Average(n => n.Y);
+            
+            // Analyze connections to determine input/output ports
+            AnalyzeAndCreatePorts(subflow, nodesToConvert, originalWorkspaceId);
+            
+            // Move nodes into the subflow workspace
+            foreach (var node in nodesToConvert)
+            {
+                node.Z = subflowId;  // Change workspace to subflow
+                node.Dirty = true;
+            }
+            
+            // Create a subflow instance node to replace the selected nodes on the original workspace
+            var instanceNode = new FlowNode
+            {
+                Id = Guid.NewGuid().ToString(),
+                Type = $"subflow:{subflowId}",
+                Name = name,
+                X = centerX,
+                Y = centerY,
+                Z = originalWorkspaceId,
+                Width = 120,
+                Height = 60,
+                Wires = new List<List<string>>(),
+                Dirty = true
+            };
+            
+            // Wire up the instance node to preserve external connections
+            RewireSubflowInstance(instanceNode, nodesToConvert, subflow);
+            
+            // Add the instance node to the original workspace
+            _state.Nodes.Add(instanceNode);
+            
+            // Emit event to update palette with new subflow type
+            _state.Events.Emit("registry:node-type-added", subflowId);
+        }
+        
+        // Record history
+        _history.Push(new HistoryEvent
+        {
+            Type = HistoryEventType.CreateSubflow,
+            SubflowId = subflow.Id,
+            NodeIds = nodesToConvert.Select(n => n.Id).ToList()
+        });
 
         return subflow;
     }
@@ -319,27 +388,109 @@ public class SubflowManager
     /// <summary>
     /// Convert subflow to regular nodes.
     /// Translated from convertToNodes() in subflow.js
-    /// Note: Full implementation requires EditorNodes access to get subflow nodes.
     /// </summary>
     public List<FlowNode> ConvertToNodes(Subflow subflow)
     {
-        // TODO: Full implementation would clone nodes from subflow workspace to current flow
+        // Get all nodes from the subflow workspace
+        var subflowNodes = _state.Nodes.GetNodes()
+            .Where(n => n.Z == subflow.Id)
+            .ToList();
+        
         var convertedNodes = new List<FlowNode>();
+        var activeWorkspace = _state.Workspaces.Active();
+        
+        // Clone each node and assign to current workspace
+        foreach (var node in subflowNodes)
+        {
+            var newNode = new FlowNode
+            {
+                Id = Guid.NewGuid().ToString(),
+                Type = node.Type,
+                Name = node.Name,
+                X = node.X + 50, // Offset slightly
+                Y = node.Y + 50,
+                Z = activeWorkspace,
+                Width = node.Width,
+                Height = node.Height,
+                Wires = new List<List<string>>(), // Will need remapping
+                Dirty = true
+            };
+            convertedNodes.Add(newNode);
+        }
+        
+        // Create mapping from old IDs to new IDs
+        var idMapping = subflowNodes.Zip(convertedNodes, (old, newNode) => (old.Id, newNode.Id))
+            .ToDictionary(x => x.Item1, x => x.Item2);
+        
+        // Remap wires
+        for (int i = 0; i < subflowNodes.Count; i++)
+        {
+            var originalWires = subflowNodes[i].Wires;
+            if (originalWires != null)
+            {
+                var newWires = originalWires.Select(wireList => 
+                    wireList.Select(targetId => 
+                        idMapping.TryGetValue(targetId, out var newId) ? newId : targetId
+                    ).ToList()
+                ).ToList();
+                convertedNodes[i].Wires = newWires;
+            }
+        }
+        
+        // Add converted nodes to state
+        foreach (var node in convertedNodes)
+        {
+            _state.Nodes.Add(node);
+        }
+        
         return convertedNodes;
     }
 
     /// <summary>
     /// Delete a subflow.
     /// Translated from delete() in subflow.js
-    /// Note: Full implementation requires EditorNodes integration.
     /// </summary>
     public void DeleteSubflow(string subflowId)
     {
-        // TODO: Full implementation would:
-        // 1. Check for instances in use
-        // 2. Delete subflow nodes
-        // 3. Remove subflow workspace
-        // 4. Remove subflow definition
+        // Check for instances in use
+        var instances = _state.Nodes.GetNodes()
+            .Where(n => n.Type == $"subflow:{subflowId}")
+            .ToList();
+        
+        if (instances.Count > 0)
+        {
+            // Remove all instances first
+            foreach (var instance in instances)
+            {
+                _state.Nodes.Remove(instance);
+            }
+        }
+        
+        // Delete subflow nodes (nodes inside the subflow workspace)
+        var subflowNodes = _state.Nodes.GetNodes()
+            .Where(n => n.Z == subflowId)
+            .ToList();
+        
+        foreach (var node in subflowNodes)
+        {
+            _state.Nodes.Remove(node);
+        }
+        
+        // Remove subflow workspace
+        _state.Workspaces.Remove(subflowId);
+        
+        // Remove subflow definition
+        _state.Nodes.RemoveSubflow(subflowId);
+        
+        // Record history
+        _history.Push(new HistoryEvent
+        {
+            Type = HistoryEventType.DeleteSubflow,
+            SubflowId = subflowId,
+            NodeIds = subflowNodes.Select(n => n.Id).Concat(instances.Select(i => i.Id)).ToList()
+        });
+        
+        _state.Events.Emit("subflows:remove", subflowId);
     }
 
     /// <summary>
@@ -353,12 +504,11 @@ public class SubflowManager
 
     /// <summary>
     /// Get subflow instance count.
-    /// Note: Full implementation requires EditorNodes access to count subflow instances.
     /// </summary>
     public int GetInstanceCount(string subflowId)
     {
-        // TODO: Full implementation would count nodes with type "subflow:{subflowId}"
-        return 0;
+        return _state.Nodes.GetNodes()
+            .Count(n => n.Type == $"subflow:{subflowId}");
     }
 
     /// <summary>

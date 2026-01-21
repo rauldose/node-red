@@ -11,6 +11,7 @@ public class Runtime
     private string _state = "disconnected";
     private Dictionary<string, object> _settings = new();
     private string? _version;
+    private bool _flowsRunningState = false;
 
     public Runtime(Events events)
     {
@@ -104,10 +105,114 @@ public class Runtime
     /// <summary>
     /// Check if flows are running
     /// </summary>
-    public bool FlowsRunning => _state == "connected" || _state == "running";
+    public bool FlowsRunning => _state == "connected" || _state == "running" || _flowsRunningState;
 
     /// <summary>
     /// Check if flows are stopped
     /// </summary>
-    public bool FlowsStopped => _state == "stopped";
+    public bool FlowsStopped => _state == "stopped" || !_flowsRunningState;
+
+    /// <summary>
+    /// Start all flows.
+    /// Translated from runtime.startFlows in runtime.js
+    /// </summary>
+    public async Task StartFlowsAsync()
+    {
+        if (_flowsRunningState)
+        {
+            return; // Already running
+        }
+
+        _flowsRunningState = true;
+        SetState("starting");
+        
+        _events.Emit("runtime:flows:starting");
+        
+        // Simulate startup delay
+        await Task.Delay(100);
+        
+        SetState("running");
+        _events.Emit("runtime:flows:started");
+    }
+
+    /// <summary>
+    /// Stop all flows.
+    /// Translated from runtime.stopFlows in runtime.js
+    /// </summary>
+    public async Task StopFlowsAsync()
+    {
+        if (!_flowsRunningState)
+        {
+            return; // Already stopped
+        }
+
+        _events.Emit("runtime:flows:stopping");
+        SetState("stopping");
+        
+        // Simulate shutdown delay
+        await Task.Delay(100);
+        
+        _flowsRunningState = false;
+        SetState("stopped");
+        _events.Emit("runtime:flows:stopped");
+    }
+
+    /// <summary>
+    /// Restart flows (optionally a specific flow).
+    /// Translated from runtime.restartFlows in runtime.js
+    /// </summary>
+    public async Task RestartFlowsAsync(string? flowId = null)
+    {
+        if (flowId != null)
+        {
+            // Restart specific flow
+            _events.Emit("runtime:flow:restarting", new { flowId });
+            await Task.Delay(50);
+            _events.Emit("runtime:flow:restarted", new { flowId });
+        }
+        else
+        {
+            // Restart all flows
+            await StopFlowsAsync();
+            await StartFlowsAsync();
+        }
+    }
+
+    /// <summary>
+    /// Get flow status information.
+    /// </summary>
+    public FlowStatus GetFlowStatus()
+    {
+        return new FlowStatus
+        {
+            State = _state,
+            Running = _flowsRunningState,
+            Connected = _connected
+        };
+    }
+
+    /// <summary>
+    /// Get status of a specific flow.
+    /// </summary>
+    public FlowStatus GetFlowStatus(string flowId)
+    {
+        return new FlowStatus
+        {
+            FlowId = flowId,
+            State = _state,
+            Running = _flowsRunningState,
+            Connected = _connected
+        };
+    }
+}
+
+/// <summary>
+/// Flow status information.
+/// </summary>
+public class FlowStatus
+{
+    public string? FlowId { get; set; }
+    public string State { get; set; } = "unknown";
+    public bool Running { get; set; }
+    public bool Connected { get; set; }
 }
