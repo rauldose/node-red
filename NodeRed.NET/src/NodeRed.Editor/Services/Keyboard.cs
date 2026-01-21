@@ -77,6 +77,14 @@ public class Keyboard
 
         // Quick add
         AddBinding("ctrl+shift+p", "core:show-action-list");
+        
+        // Tab navigation - translated from workspaces.js core:show-next-tab / core:show-previous-tab
+        AddBinding("ctrl+pagedown", "core:show-next-tab");
+        AddBinding("ctrl+pageup", "core:show-previous-tab");
+        
+        // View history navigation - translated from core:go-to-previous-location / core:go-to-next-location
+        AddBinding("alt+left", "core:go-to-previous-location");
+        AddBinding("alt+right", "core:go-to-next-location");
 
         // Arrow key navigation
         AddBinding("left", "core:move-selection-left");

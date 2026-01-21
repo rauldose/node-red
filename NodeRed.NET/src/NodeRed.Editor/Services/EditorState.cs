@@ -787,6 +787,10 @@ public class EditorWorkspaces
     private int _workspaceIndex = 0;
     private readonly List<Workspace> _workspaces = new();
     private readonly List<string> _workspaceOrder = new();
+    
+    // View navigation history - translated from workspaces.js line 25-37
+    private readonly List<string> _viewStack = new();
+    private int _viewStackPos = 0;
 
     public int Count => _workspaces.Count;
 
@@ -798,6 +802,109 @@ public class EditorWorkspaces
     public void SetActive(string id)
     {
         _activeWorkspace = id;
+    }
+    
+    /// <summary>
+    /// Add current workspace to view history stack before navigating.
+    /// Translated from workspaces.js addToViewStack()
+    /// </summary>
+    public void AddToViewStack(string id)
+    {
+        if (_viewStackPos != _viewStack.Count)
+        {
+            // If we're not at the end of the stack, truncate
+            _viewStack.RemoveRange(_viewStackPos, _viewStack.Count - _viewStackPos);
+        }
+        _viewStack.Add(id);
+        _viewStackPos = _viewStack.Count;
+    }
+    
+    /// <summary>
+    /// Navigate to previous location in history.
+    /// Translated from core:go-to-previous-location action
+    /// </summary>
+    public bool GoToPreviousLocation()
+    {
+        if (_viewStackPos > 0)
+        {
+            if (_viewStackPos == _viewStack.Count)
+            {
+                // We're at the end of the stack. Remember the activeWorkspace
+                // so we can come back to it.
+                _viewStack.Add(_activeWorkspace);
+            }
+            _viewStackPos--;
+            _activeWorkspace = _viewStack[_viewStackPos];
+            return true;
+        }
+        return false;
+    }
+    
+    /// <summary>
+    /// Navigate to next location in history.
+    /// Translated from core:go-to-next-location action
+    /// </summary>
+    public bool GoToNextLocation()
+    {
+        if (_viewStackPos < _viewStack.Count - 1)
+        {
+            _viewStackPos++;
+            _activeWorkspace = _viewStack[_viewStackPos];
+            return true;
+        }
+        return false;
+    }
+    
+    /// <summary>
+    /// Check if can go to previous location.
+    /// </summary>
+    public bool CanGoToPreviousLocation() => _viewStackPos > 0;
+    
+    /// <summary>
+    /// Check if can go to next location.
+    /// </summary>
+    public bool CanGoToNextLocation() => _viewStackPos < _viewStack.Count - 1;
+    
+    /// <summary>
+    /// Navigate to next workspace tab.
+    /// Translated from tabs.js nextTab()
+    /// </summary>
+    public bool NextTab()
+    {
+        var currentIndex = _workspaceOrder.IndexOf(_activeWorkspace);
+        if (currentIndex < 0 || _workspaceOrder.Count < 2) return false;
+        
+        var nextIndex = (currentIndex + 1) % _workspaceOrder.Count;
+        var oldActive = _activeWorkspace;
+        _activeWorkspace = _workspaceOrder[nextIndex];
+        
+        if (oldActive != _activeWorkspace)
+        {
+            AddToViewStack(oldActive);
+            return true;
+        }
+        return false;
+    }
+    
+    /// <summary>
+    /// Navigate to previous workspace tab.
+    /// Translated from tabs.js previousTab()
+    /// </summary>
+    public bool PreviousTab()
+    {
+        var currentIndex = _workspaceOrder.IndexOf(_activeWorkspace);
+        if (currentIndex < 0 || _workspaceOrder.Count < 2) return false;
+        
+        var prevIndex = currentIndex == 0 ? _workspaceOrder.Count - 1 : currentIndex - 1;
+        var oldActive = _activeWorkspace;
+        _activeWorkspace = _workspaceOrder[prevIndex];
+        
+        if (oldActive != _activeWorkspace)
+        {
+            AddToViewStack(oldActive);
+            return true;
+        }
+        return false;
     }
 
     public string Active() => _activeWorkspace;

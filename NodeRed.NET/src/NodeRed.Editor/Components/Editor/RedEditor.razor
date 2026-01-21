@@ -1216,6 +1216,36 @@
         });
         
         KeyboardService.AddHandler("core:deploy", async () => await HandleDeploy());
+        
+        // Tab navigation handlers - translated from workspaces.js
+        KeyboardService.AddHandler("core:show-next-tab", () =>
+        {
+            State.Workspaces.NextTab();
+            StateHasChanged();
+        });
+        
+        KeyboardService.AddHandler("core:show-previous-tab", () =>
+        {
+            State.Workspaces.PreviousTab();
+            StateHasChanged();
+        });
+        
+        // View history navigation handlers - translated from workspaces.js
+        KeyboardService.AddHandler("core:go-to-previous-location", () =>
+        {
+            if (State.Workspaces.GoToPreviousLocation())
+            {
+                StateHasChanged();
+            }
+        });
+        
+        KeyboardService.AddHandler("core:go-to-next-location", () =>
+        {
+            if (State.Workspaces.GoToNextLocation())
+            {
+                StateHasChanged();
+            }
+        });
     }
 
     /// <summary>
