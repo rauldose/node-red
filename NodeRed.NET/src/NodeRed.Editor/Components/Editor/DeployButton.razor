@@ -14,30 +14,93 @@
    })();
    ------------------------------------------------------------
    TRANSLATION:
-   - Deploy button with dropdown → Blazor component
+   - Deploy button with dropdown → Blazor component with deploy modes
    ============================================================ *@
 
 @using NodeRed.Editor.Services
 @inject EditorState State
+@inject IJSRuntime JS
 
-<span class="red-ui-deploy-button-group">
+<span class="red-ui-deploy-button-group button-group">
+    @* Main deploy button *@
     <a id="red-ui-header-button-deploy" 
-       class="button red-ui-deploy-button @(HasChanges ? "" : "disabled")"
+       class="red-ui-deploy-button @(HasChanges ? "" : "disabled")"
        @onclick="HandleDeploy"
-       title="@(HasChanges ? "Deploy changes" : "No changes to deploy")">
+       title="@(HasChanges ? GetDeployTitle() : "No changes to deploy")">
         <span class="red-ui-deploy-button-content">
             @if (IsDeploying)
             {
-                <span class="red-ui-deploy-button-spinner" style="margin-right: 8px;">⟳</span>
+                <span class="red-ui-deploy-button-spinner">
+                    <i class="fa fa-spinner fa-spin"></i>
+                </span>
+            }
+            else
+            {
+                <img src="@GetDeployIcon()" style="height: 18px; margin-right: 4px;">
             }
             @if (HasChanges)
             {
-                <span class="red-ui-deploy-button-dirty-indicator" 
-                      style="display: inline-block; width: 8px; height: 8px; background-color: #d93637; border-radius: 50%; margin-right: 6px;"></span>
+                <span class="red-ui-deploy-button-dirty-indicator"></span>
             }
             @State.I18n.Translate("deploy.deploy")
         </span>
     </a>
+    @* Dropdown button *@
+    <a id="red-ui-header-button-deploy-options" 
+       class="red-ui-deploy-button @(HasChanges ? "" : "disabled")"
+       @onclick="ToggleDropdown"
+       @onclick:stopPropagation="true"
+       title="Deploy options">
+        <span class="red-ui-deploy-button-content">
+            <i class="fa fa-caret-down"></i>
+        </span>
+    </a>
+    @* Dropdown menu *@
+    @if (ShowDropdown)
+    {
+        <div class="red-ui-menu red-ui-deploy-menu" 
+             style="position: absolute; top: 100%; right: 0; z-index: 1000; background: #fff; border: 1px solid #ccc; box-shadow: 0 2px 8px rgba(0,0,0,0.15); min-width: 180px;">
+            <div class="red-ui-menu-header" style="padding: 8px 12px; border-bottom: 1px solid #eee; font-weight: 500;">
+                @State.I18n.Translate("deploy.deploymentType")
+            </div>
+            <ul style="list-style: none; margin: 0; padding: 0;">
+                <li class="@(DeploymentType == "full" ? "active" : "")" @onclick="@(() => SetDeploymentType("full"))" 
+                    style="padding: 8px 12px; cursor: pointer; display: flex; align-items: center;">
+                    <img src="red/images/deploy-full-o.svg" style="height: 16px; margin-right: 8px;">
+                    <span>@State.I18n.Translate("deploy.full")</span>
+                    @if (DeploymentType == "full") { <i class="fa fa-check" style="margin-left: auto;"></i> }
+                </li>
+                <li class="@(DeploymentType == "nodes" ? "active" : "")" @onclick="@(() => SetDeploymentType("nodes"))"
+                    style="padding: 8px 12px; cursor: pointer; display: flex; align-items: center;">
+                    <img src="red/images/deploy-nodes-o.svg" style="height: 16px; margin-right: 8px;">
+                    <span>@State.I18n.Translate("deploy.modifiedNodes")</span>
+                    @if (DeploymentType == "nodes") { <i class="fa fa-check" style="margin-left: auto;"></i> }
+                </li>
+                <li class="@(DeploymentType == "flows" ? "active" : "")" @onclick="@(() => SetDeploymentType("flows"))"
+                    style="padding: 8px 12px; cursor: pointer; display: flex; align-items: center;">
+                    <img src="red/images/deploy-flows-o.svg" style="height: 16px; margin-right: 8px;">
+                    <span>@State.I18n.Translate("deploy.modifiedFlows")</span>
+                    @if (DeploymentType == "flows") { <i class="fa fa-check" style="margin-left: auto;"></i> }
+                </li>
+            </ul>
+            <div style="border-top: 1px solid #eee;">
+                <ul style="list-style: none; margin: 0; padding: 0;">
+                    <li @onclick="StartFlows" style="padding: 8px 12px; cursor: pointer;" class="@(IsRuntimeStopped ? "" : "disabled")">
+                        <i class="fa fa-play" style="width: 16px; margin-right: 8px;"></i>
+                        @State.I18n.Translate("deploy.startFlows")
+                    </li>
+                    <li @onclick="StopFlows" style="padding: 8px 12px; cursor: pointer;" class="@(IsRuntimeStopped ? "disabled" : "")">
+                        <i class="fa fa-stop" style="width: 16px; margin-right: 8px;"></i>
+                        @State.I18n.Translate("deploy.stopFlows")
+                    </li>
+                    <li @onclick="RestartFlows" style="padding: 8px 12px; cursor: pointer;">
+                        <i class="fa fa-refresh" style="width: 16px; margin-right: 8px;"></i>
+                        @State.I18n.Translate("deploy.restartFlows")
+                    </li>
+                </ul>
+            </div>
+        </div>
+    }
 </span>
 
 @code {
@@ -46,24 +109,189 @@
 
     private string DeploymentType = "full";
     private bool IsDeploying = false;
+    private bool ShowDropdown = false;
+    private bool IsRuntimeStopped = false;
     private bool HasChanges => State.Nodes.IsDirty();
+    private List<ValidationError> ValidationErrors = new();
+
+    protected override void OnInitialized()
+    {
+        // Listen for runtime state changes
+        State.Events.On("runtime:state", (arg) =>
+        {
+            if (arg is bool running)
+            {
+                IsRuntimeStopped = !running;
+                InvokeAsync(StateHasChanged);
+            }
+        });
+    }
+
+    private string GetDeployIcon()
+    {
+        return DeploymentType switch
+        {
+            "nodes" => "red/images/deploy-nodes-o.svg",
+            "flows" => "red/images/deploy-flows-o.svg",
+            _ => "red/images/deploy-full-o.svg"
+        };
+    }
+
+    private string GetDeployTitle()
+    {
+        return DeploymentType switch
+        {
+            "nodes" => State.I18n.Translate("deploy.modifiedNodes"),
+            "flows" => State.I18n.Translate("deploy.modifiedFlows"),
+            _ => State.I18n.Translate("deploy.full")
+        };
+    }
+
+    private void ToggleDropdown()
+    {
+        ShowDropdown = !ShowDropdown;
+    }
+
+    private void SetDeploymentType(string type)
+    {
+        DeploymentType = type;
+        ShowDropdown = false;
+    }
 
     private async Task HandleDeploy()
     {
         if (IsDeploying || !HasChanges) return;
 
+        // Pre-deploy validation
+        ValidationErrors.Clear();
+        var (isValid, errors) = ValidateNodes();
+        
+        if (!isValid)
+        {
+            // Show validation warning notification
+            State.Events.Emit("notification:show", new
+            {
+                Type = "warning",
+                Message = $"Validation errors found: {errors.Count} node(s) have issues",
+                Timeout = 5000
+            });
+            
+            // Still allow deploy with confirmation (like Node-RED)
+        }
+
         IsDeploying = true;
+        ShowDropdown = false;
         StateHasChanged();
 
         try
         {
+            // Emit deploy event with deployment type header
+            State.Events.Emit("deploy:start", new { Type = DeploymentType });
+            
             await OnDeploy.InvokeAsync();
+            
+            // Clear dirty state on success
             State.Nodes.SetDirty(false);
+            
+            // Mark history for undo/redo
+            State.Events.Emit("history:mark", null);
+            
+            // Show success notification
+            State.Events.Emit("notification:show", new
+            {
+                Type = "success",
+                Message = State.I18n.Translate("deploy.successfulDeploy"),
+                Timeout = 3000
+            });
+            
+            State.Events.Emit("deploy:complete", new { Type = DeploymentType, Success = true });
+        }
+        catch (Exception ex)
+        {
+            // Show error notification
+            State.Events.Emit("notification:show", new
+            {
+                Type = "error",
+                Message = $"Deploy failed: {ex.Message}",
+                Timeout = 0 // Persistent
+            });
+            
+            State.Events.Emit("deploy:complete", new { Type = DeploymentType, Success = false, Error = ex.Message });
         }
         finally
         {
             IsDeploying = false;
             StateHasChanged();
         }
+    }
+
+    private (bool isValid, List<ValidationError> errors) ValidateNodes()
+    {
+        var errors = new List<ValidationError>();
+        
+        // Validate all nodes
+        foreach (var node in State.Nodes.GetNodes())
+        {
+            // Check for required properties
+            if (string.IsNullOrEmpty(node.Id))
+            {
+                errors.Add(new ValidationError
+                {
+                    NodeId = node.Id ?? "",
+                    NodeName = node.Name ?? node.Type,
+                    Message = "Node is missing ID"
+                });
+            }
+        }
+        
+        return (errors.Count == 0, errors);
+    }
+
+    private async Task StartFlows()
+    {
+        ShowDropdown = false;
+        if (!IsRuntimeStopped) return;
+        
+        State.Events.Emit("runtime:start", null);
+        State.Events.Emit("notification:show", new
+        {
+            Type = "info",
+            Message = State.I18n.Translate("deploy.startedFlows"),
+            Timeout = 3000
+        });
+    }
+
+    private async Task StopFlows()
+    {
+        ShowDropdown = false;
+        if (IsRuntimeStopped) return;
+        
+        State.Events.Emit("runtime:stop", null);
+        State.Events.Emit("notification:show", new
+        {
+            Type = "info",
+            Message = State.I18n.Translate("deploy.stoppedFlows"),
+            Timeout = 3000
+        });
+    }
+
+    private async Task RestartFlows()
+    {
+        ShowDropdown = false;
+        
+        State.Events.Emit("runtime:restart", null);
+        State.Events.Emit("notification:show", new
+        {
+            Type = "info",
+            Message = State.I18n.Translate("deploy.restartingFlows"),
+            Timeout = 3000
+        });
+    }
+
+    private class ValidationError
+    {
+        public string NodeId { get; set; } = "";
+        public string NodeName { get; set; } = "";
+        public string Message { get; set; } = "";
     }
 }

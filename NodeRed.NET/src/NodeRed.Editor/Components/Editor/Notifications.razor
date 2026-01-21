@@ -9,14 +9,25 @@
    }
    ------------------------------------------------------------
    TRANSLATION:
-   - jQuery notifications → Blazor component with list
+   - jQuery notifications → Blazor component with persistent ID tracking
    ============================================================ *@
 
+@using NodeRed.Editor.Services
+@inject EditorState State
+
+@* Modal shade for modal notifications *@
+@if (_showModalShade)
+{
+    <div class="red-ui-notification-shade" @onclick="CloseModalShade" 
+         style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); z-index: 999;"></div>
+}
+
 <div id="red-ui-notifications" class="red-ui-notifications">
-    @foreach (var notification in _notifications)
+    @foreach (var notification in _notifications.Take(MaxNotifications))
     {
-        <div class="red-ui-notification red-ui-notification-@notification.Type @(notification.IsHiding ? "hiding" : "")"
-             id="@notification.Id">
+        <div class="red-ui-notification red-ui-notification-@notification.Type @(notification.IsHiding ? "hiding" : "") @(notification.IsModal ? "modal" : "")"
+             id="@notification.Id"
+             style="@(notification.Width > 0 ? $"width: {notification.Width}px;" : "")">
             <div class="red-ui-notification-content">
                 @((MarkupString)notification.Message)
             </div>
@@ -25,7 +36,7 @@
                 <div class="red-ui-notification-buttons">
                     @foreach (var button in notification.Buttons)
                     {
-                        <button class="@button.CssClass" @onclick="button.OnClick">
+                        <button class="red-ui-button @button.CssClass" @onclick="button.OnClick">
                             @button.Text
                         </button>
                     }
@@ -43,53 +54,186 @@
 
 @code {
     private List<NotificationItem> _notifications = new();
+    private Dictionary<string, NotificationItem> _persistentNotifications = new();
     private int _notificationCounter = 0;
+    private int _modalShadeCount = 0;
+    private bool _showModalShade => _modalShadeCount > 0;
+    
+    private const int MaxNotifications = 4; // Match Node-RED limit
 
-    public async Task ShowAsync(string message, string type = "info", int? timeout = null)
+    protected override void OnInitialized()
     {
-        var notification = new NotificationItem
+        // Listen for notification events from anywhere in the app
+        State.Events.On("notification:show", async (data) =>
         {
-            Id = $"notification-{++_notificationCounter}",
-            Message = message,
-            Type = type,
-            Fixed = timeout == null,
-            Timeout = timeout ?? (type == "error" ? 10000 : 5000)
-        };
-
-        _notifications.Add(notification);
-        StateHasChanged();
-
-        if (!notification.Fixed)
+            if (data == null) return;
+            
+            var dict = data as IDictionary<string, object>;
+            if (dict == null)
+            {
+                // Try to use dynamic 
+                var dataType = data.GetType();
+                var typeStr = dataType.GetProperty("Type")?.GetValue(data)?.ToString() ?? "info";
+                var message = dataType.GetProperty("Message")?.GetValue(data)?.ToString() ?? "";
+                var timeout = dataType.GetProperty("Timeout")?.GetValue(data) as int?;
+                var id = dataType.GetProperty("Id")?.GetValue(data)?.ToString();
+                
+                await ShowAsync(message, typeStr, timeout, id);
+            }
+            else
+            {
+                var message = dict.ContainsKey("Message") ? dict["Message"]?.ToString() ?? "" : "";
+                var type = dict.ContainsKey("Type") ? dict["Type"]?.ToString() ?? "info" : "info";
+                var timeout = dict.ContainsKey("Timeout") ? dict["Timeout"] as int? : null;
+                var id = dict.ContainsKey("Id") ? dict["Id"]?.ToString() : null;
+                
+                await ShowAsync(message, type, timeout, id);
+            }
+        });
+        
+        State.Events.On("notification:hide", async (arg) =>
         {
-            await Task.Delay(notification.Timeout);
-            await HideNotificationAsync(notification.Id);
-        }
+            if (arg is string id)
+            {
+                await HideNotificationAsync(id);
+            }
+        });
+        
+        State.Events.On("notification:update", (data) =>
+        {
+            if (data == null) return;
+            
+            var dataType = data.GetType();
+            var id = dataType.GetProperty("Id")?.GetValue(data)?.ToString();
+            var message = dataType.GetProperty("Message")?.GetValue(data)?.ToString();
+            
+            if (!string.IsNullOrEmpty(id))
+            {
+                UpdateNotification(id, message);
+            }
+        });
     }
 
-    public async Task ShowWithButtonsAsync(string message, string type, List<NotificationButton> buttons, bool isFixed = true)
+    /// <summary>
+    /// Show a notification with options (matches Node-RED RED.notify API)
+    /// </summary>
+    public async Task<NotificationItem> ShowAsync(string message, string type = "info", int? timeout = null, string? persistentId = null, bool isModal = false, int width = 0)
+    {
+        // Check if updating an existing persistent notification
+        if (!string.IsNullOrEmpty(persistentId) && _persistentNotifications.TryGetValue(persistentId, out var existing))
+        {
+            existing.Message = message;
+            existing.Type = type;
+            await InvokeAsync(StateHasChanged);
+            return existing;
+        }
+        
+        var notification = new NotificationItem
+        {
+            Id = persistentId ?? $"notification-{++_notificationCounter}",
+            Message = message,
+            Type = type,
+            Fixed = timeout == 0 || timeout == null,
+            Timeout = timeout ?? (type == "error" ? 10000 : 5000),
+            IsModal = isModal,
+            Width = width
+        };
+
+        // Enforce max notification limit
+        while (_notifications.Count >= MaxNotifications)
+        {
+            var oldest = _notifications.FirstOrDefault(n => !n.Fixed);
+            if (oldest != null)
+            {
+                await HideNotificationAsync(oldest.Id);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        _notifications.Add(notification);
+        
+        if (!string.IsNullOrEmpty(persistentId))
+        {
+            _persistentNotifications[persistentId] = notification;
+        }
+        
+        if (isModal)
+        {
+            _modalShadeCount++;
+        }
+        
+        await InvokeAsync(StateHasChanged);
+
+        if (!notification.Fixed && notification.Timeout > 0)
+        {
+            _ = AutoHideAsync(notification.Id, notification.Timeout);
+        }
+        
+        return notification;
+    }
+
+    private async Task AutoHideAsync(string id, int timeout)
+    {
+        await Task.Delay(timeout);
+        await HideNotificationAsync(id);
+    }
+
+    public async Task ShowWithButtonsAsync(string message, string type, List<NotificationButton> buttons, bool isFixed = true, string? persistentId = null, bool isModal = false)
     {
         var notification = new NotificationItem
         {
-            Id = $"notification-{++_notificationCounter}",
+            Id = persistentId ?? $"notification-{++_notificationCounter}",
             Message = message,
             Type = type,
             Fixed = isFixed,
-            Buttons = buttons
+            Buttons = buttons,
+            IsModal = isModal
         };
 
         // Update button click handlers to auto-close
         foreach (var button in notification.Buttons)
         {
             var originalClick = button.OnClick;
+            var notificationId = notification.Id;
             button.OnClick = async () =>
             {
                 originalClick?.Invoke();
-                await HideNotificationAsync(notification.Id);
+                await HideNotificationAsync(notificationId);
             };
         }
 
         _notifications.Add(notification);
-        StateHasChanged();
+        
+        if (!string.IsNullOrEmpty(persistentId))
+        {
+            _persistentNotifications[persistentId] = notification;
+        }
+        
+        if (isModal)
+        {
+            _modalShadeCount++;
+        }
+        
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Update an existing persistent notification
+    /// </summary>
+    public void UpdateNotification(string id, string? message = null, string? type = null)
+    {
+        var notification = _notifications.FirstOrDefault(n => n.Id == id) ?? 
+                          (_persistentNotifications.TryGetValue(id, out var pn) ? pn : null);
+        
+        if (notification != null)
+        {
+            if (message != null) notification.Message = message;
+            if (type != null) notification.Type = type;
+            InvokeAsync(StateHasChanged);
+        }
     }
 
     public void HideNotification(string id)
@@ -103,13 +247,39 @@
         if (notification != null)
         {
             notification.IsHiding = true;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
 
             await Task.Delay(300); // Animation time
 
             _notifications.Remove(notification);
-            StateHasChanged();
+            _persistentNotifications.Remove(id);
+            
+            if (notification.IsModal)
+            {
+                _modalShadeCount = Math.Max(0, _modalShadeCount - 1);
+            }
+            
+            await InvokeAsync(StateHasChanged);
         }
+    }
+    
+    private void CloseModalShade()
+    {
+        // Close all modal notifications when clicking shade
+        var modalNotifications = _notifications.Where(n => n.IsModal && !n.Fixed).ToList();
+        foreach (var notification in modalNotifications)
+        {
+            _ = HideNotificationAsync(notification.Id);
+        }
+    }
+
+    /// <summary>
+    /// Get notification by ID for external updates
+    /// </summary>
+    public NotificationItem? GetNotification(string id)
+    {
+        return _notifications.FirstOrDefault(n => n.Id == id) ?? 
+               (_persistentNotifications.TryGetValue(id, out var pn) ? pn : null);
     }
 
     public class NotificationItem
@@ -120,7 +290,17 @@
         public bool Fixed { get; set; }
         public int Timeout { get; set; } = 5000;
         public bool IsHiding { get; set; }
+        public bool IsModal { get; set; }
+        public int Width { get; set; }
         public List<NotificationButton> Buttons { get; set; } = new();
+        
+        /// <summary>
+        /// Update this notification (matches Node-RED notification.update())
+        /// </summary>
+        public void Update(string message)
+        {
+            Message = message;
+        }
     }
 
     public class NotificationButton
